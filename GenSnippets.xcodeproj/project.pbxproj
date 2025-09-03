@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXFileReference section */
-		691C330F2D51E9B600C4F0A9 /* Gen Snippets.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Gen Snippets.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		691C330F2D51E9B600C4F0A9 /* GenSnippets.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GenSnippets.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -40,7 +40,7 @@
 		69C310DE2D40F3E60016F219 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				691C330F2D51E9B600C4F0A9 /* Gen Snippets.app */,
+				691C330F2D51E9B600C4F0A9 /* GenSnippets.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -48,9 +48,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		691C330E2D51E9B600C4F0A9 /* Gen Snippets */ = {
+		691C330E2D51E9B600C4F0A9 /* GenSnippets */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 691C331F2D51E9B700C4F0A9 /* Build configuration list for PBXNativeTarget "Gen Snippets" */;
+			buildConfigurationList = 691C331F2D51E9B700C4F0A9 /* Build configuration list for PBXNativeTarget "GenSnippets" */;
 			buildPhases = (
 				691C330B2D51E9B600C4F0A9 /* Sources */,
 				691C330C2D51E9B600C4F0A9 /* Frameworks */,
@@ -63,11 +63,11 @@
 			fileSystemSynchronizedGroups = (
 				691C33102D51E9B600C4F0A9 /* Gen Snippets */,
 			);
-			name = "Gen Snippets";
+			name = GenSnippets;
 			packageProductDependencies = (
 			);
-			productName = "Gen Snippets";
-			productReference = 691C330F2D51E9B600C4F0A9 /* Gen Snippets.app */;
+			productName = GenSnippets;
+			productReference = 691C330F2D51E9B600C4F0A9 /* GenSnippets.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -100,7 +100,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				691C330E2D51E9B600C4F0A9 /* Gen Snippets */,
+				691C330E2D51E9B600C4F0A9 /* GenSnippets */,
 			);
 		};
 /* End PBXProject section */
@@ -135,14 +135,14 @@
 				CODE_SIGN_ENTITLEMENTS = "Gen Snippets/Gen_Snippets.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 18;
+				CURRENT_PROJECT_VERSION = 20;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"Gen Snippets/Preview Content\"";
 				DEVELOPMENT_TEAM = GY8FNKSR7D;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "Gen Snippets";
+				INFOPLIST_KEY_CFBundleDisplayName = GenSnippets;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -167,14 +167,14 @@
 				CODE_SIGN_ENTITLEMENTS = "Gen Snippets/Gen_Snippets.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 18;
+				CURRENT_PROJECT_VERSION = 20;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"Gen Snippets/Preview Content\"";
 				DEVELOPMENT_TEAM = GY8FNKSR7D;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "Gen Snippets";
+				INFOPLIST_KEY_CFBundleDisplayName = GenSnippets;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -317,7 +317,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		691C331F2D51E9B700C4F0A9 /* Build configuration list for PBXNativeTarget "Gen Snippets" */ = {
+		691C331F2D51E9B700C4F0A9 /* Build configuration list for PBXNativeTarget "GenSnippets" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				691C331D2D51E9B700C4F0A9 /* Debug */,
