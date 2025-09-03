@@ -1,10 +1,12 @@
 import SwiftUI
+import ServiceManagement
 
 struct MenuBarView: View {
     @StateObject private var categoryViewModel = CategoryViewModel()
     @StateObject private var snippetsViewModel = LocalSnippetsViewModel()
     @State private var isQuitting = false
     @State private var showClearDataAlert = false
+    @State private var launchAtLogin = false
     
     private var appVersion: String {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
@@ -50,29 +52,65 @@ struct MenuBarView: View {
             Divider()
             
             // Info Section
-            VStack(spacing: 12) {
-                StatusRowView(
-                    icon: "doc.text",
-                    iconColor: .blue,
-                    title: "Total Snippets",
-                    value: "\(snippetsViewModel.snippets.count)"
-                )
+            VStack(spacing: 0) {
+                // Total Snippets
+                HStack {
+                    Image(systemName: "doc.text")
+                        .frame(width: 20)
+                        .foregroundColor(.primary)
+                    Text("Total Snippets")
+                    Spacer()
+                    Text("\(snippetsViewModel.snippets.count)")
+                        .foregroundColor(.secondary)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
                 
-                StatusRowView(
-                    icon: "folder",
-                    iconColor: .orange,
-                    title: "Categories",
-                    value: "\(categoryViewModel.categories.count)"
-                )
+                // Categories
+                HStack {
+                    Image(systemName: "folder")
+                        .frame(width: 20)
+                        .foregroundColor(.primary)
+                    Text("Categories")
+                    Spacer()
+                    Text("\(categoryViewModel.categories.count)")
+                        .foregroundColor(.secondary)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
                 
-                StatusRowView(
-                    icon: "info.circle",
-                    iconColor: .gray,
-                    title: "About",
-                    value: appVersion
-                )
+                // About
+                HStack {
+                    Image(systemName: "info.circle")
+                        .frame(width: 20)
+                        .foregroundColor(.primary)
+                    Text("About")
+                    Spacer()
+                    Text(appVersion)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
             }
-            .padding(.horizontal, 16)
+            
+            Divider()
+            
+            // Launch at Login toggle
+            Button(action: {
+                toggleLaunchAtLogin()
+            }) {
+                HStack {
+                    Image(systemName: launchAtLogin ? "checkmark.square" : "square")
+                        .frame(width: 20)
+                        .foregroundColor(.primary)
+                    Text("Launch at Login")
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(PlainButtonStyle())
             
             Divider()
             
@@ -100,6 +138,7 @@ struct MenuBarView: View {
         .onAppear {
             categoryViewModel.fetchCategories()
             snippetsViewModel.fetchSnippets()
+            checkLaunchAtLoginStatus()
         }
         .alert(isPresented: $showClearDataAlert) {
             Alert(
@@ -132,6 +171,67 @@ struct MenuBarView: View {
         
         // Show notification
         NotificationCenter.default.post(name: NSNotification.Name("ShowToast"), object: ["message": "All data has been cleared", "type": "success"])
+    }
+    
+    private func checkLaunchAtLoginStatus() {
+        if #available(macOS 13.0, *) {
+            launchAtLogin = SMAppService.mainApp.status == .enabled
+        } else {
+            // For macOS 12 and earlier, we can't directly check the status
+            // so we use UserDefaults as our source of truth
+            launchAtLogin = UserDefaults.standard.bool(forKey: "launchAtLogin")
+            
+            // Try to sync the actual state with our saved state
+            if let bundleIdentifier = Bundle.main.bundleIdentifier {
+                // This will ensure the state matches what we have saved
+                _ = SMLoginItemSetEnabled(bundleIdentifier as CFString, launchAtLogin)
+            }
+        }
+    }
+    
+    private func toggleLaunchAtLogin() {
+        if #available(macOS 13.0, *) {
+            let service = SMAppService.mainApp
+            do {
+                if service.status == .enabled {
+                    try service.unregister()
+                    launchAtLogin = false
+                } else {
+                    try service.register()
+                    launchAtLogin = true
+                }
+                
+                // Save to UserDefaults for persistence
+                UserDefaults.standard.set(launchAtLogin, forKey: "launchAtLogin")
+                
+                // Show notification
+                let message = launchAtLogin ? "Gen Snippets will start automatically at login" : "Gen Snippets will not start automatically at login"
+                NotificationCenter.default.post(name: NSNotification.Name("ShowToast"), object: ["message": message, "type": "success"])
+            } catch {
+                print("Failed to toggle login item: \(error)")
+                // Show error notification
+                NotificationCenter.default.post(name: NSNotification.Name("ShowToast"), object: ["message": "Failed to update launch at login setting", "type": "error"])
+            }
+        } else {
+            // For macOS 12 and earlier
+            if let bundleIdentifier = Bundle.main.bundleIdentifier {
+                launchAtLogin.toggle()
+                let success = SMLoginItemSetEnabled(bundleIdentifier as CFString, launchAtLogin)
+                
+                if success {
+                    // Save to UserDefaults for persistence
+                    UserDefaults.standard.set(launchAtLogin, forKey: "launchAtLogin")
+                    
+                    // Show notification
+                    let message = launchAtLogin ? "Gen Snippets will start automatically at login" : "Gen Snippets will not start automatically at login"
+                    NotificationCenter.default.post(name: NSNotification.Name("ShowToast"), object: ["message": message, "type": "success"])
+                } else {
+                    // Revert state on failure
+                    launchAtLogin.toggle()
+                    NotificationCenter.default.post(name: NSNotification.Name("ShowToast"), object: ["message": "Failed to update launch at login setting", "type": "error"])
+                }
+            }
+        }
     }
 }
 

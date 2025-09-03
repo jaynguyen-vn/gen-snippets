@@ -307,7 +307,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
     
-    func toggleLoginItem() {
+    @objc func toggleLoginItem() {
         if #available(macOS 13.0, *) {
             let service = SMAppService.mainApp
             do {

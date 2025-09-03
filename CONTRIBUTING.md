@@ -80,7 +80,6 @@ Thank you for your interest in contributing to Gen Snippets! We welcome contribu
 
 - Update README.md for user-facing changes
 - Add inline documentation for complex code
-- Update CLAUDE.md for AI assistance context
 
 ## Questions?
 

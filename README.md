@@ -120,8 +120,6 @@ Categories help you organize related snippets:
 - **Menu Bar Icon**: Show/hide the menu bar icon
 - **Dock Icon**: Show/hide the dock icon
 - **Launch at Login**: Automatically start Gen Snippets when you log in
-- **iCloud Sync**: Enable synchronization across devices
-- **Server Sync**: Connect to a backend server for team sharing (optional)
 
 ### Data Storage
 
@@ -145,7 +143,6 @@ Local data is stored in:
 - **SnippetsViewModel**: Handles snippet CRUD operations
 - **AccessibilityPermissionManager**: Manages macOS permission requests
 - **LocalStorageService**: Handles data persistence
-- **iCloudSyncService**: Optional cloud synchronization
 
 ## 🤝 Contributing
 

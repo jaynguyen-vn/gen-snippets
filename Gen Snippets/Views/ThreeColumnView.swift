@@ -54,20 +54,25 @@ struct ThreeColumnView: View {
     }
     
     var body: some View {
-        ZStack {
-            HSplitView {
-                // Category Sidebar
-                categoryListView
-                    .frame(minWidth: 180, idealWidth: sidebarWidth, maxWidth: 300)
-                
-                // Snippet List
-                snippetListView
-                    .frame(minWidth: 250, idealWidth: snippetListWidth, maxWidth: 400)
-                
-                // Detail View
-                detailView
-                    .frame(minWidth: 400)
+        VStack(spacing: 0) {
+            ZStack {
+                HSplitView {
+                    // Category Sidebar
+                    categoryListView
+                        .frame(minWidth: 180, idealWidth: sidebarWidth, maxWidth: 300)
+                    
+                    // Snippet List
+                    snippetListView
+                        .frame(minWidth: 250, idealWidth: snippetListWidth, maxWidth: 400)
+                    
+                    // Detail View
+                    detailView
+                        .frame(minWidth: 400)
+                }
             }
+            
+            // Status Bar with shortcuts
+            StatusBarView()
         }
         .toast($currentToast)
         .onAppear {
