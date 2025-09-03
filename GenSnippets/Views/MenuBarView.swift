@@ -19,7 +19,7 @@ struct MenuBarView: View {
             // Header with Open App button
             HStack {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("Gen Snippets")
+                    Text("GenSnippets")
                         .font(.system(size: 14, weight: .medium))
                     Text("Text Expansion Tool")
                         .font(.system(size: 12))
@@ -205,7 +205,7 @@ struct MenuBarView: View {
                 UserDefaults.standard.set(launchAtLogin, forKey: "launchAtLogin")
                 
                 // Show notification
-                let message = launchAtLogin ? "Gen Snippets will start automatically at login" : "Gen Snippets will not start automatically at login"
+                let message = launchAtLogin ? "GenSnippets will start automatically at login" : "GenSnippets will not start automatically at login"
                 NotificationCenter.default.post(name: NSNotification.Name("ShowToast"), object: ["message": message, "type": "success"])
             } catch {
                 print("Failed to toggle login item: \(error)")
@@ -223,7 +223,7 @@ struct MenuBarView: View {
                     UserDefaults.standard.set(launchAtLogin, forKey: "launchAtLogin")
                     
                     // Show notification
-                    let message = launchAtLogin ? "Gen Snippets will start automatically at login" : "Gen Snippets will not start automatically at login"
+                    let message = launchAtLogin ? "GenSnippets will start automatically at login" : "GenSnippets will not start automatically at login"
                     NotificationCenter.default.post(name: NSNotification.Name("ShowToast"), object: ["message": message, "type": "success"])
                 } else {
                     // Revert state on failure

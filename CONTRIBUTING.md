@@ -1,6 +1,6 @@
-# Contributing to Gen Snippets
+# Contributing to GenSnippets
 
-Thank you for your interest in contributing to Gen Snippets! We welcome contributions from the community.
+Thank you for your interest in contributing to GenSnippets! We welcome contributions from the community.
 
 ## How to Contribute
 

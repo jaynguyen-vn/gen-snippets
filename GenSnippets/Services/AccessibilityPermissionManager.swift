@@ -51,7 +51,7 @@ class AccessibilityPermissionManager {
         let alert = NSAlert()
         alert.messageText = "Accessibility Permission Required"
         alert.informativeText = """
-        Gen Snippets needs accessibility access to function properly.
+        GenSnippets needs accessibility access to function properly.
 
         How to enable:
         1. Click 'Open System Settings'
@@ -59,13 +59,13 @@ class AccessibilityPermissionManager {
         3. Scroll down and click 'Accessibility'
         4. Click the '+' button below the app list.
         5. Navigate to the Applications folder.
-        6. Find and select 'Gen Snippets', then click Open.
-        7. Enable the permission by checking the box next to 'Gen Snippets'.
-        8. Restart Gen Snippets:
+        6. Find and select 'GenSnippets', then click Open.
+        7. Enable the permission by checking the box next to 'GenSnippets'.
+        8. Restart GenSnippets:
         - Quit the app completely.
-        - Open Gen Snippets again.
+        - Open GenSnippets again.
         
-        Once restarted, Gen Snippets will automatically detect the granted permission.
+        Once restarted, GenSnippets will automatically detect the granted permission.
         """
         alert.alertStyle = .warning
         
@@ -185,11 +185,11 @@ class AccessibilityPermissionManager {
                                         tell scroll area 2
                                             tell table 1
                                                 repeat with aRow in rows
-                                                    if name of aRow contains "Gen Snippets" then
+                                                    if name of aRow contains "GenSnippets" then
                                                         if exists checkbox 1 of aRow then
                                                             if value of checkbox 1 of aRow is 0 then
                                                                 click checkbox 1 of aRow
-                                                                NSLog("🔐 Found and clicked checkbox for Gen Snippets")
+                                                                NSLog("🔐 Found and clicked checkbox for GenSnippets")
                                                             end if
                                                         end if
                                                         exit repeat
@@ -278,7 +278,7 @@ class AccessibilityPermissionManager {
             alert.informativeText = """
             Thank you for granting accessibility permissions!
             
-            To ensure all features work properly, please quit and reopen Gen Snippets.
+            To ensure all features work properly, please quit and reopen GenSnippets.
             
             Would you like to quit now?
             """

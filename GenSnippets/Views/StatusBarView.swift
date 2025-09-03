@@ -37,7 +37,7 @@ struct StatusBarView: View {
             Spacer()
             
             HStack(spacing: 4) {
-                Text("Gen Snippets made by")
+                Text("GenSnippets made by")
                     .font(.system(size: 11))
                     .foregroundColor(.secondary.opacity(0.6))
                 

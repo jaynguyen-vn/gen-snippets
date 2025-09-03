@@ -11,9 +11,9 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		691C33102D51E9B600C4F0A9 /* Gen Snippets */ = {
+		691C33102D51E9B600C4F0A9 /* GenSnippets */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "Gen Snippets";
+			path = GenSnippets;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -32,7 +32,7 @@
 		69C310D42D40F3E60016F219 = {
 			isa = PBXGroup;
 			children = (
-				691C33102D51E9B600C4F0A9 /* Gen Snippets */,
+				691C33102D51E9B600C4F0A9 /* GenSnippets */,
 				69C310DE2D40F3E60016F219 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -61,7 +61,7 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				691C33102D51E9B600C4F0A9 /* Gen Snippets */,
+				691C33102D51E9B600C4F0A9 /* GenSnippets */,
 			);
 			name = GenSnippets;
 			packageProductDependencies = (
@@ -132,12 +132,12 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
-				CODE_SIGN_ENTITLEMENTS = "Gen Snippets/Gen_Snippets.entitlements";
+				CODE_SIGN_ENTITLEMENTS = GenSnippets/Gen_Snippets.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 20;
+				CURRENT_PROJECT_VERSION = 21;
 				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_ASSET_PATHS = "\"Gen Snippets/Preview Content\"";
+				DEVELOPMENT_ASSET_PATHS = "\"GenSnippets/Preview Content\"";
 				DEVELOPMENT_TEAM = GY8FNKSR7D;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -164,12 +164,12 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
-				CODE_SIGN_ENTITLEMENTS = "Gen Snippets/Gen_Snippets.entitlements";
+				CODE_SIGN_ENTITLEMENTS = GenSnippets/Gen_Snippets.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 20;
+				CURRENT_PROJECT_VERSION = 21;
 				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_ASSET_PATHS = "\"Gen Snippets/Preview Content\"";
+				DEVELOPMENT_ASSET_PATHS = "\"GenSnippets/Preview Content\"";
 				DEVELOPMENT_TEAM = GY8FNKSR7D;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;

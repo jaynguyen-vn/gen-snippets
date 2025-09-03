@@ -124,7 +124,7 @@ struct ExportImportView: View {
             let dateFormatter = DateFormatter()
             dateFormatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
             savePanel.nameFieldStringValue = "GenSnippets_Export_\(dateFormatter.string(from: Date())).json"
-            savePanel.message = "Choose location to save your Gen Snippets data"
+            savePanel.message = "Choose location to save your GenSnippets data"
             
             if savePanel.runModal() == .OK, let destinationURL = savePanel.url {
                 do {
@@ -155,7 +155,7 @@ struct ExportImportView: View {
         let openPanel = NSOpenPanel()
         openPanel.allowedContentTypes = [.json]
         openPanel.allowsMultipleSelection = false
-        openPanel.message = "Select Gen Snippets export file to import"
+        openPanel.message = "Select GenSnippets export file to import"
         
         if openPanel.runModal() == .OK, let fileURL = openPanel.url {
             if localStorageService.importData(from: fileURL) {

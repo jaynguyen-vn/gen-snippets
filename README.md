@@ -1,4 +1,4 @@
-# Gen Snippets
+# GenSnippets
 
 <div align="center">
   <img src="https://img.shields.io/badge/Platform-macOS%2011.0%2B-blue" alt="macOS 11.0+">
@@ -8,7 +8,7 @@
 
 ## 📝 Overview
 
-Gen Snippets is a powerful macOS text snippet management application that enables system-wide text replacement. Running seamlessly in both the menu bar and dock, it monitors your keyboard input to instantly replace trigger commands with pre-defined snippets, boosting your productivity across all applications.
+GenSnippets is a powerful macOS text snippet management application that enables system-wide text replacement. Running seamlessly in both the menu bar and dock, it monitors your keyboard input to instantly replace trigger commands with pre-defined snippets, boosting your productivity across all applications.
 
 ## ✨ Features
 
@@ -57,19 +57,19 @@ open GenSnippets.xcodeproj
 ```
 
 3. Build and run:
-   - Select the "Gen Snippets" scheme
+   - Select the "GenSnippets" scheme
    - Press `⌘R` to build and run
 
 Or build from command line:
 ```bash
 # Debug build
-xcodebuild -project GenSnippets.xcodeproj -scheme "Gen Snippets" -configuration Debug build
+xcodebuild -project GenSnippets.xcodeproj -scheme "GenSnippets" -configuration Debug build
 
 # Release build
-xcodebuild -project GenSnippets.xcodeproj -scheme "Gen Snippets" -configuration Release build
+xcodebuild -project GenSnippets.xcodeproj -scheme "GenSnippets" -configuration Release build
 
 # Run the app
-open "build/Debug/Gen Snippets.app"
+open "build/Debug/GenSnippets.app"
 ```
 
 ## 🎯 Getting Started
@@ -77,7 +77,7 @@ open "build/Debug/Gen Snippets.app"
 ### First Launch
 
 1. **Grant Accessibility Permissions**: 
-   - Gen Snippets requires accessibility permissions to monitor keyboard input
+   - GenSnippets requires accessibility permissions to monitor keyboard input
    - You'll be prompted to grant permissions in System Preferences
    - Navigate to: System Preferences → Security & Privacy → Privacy → Accessibility
 
@@ -119,7 +119,7 @@ Categories help you organize related snippets:
 
 - **Menu Bar Icon**: Show/hide the menu bar icon
 - **Dock Icon**: Show/hide the dock icon
-- **Launch at Login**: Automatically start Gen Snippets when you log in
+- **Launch at Login**: Automatically start GenSnippets when you log in
 
 ### Data Storage
 
@@ -154,7 +154,7 @@ We welcome contributions! Please see our [CONTRIBUTING.md](CONTRIBUTING.md) for 
 
 ## 📄 License
 
-Gen Snippets is released under the MIT License. See [LICENSE](LICENSE) for details.
+GenSnippets is released under the MIT License. See [LICENSE](LICENSE) for details.
 
 ## 🙏 Acknowledgments
 

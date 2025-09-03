@@ -180,7 +180,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     alert.informativeText = """
                     Accessibility permissions have been granted!
                     
-                    To ensure all features work properly, please quit and reopen Gen Snippets.
+                    To ensure all features work properly, please quit and reopen GenSnippets.
                     
                     Would you like to quit now?
                     """
