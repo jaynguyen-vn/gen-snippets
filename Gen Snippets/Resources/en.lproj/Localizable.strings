@@ -1,0 +1,40 @@
+/* Login Screen */
+"Email" = "Email";
+"Password" = "Password";
+"Enter your email" = "Enter your email";
+"Enter your password" = "Enter your password";
+"Login" = "Login";
+"Sign Up" = "Sign Up";
+"Forgot Password?" = "Forgot Password?";
+"Login Error" = "Login Error";
+
+/* Main Screen */
+"Welcome" = "Welcome";
+"Start at Login" = "Start at Login";
+"Manage Data" = "Manage Data";
+"Your Snippets" = "Your Snippets";
+"No snippets available" = "No snippets available";
+"Logout" = "Logout";
+"Confirm Logout" = "Confirm Logout";
+"Are you sure you want to logout?" = "Are you sure you want to logout?";
+"Cancel" = "Cancel";
+
+/* Menu Bar */
+"Not logged in" = "Not logged in";
+"Open App" = "Open App";
+"Available Snippets:" = "Available Snippets:";
+"Quit GenSnippets" = "Quit GenSnippets";
+"more..." = "more...";
+
+/* Quit Dialog */
+"Quit Application" = "Quit Application";
+"Quit" = "Quit";
+"Run in Background" = "Run in Background";
+"Do you want to quit completely or keep running in the background?" = "Do you want to quit completely or keep running in the background?";
+
+/* Settings */
+"Language" = "Language";
+"English" = "English";
+"Vietnamese" = "Vietnamese";
+"Settings" = "Settings";
+"Show Status Bar Icon" = "Show Status Bar Icon"; 

@@ -1,0 +1,40 @@
+/* Login Screen */
+"Email" = "Email";
+"Password" = "Mật khẩu";
+"Enter your email" = "Nhập email của bạn";
+"Enter your password" = "Nhập mật khẩu của bạn";
+"Login" = "Đăng nhập";
+"Sign Up" = "Đăng ký";
+"Forgot Password?" = "Quên mật khẩu?";
+"Login Error" = "Lỗi đăng nhập";
+
+/* Main Screen */
+"Welcome" = "Chào mừng";
+"Start at Login" = "Khởi động cùng hệ thống";
+"Manage Data" = "Quản lý dữ liệu";
+"Your Snippets" = "Snippets của bạn";
+"No snippets available" = "Không có snippets nào";
+"Logout" = "Đăng xuất";
+"Confirm Logout" = "Xác nhận đăng xuất";
+"Are you sure you want to logout?" = "Bạn có chắc chắn muốn đăng xuất?";
+"Cancel" = "Hủy";
+
+/* Menu Bar */
+"Not logged in" = "Chưa đăng nhập";
+"Open App" = "Mở ứng dụng";
+"Available Snippets:" = "Snippets có sẵn:";
+"Quit GenSnippets" = "Thoát GenSnippets";
+"more..." = "thêm...";
+
+/* Quit Dialog */
+"Quit Application" = "Thoát ứng dụng";
+"Quit" = "Thoát";
+"Run in Background" = "Chạy nền";
+"Do you want to quit completely or keep running in the background?" = "Bạn muốn thoát hoàn toàn hay tiếp tục chạy nền?";
+
+/* Settings */
+"Language" = "Ngôn ngữ";
+"English" = "Tiếng Anh";
+"Vietnamese" = "Tiếng Việt";
+"Settings" = "Cài đặt";
+"Show Status Bar Icon" = "Hiện biểu tượng trên thanh trạng thái"; 
