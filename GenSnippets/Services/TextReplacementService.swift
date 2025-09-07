@@ -793,4 +793,59 @@ class TextReplacementService {
             print("  - Command: '\(snippet.command)' -> Content: '\(snippet.content)'")
         }
     }
+    
+    // Direct snippet insertion for SearchView selection
+    func insertSnippetDirectly(_ snippet: Snippet) {
+        print("[TextReplacementService] 🎯 Inserting snippet directly: \(snippet.command)")
+        
+        // Process the snippet content with placeholder handling
+        let processedContent = processSnippetWithPlaceholders(snippet.content)
+        
+        // Track usage
+        UsageTracker.shared.recordUsage(for: snippet.id)
+        print("[TextReplacementService] 📊 Recorded usage for snippet: \(snippet.command)")
+        
+        // Insert the processed text
+        insertText(processedContent)
+    }
+    
+    // Process snippet content with interactive placeholder handling
+    private func processSnippetWithPlaceholders(_ content: String) -> String {
+        // Check if content has placeholders in the format [[placeholder:default]]
+        let placeholderPattern = "\\[\\[([^:]+):([^\\]]+)\\]\\]"
+        guard let regex = try? NSRegularExpression(pattern: placeholderPattern, options: []) else {
+            // No placeholders, process normal keywords
+            return processSpecialKeywords(content)
+        }
+        
+        let matches = regex.matches(in: content, options: [], range: NSRange(location: 0, length: content.utf16.count))
+        
+        if matches.isEmpty {
+            // No placeholders, process normal keywords
+            return processSpecialKeywords(content)
+        }
+        
+        // Collect all placeholders
+        var placeholders: [(name: String, defaultValue: String, range: NSRange)] = []
+        for match in matches {
+            if let nameRange = Range(match.range(at: 1), in: content),
+               let defaultRange = Range(match.range(at: 2), in: content) {
+                let name = String(content[nameRange])
+                let defaultValue = String(content[defaultRange])
+                placeholders.append((name: name, defaultValue: defaultValue, range: match.range))
+            }
+        }
+        
+        // For now, replace with default values
+        // In future, we can show a dialog to get user input
+        var result = content
+        for placeholder in placeholders.reversed() {
+            if let range = Range(placeholder.range, in: result) {
+                result = result.replacingCharacters(in: range, with: placeholder.defaultValue)
+            }
+        }
+        
+        // Process any remaining special keywords
+        return processSpecialKeywords(result)
+    }
 } 

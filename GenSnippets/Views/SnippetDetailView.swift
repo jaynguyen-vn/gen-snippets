@@ -132,6 +132,8 @@ struct SnippetDetailView: View {
                             }
                             .buttonStyle(ModernButtonStyle(isPrimary: true))
                             .disabled(!hasChanges || isSaving || command.isEmpty || content.isEmpty)
+                            .keyboardShortcut("s", modifiers: .command)
+                            .help("Save changes (⌘S)")
                         }
                     } else {
                         // Compact layout for narrow screens
@@ -160,6 +162,8 @@ struct SnippetDetailView: View {
                             }
                             .buttonStyle(ModernButtonStyle(isPrimary: true))
                             .disabled(!hasChanges || isSaving || command.isEmpty || content.isEmpty)
+                            .keyboardShortcut("s", modifiers: .command)
+                            .help("Save changes (⌘S)")
                         }
                     }
                 }

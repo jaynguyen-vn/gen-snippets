@@ -23,9 +23,10 @@ struct ThreeColumnView: View {
     @State private var isMultiSelectMode = false
     @State private var selectedSnippetIds = Set<String>()
     @State private var showDeleteMultipleAlert = false
-    @State private var showStatusBarIcon = true
     @State private var currentToast: Toast?
     @State private var showInsightsSheet = false
+    @State private var showSettingsSheet = false
+    @State private var showShortcutsGuide = false
     
     var filteredSnippets: [Snippet] {
         let categoryFiltered = snippetsViewModel.snippets.filter { snippet in
@@ -78,9 +79,6 @@ struct ThreeColumnView: View {
         .onAppear {
             categoryViewModel.fetchCategories()
             snippetsViewModel.fetchSnippets()
-            // Load saved preference for status bar icon
-            showStatusBarIcon = UserDefaults.standard.object(forKey: "showStatusBarIcon") as? Bool ?? true
-            print("[ThreeColumnView] Status bar icon state on appear: \(showStatusBarIcon)")
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("RefreshData"))) { _ in
             // Refresh data after import
@@ -97,10 +95,8 @@ struct ThreeColumnView: View {
             // Show toast notification
             currentToast = Toast(type: .success, message: "All data has been cleared", duration: 2.0)
         }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("StatusBarIconChanged"))) { _ in
-            // Update UI when status bar icon state changes
-            showStatusBarIcon = UserDefaults.standard.object(forKey: "showStatusBarIcon") as? Bool ?? true
-            print("[ThreeColumnView] Status bar icon state changed to: \(showStatusBarIcon)")
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowSettings"))) { _ in
+            showSettingsSheet = true
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("SnippetUsageUpdated"))) { _ in
             // Force refresh snippets to update UI
@@ -122,6 +118,21 @@ struct ThreeColumnView: View {
                 // Command+F for search focus
                 if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "f" {
                     // Focus search field
+                    return nil
+                }
+                // Command+D for duplicate
+                if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "d" {
+                    if let snippet = selectedSnippet {
+                        duplicateSnippet(snippet)
+                    }
+                    return nil
+                }
+                // Command+Delete for delete
+                if event.modifierFlags.contains(.command) && event.keyCode == 51 { // 51 is delete key
+                    if let snippet = selectedSnippet {
+                        snippetToDelete = snippet
+                        showDeleteSnippetAlert = true
+                    }
                     return nil
                 }
                 // Escape to exit multi-select mode
@@ -153,8 +164,18 @@ struct ThreeColumnView: View {
                     snippetsViewModel.fetchSnippets()
                 }
         }
+        .sheet(isPresented: $showSettingsSheet) {
+            if #available(macOS 12.0, *) {
+                SimpleSettingsView()
+            } else {
+                SettingsView()
+            }
+        }
         .sheet(isPresented: $showInsightsSheet) {
             InsightsView()
+        }
+        .sheet(isPresented: $showShortcutsGuide) {
+            ShortcutsGuideView()
         }
         .alert(isPresented: $showDeleteMultipleAlert) {
             Alert(
@@ -211,23 +232,25 @@ struct ThreeColumnView: View {
                 
                 Spacer()
                 
-                // Status Bar Icon Toggle
+                // Shortcuts Guide Button
                 Button(action: {
-                    showStatusBarIcon.toggle()
-                    UserDefaults.standard.set(showStatusBarIcon, forKey: "showStatusBarIcon")
-                    print("[ThreeColumnView] Toggling status bar icon to: \(showStatusBarIcon)")
-                    if showStatusBarIcon {
-                        NotificationCenter.default.post(name: NSNotification.Name("ShowMenuBarIcon"), object: nil)
-                    } else {
-                        NotificationCenter.default.post(name: NSNotification.Name("HideMenuBarIcon"), object: nil)
-                    }
+                    showShortcutsGuide = true
                 }) {
-                    Image(systemName: showStatusBarIcon ? "eye" : "eye.slash")
+                    Image(systemName: "keyboard")
                         .font(.system(size: 16))
-                        .foregroundColor(showStatusBarIcon ? .blue : .secondary)
                 }
                 .buttonStyle(PlainButtonStyle())
-                .help(showStatusBarIcon ? "Hide from Menu Bar" : "Show in Menu Bar")
+                .help("Keyboard Shortcuts")
+                
+                // Settings Button
+                Button(action: {
+                    showSettingsSheet = true
+                }) {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 16))
+                }
+                .buttonStyle(PlainButtonStyle())
+                .help("Settings (⌘,)")
                 
                 Button(action: {
                     showExportImportSheet = true

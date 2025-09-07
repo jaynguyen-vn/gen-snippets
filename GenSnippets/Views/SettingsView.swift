@@ -2,17 +2,33 @@ import SwiftUI
 import ServiceManagement
 
 struct SettingsView: View {
-    @StateObject private var iCloudSync = iCloudSyncService.shared
+    @Environment(\.presentationMode) var presentationMode
     @State private var startAtLogin = false
     @State private var showStatusBarIcon = UserDefaults.standard.bool(forKey: "ShowStatusBarIcon")
-    @State private var showSyncAlert = false
-    @State private var syncAlertMessage = ""
+    @State private var searchShortcutKeyCode = UserDefaults.standard.integer(forKey: "SearchShortcutKeyCode") == 0 ? 1 : UserDefaults.standard.integer(forKey: "SearchShortcutKeyCode")
+    @State private var searchShortcutModifiers = NSEvent.ModifierFlags(rawValue: UInt(UserDefaults.standard.integer(forKey: "SearchShortcutModifiers") == 0 ? Int(NSEvent.ModifierFlags.option.rawValue) : UserDefaults.standard.integer(forKey: "SearchShortcutModifiers")))
+    @State private var tempKeyCode: Int = 0
+    @State private var tempModifiers = NSEvent.ModifierFlags()
     
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
-            Text("Settings")
-                .font(.largeTitle)
-                .bold()
+            HStack {
+                Text("Settings")
+                    .font(.largeTitle)
+                    .bold()
+                
+                Spacer()
+                
+                Button(action: {
+                    presentationMode.wrappedValue.dismiss()
+                }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(PlainButtonStyle())
+                .help("Close (Esc)")
+            }
             
             GroupBox(label: Label("General", systemImage: "gear")) {
                 VStack(alignment: .leading, spacing: 16) {
@@ -28,86 +44,50 @@ struct SettingsView: View {
                             UserDefaults.standard.set(newValue, forKey: "ShowStatusBarIcon")
                             NotificationCenter.default.post(name: NSNotification.Name("StatusBarIconVisibilityChanged"), object: nil, userInfo: ["isVisible": newValue])
                         }
-                }
-                .padding(.vertical, 8)
-            }
-            
-            GroupBox(label: Label("iCloud Sync", systemImage: "icloud")) {
-                VStack(alignment: .leading, spacing: 16) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Enable iCloud Sync")
-                                .font(.headline)
-                            Text("Automatically sync your snippets across all your devices")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        Spacer()
-                        
-                        Toggle("", isOn: Binding(
-                            get: { iCloudSync.iCloudEnabled },
-                            set: { newValue in
-                                if newValue && !iCloudSync.isICloudAvailable {
-                                    syncAlertMessage = "iCloud is not available. Please check your iCloud settings."
-                                    showSyncAlert = true
-                                } else {
-                                    iCloudSync.iCloudEnabled = newValue
-                                    if newValue {
-                                        syncAlertMessage = "iCloud sync enabled. Your snippets will now sync across all your devices."
-                                    } else {
-                                        syncAlertMessage = "iCloud sync disabled. Your snippets will only be stored locally."
-                                    }
-                                    showSyncAlert = true
-                                }
-                            }
-                        ))
-                        .toggleStyle(SwitchToggleStyle(tint: .blue))
-                        .disabled(!iCloudSync.isICloudAvailable)
-                    }
                     
-                    if iCloudSync.isICloudEnabled {
-                        Divider()
-                        
+                    Divider()
+                    
+                    VStack(alignment: .leading, spacing: 8) {
                         HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                HStack(spacing: 8) {
-                                    if iCloudSync.isSyncing {
-                                        ProgressView()
-                                            .scaleEffect(0.8)
-                                    } else {
-                                        Image(systemName: "checkmark.circle.fill")
-                                            .foregroundColor(.green)
-                                    }
-                                    
-                                    Text(iCloudSync.isSyncing ? "Syncing..." : "Synced")
-                                        .font(.subheadline)
-                                }
-                                
-                                if let lastSync = iCloudSync.lastSyncDate {
-                                    Text("Last synced: \(lastSync, formatter: relativeDateFormatter)")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                            }
+                            Text("Search Shortcut:")
+                                .frame(width: 120, alignment: .leading)
                             
-                            Spacer()
+                            ShortcutRecorderView(
+                                keyCode: $tempKeyCode,
+                                modifierFlags: $tempModifiers
+                            )
+                            .frame(height: 24)
                             
-                            Button("Sync Now") {
-                                iCloudSync.performSync()
+                            Button("Save") {
+                                searchShortcutKeyCode = tempKeyCode
+                                searchShortcutModifiers = tempModifiers
+                                saveShortcut()
                             }
                             .buttonStyle(.bordered)
-                            .disabled(iCloudSync.isSyncing)
+                            .disabled(tempKeyCode == searchShortcutKeyCode && tempModifiers == searchShortcutModifiers)
+                            
+                            Button("Reset") {
+                                // Force update by setting to different value first
+                                tempKeyCode = 0
+                                tempModifiers = []
+                                
+                                // Then set to default values
+                                DispatchQueue.main.async {
+                                    tempKeyCode = 49 // Space
+                                    tempModifiers = .option
+                                    searchShortcutKeyCode = 49
+                                    searchShortcutModifiers = .option
+                                    saveShortcut()
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundColor(.blue)
                         }
-                    }
-                    
-                    if let error = iCloudSync.syncError {
-                        HStack {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundColor(.yellow)
-                            Text(error)
+                        
+                        if tempKeyCode != searchShortcutKeyCode || tempModifiers != searchShortcutModifiers {
+                            Text("Click Save to apply the new shortcut")
                                 .font(.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(.orange)
                         }
                     }
                 }
@@ -120,16 +100,50 @@ struct SettingsView: View {
         .frame(width: 500, height: 400)
         .onAppear {
             checkLaunchAtLogin()
+            // Initialize temp variables with current values
+            tempKeyCode = searchShortcutKeyCode
+            tempModifiers = searchShortcutModifiers
         }
-        .alert(isPresented: $showSyncAlert) {
-            Alert(
-                title: Text("iCloud Sync"),
-                message: Text(syncAlertMessage),
-                dismissButton: .default(Text("OK"))
-            )
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("EscapeKeyPressed"))) { _ in
+            presentationMode.wrappedValue.dismiss()
         }
+        .background(
+            // Invisible view to capture keyboard events
+            KeyEventCaptureView {
+                presentationMode.wrappedValue.dismiss()
+            }
+        )
+    }
+}
+
+// Helper view to capture Escape key
+struct KeyEventCaptureView: NSViewRepresentable {
+    let onEscape: () -> Void
+    
+    func makeNSView(context: Context) -> NSView {
+        let view = EscapeKeyView()
+        view.onEscape = onEscape
+        return view
     }
     
+    func updateNSView(_ nsView: NSView, context: Context) {}
+}
+
+class EscapeKeyView: NSView {
+    var onEscape: (() -> Void)?
+    
+    override var acceptsFirstResponder: Bool { true }
+    
+    override func keyDown(with event: NSEvent) {
+        if event.keyCode == 53 { // Escape key
+            onEscape?()
+        } else {
+            super.keyDown(with: event)
+        }
+    }
+}
+
+extension SettingsView {
     private func checkLaunchAtLogin() {
         if #available(macOS 13.0, *) {
             startAtLogin = SMAppService.mainApp.status == .enabled
@@ -154,11 +168,11 @@ struct SettingsView: View {
         }
     }
     
-    private var relativeDateFormatter: DateFormatter {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        formatter.dateStyle = .short
-        formatter.doesRelativeDateFormatting = true
-        return formatter
+    private func saveShortcut() {
+        UserDefaults.standard.set(searchShortcutKeyCode, forKey: "SearchShortcutKeyCode")
+        UserDefaults.standard.set(Int(searchShortcutModifiers.rawValue), forKey: "SearchShortcutModifiers")
+        
+        // Notify the hotkey manager to update
+        NotificationCenter.default.post(name: NSNotification.Name("UpdateSearchShortcut"), object: nil)
     }
 }

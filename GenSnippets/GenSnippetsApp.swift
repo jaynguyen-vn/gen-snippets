@@ -23,6 +23,12 @@ struct GenSnippetsApp: App {
         }
         .windowStyle(HiddenTitleBarWindowStyle())
         .commands {
+            CommandGroup(after: .appInfo) {
+                Button("Settings...") {
+                    NotificationCenter.default.post(name: NSNotification.Name("ShowSettings"), object: nil)
+                }
+                .keyboardShortcut(",", modifiers: .command)
+            }
             CommandGroup(replacing: .appTermination) {
                 Button("Quit") {
                     NotificationCenter.default.post(name: NSNotification.Name("ShowQuitDialog"), object: nil)
@@ -57,7 +63,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         
         // Check if status bar icon should be shown (default to true if not set)
-        let shouldShowStatusBar = UserDefaults.standard.object(forKey: "showStatusBarIcon") as? Bool ?? true
+        let shouldShowStatusBar = UserDefaults.standard.object(forKey: "ShowStatusBarIcon") as? Bool ?? true
         print("[AppDelegate] Status bar icon preference on launch: \(shouldShowStatusBar)")
         if shouldShowStatusBar {
             setupMenuBarItem()
@@ -66,6 +72,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         
         // Always start monitoring for text commands
         TextReplacementService.shared.startMonitoring()
+        
+        // Setup global hotkey for snippet search
+        GlobalHotkeyManager.shared.setupGlobalHotkey()
         
         
         // Listen for accessibility permission granted
@@ -127,12 +136,24 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             object: nil
         )
         
-        // Handle Command+Q
+        // Listen for status bar icon visibility changes
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleStatusBarIconVisibilityChanged(_:)),
+            name: NSNotification.Name("StatusBarIconVisibilityChanged"),
+            object: nil
+        )
+        
+        // Handle keyboard shortcuts
         NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            // Command+Q for quit dialog
             if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "q" {
                 NotificationCenter.default.post(name: NSNotification.Name("ShowQuitDialog"), object: nil)
                 return nil // Consume the event
             }
+            
+            // Custom shortcut for snippet search (handled by GlobalHotkeyManager)
+            
             return event
         }
     }
@@ -244,6 +265,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func handleAccessibilityPermissionGranted() {
         NSLog("🔐 AppDelegate: Accessibility permission granted notification received")
         // The restart alert is now handled in AccessibilityPermissionManager
+    }
+    
+    @objc private func handleStatusBarIconVisibilityChanged(_ notification: Notification) {
+        if let userInfo = notification.userInfo,
+           let isVisible = userInfo["isVisible"] as? Bool {
+            print("[AppDelegate] Status bar icon visibility changed to: \(isVisible)")
+            if isVisible {
+                showMenuBarIcon()
+            } else {
+                hideMenuBarIcon()
+            }
+        }
     }
     
     private func setupDockMenu() {
