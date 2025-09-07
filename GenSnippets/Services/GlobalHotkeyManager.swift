@@ -43,7 +43,7 @@ class GlobalHotkeyManager {
         
         // Use defaults if not set
         let finalKeyCode = keyCode == 0 ? 1 : keyCode // Default: S key (keyCode 1)
-        let finalModifiers = modifierValue == 0 ? NSEvent.ModifierFlags.option : NSEvent.ModifierFlags(rawValue: UInt(modifierValue))
+        let finalModifiers = modifierValue == 0 ? [NSEvent.ModifierFlags.control, NSEvent.ModifierFlags.command] : NSEvent.ModifierFlags(rawValue: UInt(modifierValue))
         
         // Set up global event monitor with custom shortcut
         globalEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { event in

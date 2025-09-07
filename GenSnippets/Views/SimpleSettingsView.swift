@@ -7,7 +7,7 @@ struct SimpleSettingsView: View {
     @State private var startAtLogin = false
     @State private var showStatusBarIcon = UserDefaults.standard.bool(forKey: "ShowStatusBarIcon")
     @State private var searchShortcutKeyCode = UserDefaults.standard.integer(forKey: "SearchShortcutKeyCode") == 0 ? 1 : UserDefaults.standard.integer(forKey: "SearchShortcutKeyCode")
-    @State private var searchShortcutModifiers = NSEvent.ModifierFlags(rawValue: UInt(UserDefaults.standard.integer(forKey: "SearchShortcutModifiers") == 0 ? Int(NSEvent.ModifierFlags.option.rawValue) : UserDefaults.standard.integer(forKey: "SearchShortcutModifiers")))
+    @State private var searchShortcutModifiers = NSEvent.ModifierFlags(rawValue: UInt(UserDefaults.standard.integer(forKey: "SearchShortcutModifiers") == 0 ? Int(NSEvent.ModifierFlags.control.rawValue | NSEvent.ModifierFlags.command.rawValue) : UserDefaults.standard.integer(forKey: "SearchShortcutModifiers")))
     @State private var tempKeyCode: Int = 0
     @State private var tempModifiers = NSEvent.ModifierFlags()
     @State private var hasUnsavedShortcut = false
@@ -171,8 +171,9 @@ struct SimpleSettingsView: View {
         .background(Color(NSColor.windowBackgroundColor))
         .onAppear {
             checkLaunchAtLogin()
-            tempKeyCode = searchShortcutKeyCode
-            tempModifiers = searchShortcutModifiers
+            // Initialize temp variables with current or default values
+            tempKeyCode = searchShortcutKeyCode == 0 ? 1 : searchShortcutKeyCode
+            tempModifiers = searchShortcutModifiers.isEmpty ? [.control, .command] : searchShortcutModifiers
         }
         .background(
             KeyEventCaptureView {
@@ -227,10 +228,10 @@ struct SimpleSettingsView: View {
     
     private func resetShortcut() {
         // Reset to default values immediately
-        tempKeyCode = 49  // Space key
-        tempModifiers = .option
-        searchShortcutKeyCode = 49
-        searchShortcutModifiers = .option
+        tempKeyCode = 1  // S key
+        tempModifiers = [.control, .command]
+        searchShortcutKeyCode = 1
+        searchShortcutModifiers = [.control, .command]
         hasUnsavedShortcut = false
         
         // Save the default values

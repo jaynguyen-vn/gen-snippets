@@ -44,8 +44,8 @@ protocol ShortcutRecorderFieldDelegate: AnyObject {
 
 class ShortcutRecorderField: NSTextField {
     weak var shortcutDelegate: ShortcutRecorderFieldDelegate?
-    var keyCode: Int = 49 // Default: Space
-    var modifierFlags: NSEvent.ModifierFlags = .option // Default: Option
+    var keyCode: Int = 1 // Default: S key
+    var modifierFlags: NSEvent.ModifierFlags = [.control, .command] // Default: Ctrl+Cmd
     private var isRecording = false
     
     override init(frame frameRect: NSRect) {

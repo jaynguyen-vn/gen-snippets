@@ -2,7 +2,7 @@ import SwiftUI
 
 struct StatusBarView: View {
     let shortcuts = [
-        ("⌥S", "Search"),
+        ("⌃⌘S", "Search"),
         ("⌘N", "New Snippet"),
         ("⌘⇧N", "New Category"),
         ("⌘,", "Settings"),

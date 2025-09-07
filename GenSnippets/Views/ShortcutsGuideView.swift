@@ -36,7 +36,7 @@ struct ShortcutsGuideView: View {
                     // Global Shortcuts
                     ShortcutSection(title: "Global Shortcuts", shortcuts: [
                         ShortcutItem(
-                            keys: "⌥ S",
+                            keys: "⌃⌘ S",
                             description: "Open Snippet Search",
                             note: "Quick access to search and insert snippets"
                         )
