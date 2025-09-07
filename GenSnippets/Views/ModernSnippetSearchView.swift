@@ -6,17 +6,32 @@ struct ModernSnippetSearchView: View {
     @StateObject private var viewModel = SnippetsViewModel()
     @State private var searchText = ""
     @State private var selectedSnippet: Snippet?
-    @State private var selectedIndex = 0
+    @State private var selectedSnippetId: String? = nil
     @State private var hoveredSnippetId: String?
     @State private var copiedSnippetId: String?
     @State private var isSearchFocused: Bool = true
     @FocusState private var textFieldFocused: Bool
+    @State private var cachedFilteredSnippets: [Snippet] = []
+    @State private var lastSearchText: String = ""
+    @State private var lastSnippetsCount: Int = 0
+    @State private var shouldScrollToSelection = false
     
     var filteredSnippets: [Snippet] {
+        return cachedFilteredSnippets
+    }
+    
+    private func updateFilteredSnippets() {
+        if searchText == lastSearchText && viewModel.snippets.count == lastSnippetsCount {
+            return // No change needed
+        }
+        
+        lastSearchText = searchText
+        lastSnippetsCount = viewModel.snippets.count
+        
         if searchText.isEmpty {
-            return viewModel.snippets
+            cachedFilteredSnippets = viewModel.snippets
         } else {
-            return viewModel.snippets.filter { snippet in
+            cachedFilteredSnippets = viewModel.snippets.filter { snippet in
                 snippet.command.localizedCaseInsensitiveContains(searchText) ||
                 (snippet.description ?? "").localizedCaseInsensitiveContains(searchText) ||
                 snippet.content.localizedCaseInsensitiveContains(searchText)
@@ -42,14 +57,32 @@ struct ModernSnippetSearchView: View {
     
     private func selectNextSnippet() {
         guard !filteredSnippets.isEmpty else { return }
-        selectedIndex = min(selectedIndex + 1, filteredSnippets.count - 1)
-        selectedSnippet = filteredSnippets[selectedIndex]
+        
+        // Find current index based on selectedSnippetId
+        let currentIndex = filteredSnippets.firstIndex(where: { $0.id == selectedSnippetId }) ?? -1
+        let nextIndex = min(currentIndex + 1, filteredSnippets.count - 1)
+        
+        if nextIndex >= 0 && nextIndex < filteredSnippets.count {
+            let newSnippet = filteredSnippets[nextIndex]
+            selectedSnippet = newSnippet
+            selectedSnippetId = newSnippet.id
+            shouldScrollToSelection = true
+        }
     }
     
     private func selectPreviousSnippet() {
         guard !filteredSnippets.isEmpty else { return }
-        selectedIndex = max(selectedIndex - 1, 0)
-        selectedSnippet = filteredSnippets[selectedIndex]
+        
+        // Find current index based on selectedSnippetId
+        let currentIndex = filteredSnippets.firstIndex(where: { $0.id == selectedSnippetId }) ?? filteredSnippets.count
+        let previousIndex = max(currentIndex - 1, 0)
+        
+        if previousIndex >= 0 && previousIndex < filteredSnippets.count {
+            let newSnippet = filteredSnippets[previousIndex]
+            selectedSnippet = newSnippet
+            selectedSnippetId = newSnippet.id
+            shouldScrollToSelection = true
+        }
     }
     
     var body: some View {
@@ -62,8 +95,11 @@ struct ModernSnippetSearchView: View {
         .background(Color(NSColor.windowBackgroundColor))
         .onAppear {
             viewModel.loadLocalSnippets()
+            updateFilteredSnippets()
+            // Always select first snippet on appear
             if let first = filteredSnippets.first {
                 selectedSnippet = first
+                selectedSnippetId = first.id
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 isSearchFocused = true
@@ -76,10 +112,19 @@ struct ModernSnippetSearchView: View {
             selectPreviousSnippet()
         }
         .onChange(of: searchText) { _ in
-            selectedIndex = 0
+            updateFilteredSnippets()
+            // Always select first snippet after search
             if let first = filteredSnippets.first {
                 selectedSnippet = first
+                selectedSnippetId = first.id
+                shouldScrollToSelection = true
+            } else {
+                selectedSnippet = nil
+                selectedSnippetId = nil
             }
+        }
+        .onChange(of: viewModel.snippets) { _ in
+            updateFilteredSnippets()
         }
     }
     
@@ -153,10 +198,10 @@ struct ModernSnippetSearchView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 2) {
-                    ForEach(Array(filteredSnippets.enumerated()), id: \.element.id) { index, snippet in
+                    ForEach(filteredSnippets, id: \.id) { snippet in
                         ModernSnippetRow(
                             snippet: snippet,
-                            isSelected: selectedSnippet?.id == snippet.id,
+                            isSelected: selectedSnippetId == snippet.id,
                             isHovered: hoveredSnippetId == snippet.id,
                             isCopied: copiedSnippetId == snippet.id
                         )
@@ -164,12 +209,12 @@ struct ModernSnippetSearchView: View {
                         .onTapGesture(count: 2) {
                             // Double-click to select and insert
                             selectedSnippet = snippet
-                            selectedIndex = index
+                            selectedSnippetId = snippet.id
                             copySnippetToClipboard(snippet)
                         }
                         .onTapGesture {
                             selectedSnippet = snippet
-                            selectedIndex = index
+                            selectedSnippetId = snippet.id
                         }
                         .onHover { isHovered in
                             if isHovered {
@@ -182,9 +227,18 @@ struct ModernSnippetSearchView: View {
                 }
                 .padding(.vertical, 8)
             }
-            .onChange(of: selectedSnippet?.id) { newValue in
-                if let id = newValue {
+            .onChange(of: selectedSnippet) { newValue in
+                if let snippet = newValue, shouldScrollToSelection {
                     withAnimation(.easeInOut(duration: 0.2)) {
+                        proxy.scrollTo(snippet.id, anchor: .center)
+                    }
+                    shouldScrollToSelection = false
+                }
+            }
+            .onAppear {
+                // Ensure initial selection is visible
+                if let id = selectedSnippet?.id {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         proxy.scrollTo(id, anchor: .center)
                     }
                 }
@@ -236,13 +290,13 @@ struct ModernSnippetRow: View {
             Circle()
                 .fill(
                     isSelected
-                        ? Color.accentColor.opacity(0.15)
+                        ? Color.accentColor.opacity(0.25)  // More prominent when selected
                         : Color.primary.opacity(0.05)
                 )
                 .frame(width: 32, height: 32)
             
             Text(String(snippet.command.prefix(1)).uppercased())
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .font(.system(size: 13, weight: isSelected ? .bold : .semibold, design: .rounded))
                 .foregroundColor(
                     isSelected
                         ? Color.accentColor
@@ -287,9 +341,9 @@ struct ModernSnippetRow: View {
         RoundedRectangle(cornerRadius: 8)
             .fill(
                 isSelected
-                    ? Color.accentColor.opacity(0.08)
+                    ? Color.accentColor.opacity(0.15)  // More visible when selected
                     : isHovered
-                        ? Color.primary.opacity(0.03)
+                        ? Color.primary.opacity(0.05)
                         : Color.clear
             )
     }
@@ -298,9 +352,9 @@ struct ModernSnippetRow: View {
         RoundedRectangle(cornerRadius: 8)
             .stroke(
                 isSelected
-                    ? Color.accentColor.opacity(0.2)
+                    ? Color.accentColor.opacity(0.4)  // Stronger border for selected
                     : Color.clear,
-                lineWidth: 1
+                lineWidth: isSelected ? 2 : 1  // Thicker border when selected
             )
     }
 }

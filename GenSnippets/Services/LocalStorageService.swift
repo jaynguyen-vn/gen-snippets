@@ -8,23 +8,68 @@ class LocalStorageService {
     private let snippetsKey = "localSnippets"
     private let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
     
-    private init() {}
+    // Batch save timer
+    private var saveTimer: Timer?
+    private let saveQueue = DispatchQueue(label: "com.gensnippets.storage", attributes: .concurrent)
+    
+    // Cached data
+    private var cachedCategories: [Category]?
+    private var cachedSnippets: [Snippet]?
+    private var pendingCategorySave = false
+    private var pendingSnippetSave = false
+    
+    private init() {
+        // Load initial data into cache
+        _ = loadCategories()
+        _ = loadSnippets()
+    }
+    
+    deinit {
+        // Perform any pending saves
+        performPendingSaves()
+        saveTimer?.invalidate()
+    }
     
     // MARK: - Categories
     func saveCategories(_ categories: [Category]) {
-        if let encoded = try? JSONEncoder().encode(categories) {
+        saveQueue.async(flags: .barrier) {
+            self.cachedCategories = categories
+            self.pendingCategorySave = true
+            self.scheduleSave()
+        }
+    }
+    
+    private func performCategorySave(_ categories: [Category]) {
+        do {
+            let encoded = try JSONEncoder().encode(categories)
             UserDefaults.standard.set(encoded, forKey: categoriesKey)
             print("[LocalStorage] Saved \(categories.count) categories")
+        } catch {
+            print("[LocalStorage] Failed to save categories: \(error)")
         }
     }
     
     func loadCategories() -> [Category] {
-        if let data = UserDefaults.standard.data(forKey: categoriesKey),
-           let decoded = try? JSONDecoder().decode([Category].self, from: data) {
-            print("[LocalStorage] Loaded \(decoded.count) categories")
-            return decoded
+        return saveQueue.sync {
+            if let cached = cachedCategories {
+                return cached
+            }
+            
+            if let data = UserDefaults.standard.data(forKey: categoriesKey) {
+                do {
+                    let decoded = try JSONDecoder().decode([Category].self, from: data)
+                    // Validate decoded data
+                    let validCategories = decoded.filter { !$0.id.isEmpty && !$0.name.isEmpty }
+                    cachedCategories = validCategories
+                    print("[LocalStorage] Loaded \(validCategories.count) categories")
+                    return validCategories
+                } catch {
+                    print("[LocalStorage] Failed to decode categories: \(error)")
+                }
+            }
+            cachedCategories = []
+            return []
         }
-        return []
     }
     
     func createCategory(_ category: Category) -> Category {
@@ -70,19 +115,44 @@ class LocalStorageService {
     
     // MARK: - Snippets
     func saveSnippets(_ snippets: [Snippet]) {
-        if let encoded = try? JSONEncoder().encode(snippets) {
+        saveQueue.async(flags: .barrier) {
+            self.cachedSnippets = snippets
+            self.pendingSnippetSave = true
+            self.scheduleSave()
+        }
+    }
+    
+    private func performSnippetSave(_ snippets: [Snippet]) {
+        do {
+            let encoded = try JSONEncoder().encode(snippets)
             UserDefaults.standard.set(encoded, forKey: snippetsKey)
             print("[LocalStorage] Saved \(snippets.count) snippets")
+        } catch {
+            print("[LocalStorage] Failed to save snippets: \(error)")
         }
     }
     
     func loadSnippets() -> [Snippet] {
-        if let data = UserDefaults.standard.data(forKey: snippetsKey),
-           let decoded = try? JSONDecoder().decode([Snippet].self, from: data) {
-            print("[LocalStorage] Loaded \(decoded.count) snippets")
-            return decoded
+        return saveQueue.sync {
+            if let cached = cachedSnippets {
+                return cached
+            }
+            
+            if let data = UserDefaults.standard.data(forKey: snippetsKey) {
+                do {
+                    let decoded = try JSONDecoder().decode([Snippet].self, from: data)
+                    // Validate decoded data
+                    let validSnippets = decoded.filter { !$0.id.isEmpty && !$0.command.isEmpty }
+                    cachedSnippets = validSnippets
+                    print("[LocalStorage] Loaded \(validSnippets.count) snippets")
+                    return validSnippets
+                } catch {
+                    print("[LocalStorage] Failed to decode snippets: \(error)")
+                }
+            }
+            cachedSnippets = []
+            return []
         }
-        return []
     }
     
     func createSnippet(_ snippet: Snippet) -> Snippet {
@@ -167,16 +237,42 @@ class LocalStorageService {
     
     // MARK: - Clear All Data
     func clearAllData() {
-        // Clear categories
-        UserDefaults.standard.removeObject(forKey: categoriesKey)
+        saveQueue.async(flags: .barrier) {
+            // Clear cached data
+            self.cachedCategories = []
+            self.cachedSnippets = []
+            
+            // Clear from UserDefaults
+            UserDefaults.standard.removeObject(forKey: self.categoriesKey)
+            UserDefaults.standard.removeObject(forKey: self.snippetsKey)
+            
+            print("[LocalStorage] Cleared all data")
+        }
+    }
+    
+    // MARK: - Batch Save Management
+    private func scheduleSave() {
+        // Cancel existing timer
+        saveTimer?.invalidate()
         
-        // Clear snippets
-        UserDefaults.standard.removeObject(forKey: snippetsKey)
-        
-        // Synchronize changes
-        UserDefaults.standard.synchronize()
-        
-        print("[LocalStorage] Cleared all data")
+        // Schedule new save after 0.5 seconds
+        saveTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { [weak self] _ in
+            self?.performPendingSaves()
+        }
+    }
+    
+    private func performPendingSaves() {
+        saveQueue.async(flags: .barrier) {
+            if self.pendingCategorySave, let categories = self.cachedCategories {
+                self.performCategorySave(categories)
+                self.pendingCategorySave = false
+            }
+            
+            if self.pendingSnippetSave, let snippets = self.cachedSnippets {
+                self.performSnippetSave(snippets)
+                self.pendingSnippetSave = false
+            }
+        }
     }
     
     // Helper to generate unique IDs

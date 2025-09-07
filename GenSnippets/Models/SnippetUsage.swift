@@ -59,79 +59,143 @@ class UsageTracker: ObservableObject {
     @Published private var usageData: [String: SnippetUsage] = [:]
     private let storageKey = "snippetUsageData"
     
+    // Thread safety
+    private let dataQueue = DispatchQueue(label: "com.gensnippets.usage", attributes: .concurrent)
+    
+    // Batch save management
+    private var saveTimer: Timer?
+    private var pendingSave = false
+    
     init() {
         loadUsageData()
+    }
+    
+    deinit {
+        saveTimer?.invalidate()
+        performPendingSave()
     }
     
     private func loadUsageData() {
         if let data = UserDefaults.standard.data(forKey: storageKey),
            let decoded = try? JSONDecoder().decode([String: SnippetUsage].self, from: data) {
-            usageData = decoded
+            DispatchQueue.main.async {
+                self.usageData = decoded
+            }
         }
     }
     
     private func saveUsageData() {
-        if let encoded = try? JSONEncoder().encode(usageData) {
-            UserDefaults.standard.set(encoded, forKey: storageKey)
+        pendingSave = true
+        scheduleSave()
+    }
+    
+    private func performSave() {
+        dataQueue.sync {
+            do {
+                let encoded = try JSONEncoder().encode(usageData)
+                UserDefaults.standard.set(encoded, forKey: storageKey)
+                pendingSave = false
+            } catch {
+                print("[UsageTracker] Failed to save usage data: \(error)")
+            }
+        }
+    }
+    
+    private func scheduleSave() {
+        // Cancel existing timer
+        saveTimer?.invalidate()
+        
+        // Schedule new save after 0.5 seconds
+        saveTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { [weak self] _ in
+            self?.performPendingSave()
+        }
+    }
+    
+    private func performPendingSave() {
+        if pendingSave {
+            performSave()
         }
     }
     
     func recordUsage(for snippetId: String) {
-        DispatchQueue.main.async { [weak self] in
+        dataQueue.async(flags: .barrier) { [weak self] in
             guard let self = self else { return }
             
-            if self.usageData[snippetId] != nil {
-                self.usageData[snippetId]?.recordUsage()
+            var updatedData = self.usageData
+            
+            if updatedData[snippetId] != nil {
+                updatedData[snippetId]?.recordUsage()
             } else {
                 var newUsage = SnippetUsage(snippetId: snippetId)
                 newUsage.recordUsage()
-                self.usageData[snippetId] = newUsage
+                updatedData[snippetId] = newUsage
             }
+            
+            let count = updatedData[snippetId]?.usageCount ?? 0
+            
+            // Update on main thread for UI
+            DispatchQueue.main.async {
+                self.usageData = updatedData
+                self.objectWillChange.send()
+                // Post notification for UI update
+                NotificationCenter.default.post(name: NSNotification.Name("SnippetUsageUpdated"), object: snippetId)
+            }
+            
             self.saveUsageData()
-            self.objectWillChange.send()
             
-            // Post notification for UI update
-            NotificationCenter.default.post(name: NSNotification.Name("SnippetUsageUpdated"), object: snippetId)
-            
-            print("[UsageTracker] 📊 Recorded usage for snippet \(snippetId), total: \(self.usageData[snippetId]?.usageCount ?? 0)")
+            print("[UsageTracker] 📊 Recorded usage for snippet \(snippetId), total: \(count)")
         }
     }
     
     func getUsage(for snippetId: String) -> SnippetUsage? {
-        return usageData[snippetId]
+        return dataQueue.sync {
+            return usageData[snippetId]
+        }
     }
     
     func getUsageCount(for snippetId: String) -> Int {
-        return usageData[snippetId]?.usageCount ?? 0
+        return dataQueue.sync {
+            return usageData[snippetId]?.usageCount ?? 0
+        }
     }
     
     func getLastUsed(for snippetId: String) -> String {
-        return usageData[snippetId]?.formattedLastUsed ?? "Never"
+        return dataQueue.sync {
+            return usageData[snippetId]?.formattedLastUsed ?? "Never"
+        }
     }
     
     func getMostUsedSnippets(limit: Int = 10) -> [(snippetId: String, usage: SnippetUsage)] {
-        return usageData
-            .map { ($0.key, $0.value) }
-            .sorted { $0.1.usageCount > $1.1.usageCount }
-            .prefix(limit)
-            .map { ($0, $1) }
+        return dataQueue.sync {
+            return usageData
+                .map { ($0.key, $0.value) }
+                .sorted { $0.1.usageCount > $1.1.usageCount }
+                .prefix(limit)
+                .map { ($0, $1) }
+        }
     }
     
     func getRecentlyUsedSnippets(limit: Int = 10) -> [(snippetId: String, usage: SnippetUsage)] {
-        return usageData
-            .compactMap { key, value in
-                guard value.lastUsedDate != nil else { return nil }
-                return (key, value)
-            }
-            .sorted { 
-                ($0.1.lastUsedDate ?? Date.distantPast) > ($1.1.lastUsedDate ?? Date.distantPast)
-            }
-            .prefix(limit)
-            .map { ($0, $1) }
+        return dataQueue.sync {
+            return usageData
+                .compactMap { key, value in
+                    guard value.lastUsedDate != nil else { return nil }
+                    return (key, value)
+                }
+                .sorted { 
+                    ($0.1.lastUsedDate ?? Date.distantPast) > ($1.1.lastUsedDate ?? Date.distantPast)
+                }
+                .prefix(limit)
+                .map { ($0, $1) }
+        }
     }
     
     func clearUsageData() {
-        usageData.removeAll()
-        saveUsageData()
+        dataQueue.async(flags: .barrier) { [weak self] in
+            DispatchQueue.main.async {
+                self?.usageData.removeAll()
+            }
+            self?.saveUsageData()
+        }
     }
 }

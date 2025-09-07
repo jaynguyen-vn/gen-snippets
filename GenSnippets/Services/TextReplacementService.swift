@@ -4,6 +4,48 @@ import AppKit
 import Carbon
 import CoreGraphics
 
+// Trie node for efficient snippet lookup
+class TrieNode {
+    var children: [Character: TrieNode] = [:]
+    var snippet: Snippet?
+    
+    func insert(command: String, snippet: Snippet) {
+        var currentNode = self
+        for char in command {
+            if currentNode.children[char] == nil {
+                currentNode.children[char] = TrieNode()
+            }
+            currentNode = currentNode.children[char]!
+        }
+        currentNode.snippet = snippet
+    }
+    
+    func findMatchingSuffix(in text: String) -> Snippet? {
+        // Check all possible suffixes of the text
+        for startIndex in text.indices {
+            let suffix = String(text[startIndex...])
+            if let snippet = search(command: suffix) {
+                // Verify it's actually a suffix match
+                if text.hasSuffix(snippet.command) {
+                    return snippet
+                }
+            }
+        }
+        return nil
+    }
+    
+    private func search(command: String) -> Snippet? {
+        var currentNode = self
+        for char in command {
+            guard let nextNode = currentNode.children[char] else {
+                return nil
+            }
+            currentNode = nextNode
+        }
+        return currentNode.snippet
+    }
+}
+
 class TextReplacementService {
     static let shared = TextReplacementService()
     
@@ -11,6 +53,16 @@ class TextReplacementService {
     private var snippetLookup: [String: String] = [:]
     private var sortedSnippetsCache: [Snippet] = []
     private var snippetsLastUpdated: Date = Date()
+    private var snippetsCacheVersion = 0
+    
+    // Thread safety
+    private let snippetQueue = DispatchQueue(label: "com.gensnippets.snippets", attributes: .concurrent)
+    
+    // Trie for efficient snippet lookup
+    private var snippetTrie = TrieNode()
+    
+    // Cache compiled regex
+    private static let keywordRegex = try? NSRegularExpression(pattern: "\\{([^}]+)\\}", options: [])
     
     private var cancellables = Set<AnyCancellable>()
     private var isMonitoring = false
@@ -41,8 +93,11 @@ class TextReplacementService {
     }
     
     deinit {
+        bufferClearTimer?.invalidate()
+        bufferClearTimer = nil
         stopMonitoring()
         selfReference?.release()
+        selfReference = nil
     }
     
     private func setupKeyMonitor() {
@@ -66,7 +121,7 @@ class TextReplacementService {
             eventsOfInterest: CGEventMask(eventMask),
             callback: { proxy, type, event, refcon in
                 guard let refcon = refcon else {
-                    return Unmanaged.passRetained(event)
+                    return Unmanaged.passUnretained(event)
                 }
                 
                 let service = Unmanaged<TextReplacementService>.fromOpaque(refcon).takeUnretainedValue()
@@ -76,7 +131,7 @@ class TextReplacementService {
                     let flags = event.flags
                     
                     if flags.contains(.maskCommand) || flags.contains(.maskControl) {
-                        return Unmanaged.passRetained(event)
+                        return Unmanaged.passUnretained(event)
                     }
                     
                     if keyCode == 0x33 {
@@ -86,7 +141,7 @@ class TextReplacementService {
                                 service.checkForCommands()
                             }
                         }
-                        return Unmanaged.passRetained(event)
+                        return Unmanaged.passUnretained(event)
                     }
                     
                     // Prevent duplicate key processing by checking time and key code
@@ -129,7 +184,7 @@ class TextReplacementService {
                                 }
                                 
                                 // Return early, we've already processed the character
-                                return Unmanaged.passRetained(event)
+                                return Unmanaged.passUnretained(event)
                             }
                         }
                         
@@ -305,7 +360,16 @@ class TextReplacementService {
     }
     
     private func checkForCommands() {
-        let sortedSnippets = snippets.sorted { $0.command.count > $1.command.count }
+        // Use cached sorted snippets if available and recent
+        let sortedSnippets = snippetQueue.sync {
+            if !sortedSnippetsCache.isEmpty {
+                return sortedSnippetsCache
+            } else {
+                let sorted = snippets.sorted { $0.command.count > $1.command.count }
+                sortedSnippetsCache = sorted
+                return sorted
+            }
+        }
         
         for snippet in sortedSnippets {
             if currentInputBuffer.count < snippet.command.count {
@@ -533,11 +597,10 @@ class TextReplacementService {
         }
         #endif
         
-        // Regular expression to find keywords in curly braces
-        let pattern = "\\{([^}]+)\\}"
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
+        // Use cached regex
+        guard let regex = TextReplacementService.keywordRegex else {
             #if DEBUG
-            print("[TextReplacementService] ⚠️ Failed to create regex for special keywords")
+            print("[TextReplacementService] ⚠️ Failed to use cached regex for special keywords")
             #endif
             return text
         }
@@ -678,16 +741,24 @@ class TextReplacementService {
     }
     
     func updateSnippets(_ snippets: [Snippet]) {
-        var snippetDict = [String: String]()
-        for snippet in snippets {
-            snippetDict[snippet.command] = snippet.content
+        snippetQueue.async(flags: .barrier) {
+            var snippetDict = [String: String]()
+            let newTrie = TrieNode()
+            
+            for snippet in snippets {
+                snippetDict[snippet.command] = snippet.content
+                newTrie.insert(command: snippet.command, snippet: snippet)
+            }
+            
+            self.snippets = snippets
+            self.snippetLookup = snippetDict
+            self.snippetTrie = newTrie
+            
+            // Update cache with proper versioning
+            self.sortedSnippetsCache = snippets.sorted { $0.command.count > $1.command.count }
+            self.snippetsLastUpdated = Date()
+            self.snippetsCacheVersion += 1
         }
-        
-        self.snippets = snippets
-        self.snippetLookup = snippetDict
-        
-        self.sortedSnippetsCache = []
-        self.snippetsLastUpdated = Date()
         
         print("[TextReplacementService] Updated snippets: \(snippets.count) items")
         if snippets.count < 10 {
@@ -700,13 +771,8 @@ class TextReplacementService {
     func replaceText(in text: String) -> String {
         var result = text
         
-        let sortedSnippets: [Snippet]
-        if Date().timeIntervalSince(snippetsLastUpdated) < 1.0 && !sortedSnippetsCache.isEmpty {
-            sortedSnippets = sortedSnippetsCache
-        } else {
-            sortedSnippets = snippets.sorted { $0.command.count > $1.command.count }
-            sortedSnippetsCache = sortedSnippets
-            snippetsLastUpdated = Date()
+        let sortedSnippets = snippetQueue.sync {
+            return sortedSnippetsCache.isEmpty ? snippets.sorted { $0.command.count > $1.command.count } : sortedSnippetsCache
         }
         
         for snippet in sortedSnippets {
@@ -728,43 +794,32 @@ class TextReplacementService {
     }
     
     func containsCommand(_ text: String) -> Bool {
-        if text.isEmpty || snippets.isEmpty {
-            return false
-        }
-        
-        // Only check if the text ends with a snippet command
-        // This prevents false positives where any character that happens to be
-        // part of a snippet command gets incorrectly flagged
-        for (command, _) in snippetLookup {
-            if text.count < command.count {
-                continue
+        return snippetQueue.sync {
+            if text.isEmpty || snippets.isEmpty {
+                return false
             }
             
-            if text.hasSuffix(command) {
-                #if DEBUG
-                print("[TextReplacementService] Found command suffix: \(command) in text")
-                #endif
-                return true
-            }
+            // Use Trie for more efficient suffix checking
+            return snippetTrie.findMatchingSuffix(in: text) != nil
         }
-        
-        return false
     }
     
     func getContentForCommand(_ command: String) -> String? {
-        if let content = snippetLookup[command] {
-            // Process special keywords in the content before returning
-            let processedContent = processSpecialKeywords(content)
+        return snippetQueue.sync {
+            if let content = snippetLookup[command] {
+                // Process special keywords in the content before returning
+                let processedContent = processSpecialKeywords(content)
+                #if DEBUG
+                print("[TextReplacementService] Found processed content for command: \(command)")
+                #endif
+                return processedContent
+            }
+            
             #if DEBUG
-            print("[TextReplacementService] Found processed content for command: \(command)")
+            print("[TextReplacementService] No content found for command: \(command)")
             #endif
-            return processedContent
+            return nil
         }
-        
-        #if DEBUG
-        print("[TextReplacementService] No content found for command: \(command)")
-        #endif
-        return nil
     }
     
     func processTextInput(_ text: String) -> String? {
@@ -772,19 +827,20 @@ class TextReplacementService {
         print("[TextReplacementService] Processing text input: \(text)")
         #endif
         
-        for (command, content) in snippetLookup {
-            if text.hasSuffix(command) {
-                let prefixText = text.dropLast(command.count)
+        return snippetQueue.sync {
+            // Use Trie for efficient lookup
+            if let snippet = snippetTrie.findMatchingSuffix(in: text) {
+                let prefixText = text.dropLast(snippet.command.count)
                 // Process special keywords in the content
-                let processedContent = processSpecialKeywords(content)
+                let processedContent = processSpecialKeywords(snippet.content)
                 let result = String(prefixText) + processedContent
                 #if DEBUG
-                print("[TextReplacementService] Replaced command: \(command) with processed content")
+                print("[TextReplacementService] Replaced command: \(snippet.command) with processed content")
                 #endif
                 return result
             }
+            return nil
         }
-        return nil
     }
     
     func debugSnippets() {

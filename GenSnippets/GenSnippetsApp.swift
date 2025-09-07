@@ -56,6 +56,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     
     private let loginItemIdentifier = "com.gensnippets.launcher"
     
+    // Store notification observers to properly remove them
+    private var notificationObservers: [NSObjectProtocol] = []
+    
+    deinit {
+        // Remove all notification observers
+        notificationObservers.forEach { 
+            NotificationCenter.default.removeObserver($0)
+        }
+        notificationObservers.removeAll()
+    }
+    
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Check accessibility permissions first
         if !AccessibilityPermissionManager.shared.isAccessibilityEnabled() {
@@ -78,15 +89,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         
         
         // Listen for accessibility permission granted
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleAccessibilityPermissionGranted),
-            name: NSNotification.Name("AccessibilityPermissionGranted"),
-            object: nil
-        )
+        let accessibilityObserver = NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("AccessibilityPermissionGranted"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.handleAccessibilityPermissionGranted()
+        }
+        notificationObservers.append(accessibilityObserver)
         
         // Listen for snippets updates
-        NotificationCenter.default.addObserver(
+        let snippetsObserver = NotificationCenter.default.addObserver(
             forName: NSNotification.Name("SnippetsUpdated"),
             object: nil,
             queue: .main
@@ -95,54 +108,67 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 TextReplacementService.shared.updateSnippets(snippets)
             }
         }
+        notificationObservers.append(snippetsObserver)
         
         // Listen for hide menu bar icon request
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(hideMenuBarIcon),
-            name: NSNotification.Name("HideMenuBarIcon"),
-            object: nil
-        )
+        let hideMenuBarObserver = NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("HideMenuBarIcon"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.hideMenuBarIcon()
+        }
+        notificationObservers.append(hideMenuBarObserver)
         
         // Listen for show menu bar icon request
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(showMenuBarIcon),
-            name: NSNotification.Name("ShowMenuBarIcon"),
-            object: nil
-        )
+        let showMenuBarObserver = NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("ShowMenuBarIcon"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.showMenuBarIcon()
+        }
+        notificationObservers.append(showMenuBarObserver)
         
         // Listen for hide dock icon request
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(hideDockIcon),
-            name: NSNotification.Name("HideDockIcon"),
-            object: nil
-        )
+        let hideDockObserver = NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("HideDockIcon"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.hideDockIcon()
+        }
+        notificationObservers.append(hideDockObserver)
         
         // Listen for confirmed quit
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleConfirmedQuit),
-            name: NSNotification.Name("ConfirmedQuit"),
-            object: nil
-        )
+        let confirmedQuitObserver = NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("ConfirmedQuit"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.handleConfirmedQuit()
+        }
+        notificationObservers.append(confirmedQuitObserver)
         
         // Listen for close popover request
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(closePopover),
-            name: NSNotification.Name("ClosePopover"),
-            object: nil
-        )
+        let closePopoverObserver = NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("ClosePopover"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.closePopover()
+        }
+        notificationObservers.append(closePopoverObserver)
         
         // Listen for status bar icon visibility changes
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleStatusBarIconVisibilityChanged(_:)),
-            name: NSNotification.Name("StatusBarIconVisibilityChanged"),
-            object: nil
-        )
+        let statusBarObserver = NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("StatusBarIconVisibilityChanged"),
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            self?.handleStatusBarIconVisibilityChanged(notification)
+        }
+        notificationObservers.append(statusBarObserver)
         
         // Handle keyboard shortcuts
         NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
