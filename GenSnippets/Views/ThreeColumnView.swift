@@ -277,7 +277,7 @@ struct ThreeColumnView: View {
             
             // Category List
             ScrollView {
-                VStack(alignment: .leading, spacing: 2) {
+                LazyVStack(alignment: .leading, spacing: 2, pinnedViews: []) {
                     ForEach(categoryViewModel.categories) { category in
                         CategoryRowView(
                             category: category,
@@ -463,14 +463,14 @@ struct ThreeColumnView: View {
                 .frame(maxWidth: .infinity)
             } else {
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 8) {
-                        ForEach(filteredSnippets) { snippet in
+                    LazyVStack(alignment: .leading, spacing: 8, pinnedViews: []) {
+                        ForEach(filteredSnippets, id: \.id) { snippet in
                             if isMultiSelectMode {
                                 HStack(spacing: 8) {
                                     Image(systemName: selectedSnippetIds.contains(snippet.id) ? "checkmark.square.fill" : "square")
                                         .font(.system(size: 16))
                                         .foregroundColor(selectedSnippetIds.contains(snippet.id) ? .accentColor : .secondary)
-                                        .animation(.easeInOut(duration: 0.2), value: selectedSnippetIds.contains(snippet.id))
+                                        .animation(.easeInOut(duration: 0.1), value: selectedSnippetIds.contains(snippet.id))
                                         .onTapGesture {
                                             if selectedSnippetIds.contains(snippet.id) {
                                                 selectedSnippetIds.remove(snippet.id)
@@ -732,6 +732,39 @@ struct CategoryRowView: View {
     }
 }
 
+// MARK: - Usage Stats View
+struct UsageStatsView: View {
+    let snippetId: String
+    let isSelected: Bool
+    @StateObject private var usageTracker = UsageTracker.shared
+    
+    var body: some View {
+        if let usage = usageTracker.getUsage(for: snippetId), usage.usageCount > 0 {
+            HStack(spacing: 8) {
+                HStack(spacing: 4) {
+                    Image(systemName: "chart.bar.fill")
+                        .font(.system(size: 10))
+                    Text("\(usage.usageCount)")
+                        .font(.system(size: 11))
+                }
+                .foregroundColor(isSelected ? .white.opacity(0.8) : .blue.opacity(0.8))
+                
+                Text("•")
+                    .font(.system(size: 10))
+                    .foregroundColor(isSelected ? .white.opacity(0.5) : .secondary.opacity(0.5))
+                
+                HStack(spacing: 4) {
+                    Image(systemName: "clock")
+                        .font(.system(size: 10))
+                    Text(usage.formattedLastUsed)
+                        .font(.system(size: 11))
+                }
+                .foregroundColor(isSelected ? .white.opacity(0.8) : .secondary.opacity(0.8))
+            }
+        }
+    }
+}
+
 // MARK: - Snippet Row View
 struct SnippetRowView: View {
     let snippet: Snippet
@@ -741,7 +774,6 @@ struct SnippetRowView: View {
     let onSelect: () -> Void
     var onDelete: (() -> Void)?
     
-    @StateObject private var usageTracker = UsageTracker.shared
     @State private var isHovering = false
     
     var body: some View {
@@ -754,30 +786,8 @@ struct SnippetRowView: View {
                         .foregroundColor(isSelected ? .white : .primary)
                         .lineLimit(1)
                     
-                    // Usage stats
-                    if let usage = usageTracker.getUsage(for: snippet.id), usage.usageCount > 0 {
-                        HStack(spacing: 8) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "chart.bar.fill")
-                                    .font(.system(size: 10))
-                                Text("\(usage.usageCount)")
-                                    .font(.system(size: 11))
-                            }
-                            .foregroundColor(isSelected ? .white.opacity(0.8) : .blue.opacity(0.8))
-                            
-                            Text("•")
-                                .font(.system(size: 10))
-                                .foregroundColor(isSelected ? .white.opacity(0.5) : .secondary.opacity(0.5))
-                            
-                            HStack(spacing: 4) {
-                                Image(systemName: "clock")
-                                    .font(.system(size: 10))
-                                Text(usage.formattedLastUsed)
-                                    .font(.system(size: 11))
-                            }
-                            .foregroundColor(isSelected ? .white.opacity(0.8) : .secondary.opacity(0.8))
-                        }
-                    }
+                    // Usage stats - simplified for performance
+                    UsageStatsView(snippetId: snippet.id, isSelected: isSelected)
                 }
                 
                 Spacer()
