@@ -52,6 +52,14 @@ struct ModernSnippetSearchView: View {
         // Insert snippet text directly into the focused app
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             TextReplacementService.shared.insertSnippetDirectly(snippet)
+            
+            // Copy snippet content to clipboard after insertion
+            // This ensures the clipboard keeps the snippet content
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                let pasteboard = NSPasteboard.general
+                pasteboard.clearContents()
+                pasteboard.setString(snippet.content, forType: .string)
+            }
         }
     }
     
