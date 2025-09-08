@@ -572,6 +572,14 @@ struct ModernSearchTextField: NSViewRepresentable {
                     SnippetSearchWindowController.returnToPreviousApp()
                 }
                 return true
+            } else if commandSelector == #selector(NSResponder.insertTab(_:)) {
+                // Handle Tab key to prevent beep
+                NotificationCenter.default.post(name: NSNotification.Name("MoveDownInSnippetList"), object: nil)
+                return true
+            } else if commandSelector == #selector(NSResponder.insertBacktab(_:)) {
+                // Handle Shift+Tab key to prevent beep
+                NotificationCenter.default.post(name: NSNotification.Name("MoveUpInSnippetList"), object: nil)
+                return true
             }
             return false
         }

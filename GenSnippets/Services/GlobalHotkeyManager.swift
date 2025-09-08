@@ -51,6 +51,7 @@ class GlobalHotkeyManager {
                 DispatchQueue.main.async {
                     SnippetSearchWindowController.showSearchWindow()
                 }
+                // Note: Global monitors can't consume events, but we handle it in local monitor
             }
         }
         
