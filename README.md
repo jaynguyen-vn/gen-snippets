@@ -13,34 +13,48 @@ GenSnippets is a powerful macOS text snippet management application that enables
 ## ✨ Features
 
 ### Core Functionality
-- 🚀 **System-wide Text Replacement**: Works in any application across macOS
+- 🚀 **System-wide Text Replacement**: Works in any application across macOS using CGEvent monitoring
 - 📁 **Category Management**: Organize snippets into custom categories for better organization
-- 🔍 **Smart Command Matching**: Automatically detects and replaces text as you type
+- 🔍 **Smart Command Matching**: Uses Trie data structure for O(m) lookup performance
 - 🎯 **Priority Matching**: Longer commands take precedence for accurate replacements
 - 🔄 **Auto-cleanup**: Automatically removes typed commands after replacement
+- ⚡ **Dynamic Content**: Insert clipboard content, current date, or position cursor with special keywords
+- ⏱️ **Security Buffer**: 15-second timeout prevents accidental replacements of old inputs
 
 ### User Interface
 - 🖥️ **Three-Column Layout**: Intuitive category list, snippet list, and detail view
-- 📊 **Menu Bar Integration**: Quick access from the system menu bar
+- 📊 **Menu Bar Integration**: Quick access from the system menu bar with snippet count
 - 🎨 **Native macOS Design**: Built with SwiftUI for a seamless Mac experience
 - 👁️ **Show/Hide Options**: Toggle between dock and menu bar visibility
+- 🔎 **Quick Search**: Global hotkey (default: Cmd+Ctrl+S) opens instant snippet search
+- ⌨️ **Customizable Shortcuts**: Configure your preferred keyboard shortcuts
 
 ### Data Management
-- 💾 **100% Offline**: All data stored locally with no server dependencies
-- ☁️ **iCloud Sync**: Optional synchronization across your Mac devices
-- 📤 **Export/Import**: Backup and share your snippet collections
+- 💾 **100% Offline**: All data stored locally in UserDefaults with batch saving
+- 📤 **Export/Import**: Backup and share your snippet collections as JSON
 - 🔒 **Privacy-First**: Your data never leaves your devices
+- 💨 **Optimized Storage**: Caching layer with batch operations for performance
 
 ### Advanced Features
-- 📈 **Usage Insights**: Track your most-used snippets and productivity gains
+- 📈 **Usage Tracking**: Monitor snippet usage with automatic counting
 - 🌍 **Multi-language Support**: Localization infrastructure ready for expansion
 - 🚦 **Accessibility Integration**: Full macOS accessibility permission handling
-- ⚡ **Performance Optimized**: Sorted snippet cache for efficient real-time matching
+- ⚡ **Performance Optimized**: Trie-based matching with memory-efficient caching
+- 📋 **Smart Keywords**: Dynamic content insertion with multiple placeholders:
+  - `{clipboard}` - Current clipboard content
+  - `{cursor}` - Cursor positioning after insertion
+  - `{timestamp}` - Unix timestamp
+  - `{random-number}` - Random number (1-1000)
+  - `{dd/mm}` - Current date (day/month format)
+  - `{dd/mm/yyyy}` - Full date format
+  - `{time}` - Current time (HH:mm:ss)
+  - `{uuid}` - Unique identifier
+- 🔄 **Batch Operations**: Efficient batch saving and loading for large snippet collections
 
 ## 🚀 Installation
 
 ### Requirements
-- macOS 11.0 (Big Sur) or later
+- macOS 11.5 (Big Sur) or later
 - Xcode 13.0+ (for building from source)
 
 ### Building from Source
@@ -113,36 +127,47 @@ Categories help you organize related snippets:
 - Command: `!addr` → Your full address
 - Command: `!phone` → Your phone number
 
+### Dynamic Content
+- Command: `!timestamp` → "Log entry {timestamp}" (inserts Unix timestamp)
+- Command: `!template` → "Dear {cursor}," (positions cursor after insertion)  
+- Command: `!paste` → "{clipboard}" (inserts current clipboard content)
+- Command: `!log` → "[{time}] {uuid}: " (inserts time and unique ID)
+- Command: `!today` → "Date: {dd/mm/yyyy}" (inserts today's date)
+
 ## ⚙️ Configuration
 
 ### Settings Options
 
-- **Menu Bar Icon**: Show/hide the menu bar icon
+- **Menu Bar Icon**: Show/hide the menu bar icon with snippet count
 - **Dock Icon**: Show/hide the dock icon
 - **Launch at Login**: Automatically start GenSnippets when you log in
+- **Global Hotkey**: Customize the keyboard shortcut (default: Cmd+Ctrl+S)
+- **Search View**: Quick access to snippet search with customizable shortcut
 
 ### Data Storage
 
 Local data is stored in:
 ```
-~/Library/Preferences/com.gensnippets.app.plist
+~/Library/Preferences/Jay8448.Gen-Snippets.plist
 ```
 
 ## 🏗️ Architecture
 
 ### Technology Stack
-- **Language**: Swift 5.5+
+- **Language**: Swift 5.0+
 - **UI Framework**: SwiftUI
-- **Platform**: macOS 11.0+
-- **Storage**: UserDefaults + Optional iCloud
+- **Platform**: macOS 11.5+
+- **Storage**: UserDefaults (local only)
 
 ### Key Components
 
-- **TextReplacementService**: Core engine for detecting and replacing text
-- **CategoryViewModel**: Manages category state and operations
-- **SnippetsViewModel**: Handles snippet CRUD operations
-- **AccessibilityPermissionManager**: Manages macOS permission requests
-- **LocalStorageService**: Handles data persistence
+- **TextReplacementService** (906 lines): Core engine using Trie data structure for O(m) text matching
+- **CategoryViewModel**: Manages category state with real-time updates
+- **SnippetsViewModel**: Handles snippet CRUD operations with usage tracking
+- **AccessibilityPermissionManager**: Manages macOS permission requests and status
+- **LocalStorageService**: Batch-optimized UserDefaults persistence with caching
+- **SearchViewModel**: Powers the global quick search functionality
+- **KeyboardShortcutManager**: Handles customizable global hotkeys
 
 ## 🤝 Contributing
 
