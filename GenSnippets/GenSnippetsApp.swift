@@ -284,6 +284,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
     
     @objc private func handleConfirmedQuit() {
+        // Save data before quitting
+        LocalStorageService.shared.forceSave()
         shouldTerminate = true
         NSApp.terminate(nil)
     }
@@ -326,6 +328,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        // Save any pending data before terminating
+        LocalStorageService.shared.forceSave()
+        
         // Only allow termination if confirmed through our dialog
         if !shouldTerminate {
             NotificationCenter.default.post(name: NSNotification.Name("ShowQuitDialog"), object: nil)

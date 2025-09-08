@@ -275,6 +275,22 @@ class LocalStorageService {
         }
     }
     
+    // Force save immediately without waiting for timer
+    func forceSave() {
+        saveTimer?.invalidate()
+        saveQueue.sync(flags: .barrier) {
+            if self.pendingCategorySave, let categories = self.cachedCategories {
+                self.performCategorySave(categories)
+                self.pendingCategorySave = false
+            }
+            
+            if self.pendingSnippetSave, let snippets = self.cachedSnippets {
+                self.performSnippetSave(snippets)
+                self.pendingSnippetSave = false
+            }
+        }
+    }
+    
     // Helper to generate unique IDs
     func generateId() -> String {
         return UUID().uuidString
