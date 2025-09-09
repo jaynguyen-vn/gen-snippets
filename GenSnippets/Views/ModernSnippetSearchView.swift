@@ -3,7 +3,7 @@ import AppKit
 
 @available(macOS 12.0, *)
 struct ModernSnippetSearchView: View {
-    @StateObject private var viewModel = SnippetsViewModel()
+    @StateObject private var viewModel = LocalSnippetsViewModel()
     @State private var searchText = ""
     @State private var selectedSnippet: Snippet?
     @State private var selectedSnippetId: String? = nil
@@ -102,7 +102,7 @@ struct ModernSnippetSearchView: View {
         .frame(width: 860, height: 580)
         .background(Color(NSColor.windowBackgroundColor))
         .onAppear {
-            viewModel.loadLocalSnippets()
+            viewModel.loadSnippets()
             updateFilteredSnippets()
             // Always select first snippet on appear
             if let first = filteredSnippets.first {
@@ -133,6 +133,14 @@ struct ModernSnippetSearchView: View {
         }
         .onChange(of: viewModel.snippets) { _ in
             updateFilteredSnippets()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("SnippetsUpdated"))) { notification in
+            // Only update filtered snippets, don't reload (to avoid infinite loop)
+            // The notification already contains the updated snippets
+            if let snippets = notification.object as? [Snippet] {
+                viewModel.snippets = snippets
+                updateFilteredSnippets()
+            }
         }
     }
     

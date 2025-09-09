@@ -24,6 +24,7 @@ struct InsightsView: View {
                         .foregroundColor(.secondary)
                 }
                 .buttonStyle(PlainButtonStyle())
+                .focusable(false)
             }
             .padding(20)
             
