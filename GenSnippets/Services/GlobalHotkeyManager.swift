@@ -8,6 +8,7 @@ class GlobalHotkeyManager {
     private var runLoopSource: CFRunLoopSource?
     private var globalEventMonitor: Any?
     private var localEventMonitor: Any?
+    private var hotkeyCheckTimer: Timer?
     
     private init() {
         // Listen for shortcut updates
@@ -17,6 +18,20 @@ class GlobalHotkeyManager {
             name: NSNotification.Name("UpdateSearchShortcut"),
             object: nil
         )
+        
+        // Start timer to periodically check and re-register hotkeys if needed
+        startHotkeyCheckTimer()
+    }
+    
+    deinit {
+        hotkeyCheckTimer?.invalidate()
+        hotkeyCheckTimer = nil
+        if let monitor = globalEventMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
+        if let monitor = localEventMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
     }
     
     func setupGlobalHotkey() {
@@ -72,5 +87,36 @@ class GlobalHotkeyManager {
     
     @objc private func updateShortcut() {
         registerHotkey()
+    }
+    
+    private func startHotkeyCheckTimer() {
+        hotkeyCheckTimer?.invalidate()
+        hotkeyCheckTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
+            self?.checkAndReregisterHotkeysIfNeeded()
+        }
+    }
+    
+    private func checkAndReregisterHotkeysIfNeeded() {
+        // NSEvent monitors don't have a direct way to check if they're still active,
+        // but we can test if they're working by checking if the monitors are nil
+        // or by periodically re-registering them to ensure they stay active
+        
+        // If monitors are nil, re-register
+        if globalEventMonitor == nil || localEventMonitor == nil {
+            print("[GlobalHotkeyManager] ⚠️ Hotkey monitors were nil, re-registering...")
+            registerHotkey()
+        }
+        
+        // Additionally, re-register every 30 seconds to ensure they stay active
+        let now = Date()
+        if let lastRegistration = UserDefaults.standard.object(forKey: "LastHotkeyRegistration") as? Date {
+            if now.timeIntervalSince(lastRegistration) > 30 {
+                print("[GlobalHotkeyManager] 🔄 Refreshing hotkey registration...")
+                registerHotkey()
+                UserDefaults.standard.set(now, forKey: "LastHotkeyRegistration")
+            }
+        } else {
+            UserDefaults.standard.set(now, forKey: "LastHotkeyRegistration")
+        }
     }
 }

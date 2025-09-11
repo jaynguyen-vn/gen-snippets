@@ -77,6 +77,10 @@ class TextReplacementService {
     private var lastCharHandled: String = ""
     private var bufferClearTimer: Timer?
     private let bufferInactivityTimeout: TimeInterval = 15.0 // Clear buffer after 15 seconds of inactivity
+    private var eventTapCheckTimer: Timer?
+    private var eventTapDisabledCount = 0
+    private var lastDisabledTime: Date?
+    private var callbackExecutionTimes: [TimeInterval] = []
     
     private var cachedEventSource: CGEventSource?
     
@@ -95,6 +99,8 @@ class TextReplacementService {
     deinit {
         bufferClearTimer?.invalidate()
         bufferClearTimer = nil
+        eventTapCheckTimer?.invalidate()
+        eventTapCheckTimer = nil
         stopMonitoring()
         selfReference?.release()
         selfReference = nil
@@ -126,7 +132,38 @@ class TextReplacementService {
                 
                 let service = Unmanaged<TextReplacementService>.fromOpaque(refcon).takeUnretainedValue()
                 
+                // Handle event tap being disabled by system
+                if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+                    service.eventTapDisabledCount += 1
+                    service.lastDisabledTime = Date()
+                    let disabledType = type == .tapDisabledByTimeout ? "TIMEOUT" : "USER_INPUT"
+                    print("[TextReplacementService] 🔴 Event tap disabled by \(disabledType)! Count: \(service.eventTapDisabledCount), Time: \(Date())")
+                    
+                    // Log average callback execution time
+                    if !service.callbackExecutionTimes.isEmpty {
+                        let avgTime = service.callbackExecutionTimes.reduce(0, +) / Double(service.callbackExecutionTimes.count)
+                        print("[TextReplacementService] ⏱️ Avg callback time: \(String(format: "%.3f", avgTime * 1000))ms")
+                        service.callbackExecutionTimes.removeAll()
+                    }
+                    
+                    CGEvent.tapEnable(tap: service.eventTap!, enable: true)
+                    print("[TextReplacementService] ✅ Event tap re-enabled")
+                    return Unmanaged.passUnretained(event)
+                }
+                
                 if type == .keyDown {
+                    let startTime = CFAbsoluteTimeGetCurrent()
+                    defer {
+                        let executionTime = CFAbsoluteTimeGetCurrent() - startTime
+                        service.callbackExecutionTimes.append(executionTime)
+                        if service.callbackExecutionTimes.count > 100 {
+                            service.callbackExecutionTimes.removeFirst()
+                        }
+                        if executionTime > 0.01 { // Log if takes more than 10ms
+                            print("[TextReplacementService] ⚠️ Slow callback: \(String(format: "%.3f", executionTime * 1000))ms")
+                        }
+                    }
+                    
                     let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
                     let flags = event.flags
                     
@@ -247,7 +284,7 @@ class TextReplacementService {
                     }
                 }
                 
-                return Unmanaged.passRetained(event)
+                return Unmanaged.passUnretained(event)
             },
             userInfo: selfReference?.toOpaque()
         ) else {
@@ -265,6 +302,43 @@ class TextReplacementService {
         
         CGEvent.tapEnable(tap: eventTap, enable: true)
         print("[TextReplacementService] ✅ Key monitor setup complete")
+        
+        // Start timer to check if event tap is still enabled
+        startEventTapCheckTimer()
+    }
+    
+    private func startEventTapCheckTimer() {
+        eventTapCheckTimer?.invalidate()
+        eventTapCheckTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
+            self?.checkAndReenableEventTap()
+        }
+    }
+    
+    private func checkAndReenableEventTap() {
+        guard let eventTap = eventTap else { return }
+        
+        let isEnabled = CGEvent.tapIsEnabled(tap: eventTap)
+        print("[TextReplacementService] 🔍 Periodic check - Tap enabled: \(isEnabled), Disabled count: \(eventTapDisabledCount)")
+        
+        if let lastDisabled = lastDisabledTime {
+            print("[TextReplacementService] 📊 Last disabled: \(lastDisabled.timeIntervalSinceNow * -1)s ago")
+        }
+        
+        if !isEnabled {
+            print("[TextReplacementService] 🔴 Event tap found disabled in periodic check!")
+            CGEvent.tapEnable(tap: eventTap, enable: true)
+            
+            // If re-enabling fails, recreate the event tap
+            if !CGEvent.tapIsEnabled(tap: eventTap) {
+                print("[TextReplacementService] ❌ Failed to re-enable tap, recreating...")
+                stopMonitoring()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                    self?.startMonitoring()
+                }
+            } else {
+                print("[TextReplacementService] ✅ Event tap re-enabled successfully")
+            }
+        }
     }
     
     private func handleKeyPress(_ char: String) {
@@ -716,9 +790,11 @@ class TextReplacementService {
     func stopMonitoring() {
         isMonitoring = false
         
-        // Clear the buffer timer
+        // Clear the timers
         bufferClearTimer?.invalidate()
         bufferClearTimer = nil
+        eventTapCheckTimer?.invalidate()
+        eventTapCheckTimer = nil
         
         if let eventTap = eventTap {
             CGEvent.tapEnable(tap: eventTap, enable: false)
