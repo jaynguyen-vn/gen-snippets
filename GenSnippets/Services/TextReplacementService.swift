@@ -71,7 +71,8 @@ class TextReplacementService {
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var deadKeyState: UInt32 = 0
-    private var selfReference: Unmanaged<TextReplacementService>?
+    private weak var weakSelf: TextReplacementService?
+    private var selfReference: Unmanaged<TextReplacementService>? // Keep for callback compatibility
     private var lastKeyTime: TimeInterval = 0
     private var lastKeyCode: CGKeyCode = 0
     private var lastCharHandled: String = ""
@@ -97,13 +98,31 @@ class TextReplacementService {
     }
     
     deinit {
-        bufferClearTimer?.invalidate()
-        bufferClearTimer = nil
-        eventTapCheckTimer?.invalidate()
-        eventTapCheckTimer = nil
+        // Properly clean up all resources on main thread
+        if Thread.isMainThread {
+            bufferClearTimer?.invalidate()
+            bufferClearTimer = nil
+            eventTapCheckTimer?.invalidate()
+            eventTapCheckTimer = nil
+        } else {
+            DispatchQueue.main.sync {
+                bufferClearTimer?.invalidate()
+                bufferClearTimer = nil
+                eventTapCheckTimer?.invalidate()
+                eventTapCheckTimer = nil
+            }
+        }
+
         stopMonitoring()
+
+        // Clean up retain cycle
         selfReference?.release()
         selfReference = nil
+        weakSelf = nil
+
+        // Cancel all Combine subscriptions
+        cancellables.forEach { $0.cancel() }
+        cancellables.removeAll()
     }
     
     private func setupKeyMonitor() {
@@ -114,9 +133,10 @@ class TextReplacementService {
             AXIsProcessTrustedWithOptions(options)
             return
         }
-        
+
         print("[TextReplacementService] ✅ Has accessibility permissions")
-        
+
+        weakSelf = self
         selfReference = Unmanaged.passRetained(self)
         
         let eventMask = (1 << CGEventType.keyDown.rawValue)
@@ -182,7 +202,7 @@ class TextReplacementService {
                     }
                     
                     // Prevent duplicate key processing by checking time and key code
-                    let currentTime = NSDate().timeIntervalSince1970
+                    let currentTime = CFAbsoluteTimeGetCurrent()
                     let isRepeatedKey = (currentTime - service.lastKeyTime < 0.008) && CGKeyCode(keyCode) == service.lastKeyCode
                     
                     // Only process this key if it's not a repeated key from input method
@@ -479,98 +499,193 @@ class TextReplacementService {
     
     private func deleteLastCharacters(count: Int) {
         guard count > 0 else { return }
-        
+
         let source = cachedEventSource ?? CGEventSource(stateID: .hidSystemState)
-        
-        guard let deleteEvent = CGEvent(keyboardEventSource: source, virtualKey: 0x33, keyDown: true) else {
+
+        guard let deleteDown = CGEvent(keyboardEventSource: source, virtualKey: 0x33, keyDown: true),
+              let deleteUp = CGEvent(keyboardEventSource: source, virtualKey: 0x33, keyDown: false) else {
             return
         }
-        deleteEvent.flags = .maskNonCoalesced
-        
-        if count <= 3 {
+
+        deleteDown.flags = .maskNonCoalesced
+        deleteUp.flags = .maskNonCoalesced
+
+        // Check if we're in a Terminal app
+        let isTerminal = isTerminalApp()
+
+        #if DEBUG
+        if isTerminal {
+            print("[TextReplacementService] 💻 Terminal detected - using simple deletion")
+        }
+        #endif
+
+        // Terminal apps need simple, individual deletes (no selection)
+        if isTerminal {
+            // For terminals, always use individual deletes with proper timing
             for _ in 0..<count {
-                deleteEvent.post(tap: .cghidEventTap)
-                usleep(700)
+                deleteDown.post(tap: .cghidEventTap)
+                Thread.sleep(forTimeInterval: 0.001) // 1ms per delete for terminals
+                deleteUp.post(tap: .cghidEventTap)
+                Thread.sleep(forTimeInterval: 0.001)
+            }
+            return
+        }
+
+        // Non-terminal apps: use optimized deletion
+        if count <= 3 {
+            // Small count: individual deletes with minimal delay
+            for _ in 0..<count {
+                deleteDown.post(tap: .cghidEventTap)
+                Thread.sleep(forTimeInterval: 0.0005) // 0.5ms
+                deleteUp.post(tap: .cghidEventTap)
+                Thread.sleep(forTimeInterval: 0.0005)
             }
         } else if count <= 10 {
-            let batchSize = 2
-            let batches = count / batchSize
-            let remainder = count % batchSize
-            
-            for _ in 0..<batches {
-                for _ in 0..<batchSize {
-                    deleteEvent.post(tap: .cghidEventTap)
-                    usleep(700)
-                }
-                usleep(200)
-            }
-            
-            for _ in 0..<remainder {
-                deleteEvent.post(tap: .cghidEventTap)
-                usleep(700)
+            // Medium count: batch deletes
+            for _ in 0..<count {
+                deleteDown.post(tap: .cghidEventTap)
+                Thread.sleep(forTimeInterval: 0.0003) // 0.3ms
+                deleteUp.post(tap: .cghidEventTap)
+                Thread.sleep(forTimeInterval: 0.0003)
             }
         } else {
-            let batchSize = 4
-            let batches = count / batchSize
-            let remainder = count % batchSize
-            
-            for _ in 0..<batches {
-                for _ in 0..<batchSize {
-                    deleteEvent.post(tap: .cghidEventTap)
-                    usleep(700)
+            // Large count: select all and delete
+            // First, select the text to delete (Shift + Left Arrow)
+            if let shiftDown = CGEvent(keyboardEventSource: source, virtualKey: 0x38, keyDown: true), // Shift
+               let leftArrow = CGEvent(keyboardEventSource: source, virtualKey: 0x7B, keyDown: true), // Left arrow
+               let leftArrowUp = CGEvent(keyboardEventSource: source, virtualKey: 0x7B, keyDown: false),
+               let shiftUp = CGEvent(keyboardEventSource: source, virtualKey: 0x38, keyDown: false) {
+
+                shiftDown.flags = [.maskShift, .maskNonCoalesced]
+
+                // Hold shift and press left arrow multiple times
+                shiftDown.post(tap: .cghidEventTap)
+                Thread.sleep(forTimeInterval: 0.001)
+
+                for _ in 0..<count {
+                    leftArrow.flags = [.maskShift, .maskNonCoalesced]
+                    leftArrowUp.flags = [.maskShift, .maskNonCoalesced]
+
+                    leftArrow.post(tap: .cghidEventTap)
+                    Thread.sleep(forTimeInterval: 0.0002)
+                    leftArrowUp.post(tap: .cghidEventTap)
+                    Thread.sleep(forTimeInterval: 0.0002)
                 }
-                usleep(300)
+
+                shiftUp.post(tap: .cghidEventTap)
+                Thread.sleep(forTimeInterval: 0.001)
+
+                // Now delete the selected text
+                deleteDown.post(tap: .cghidEventTap)
+                Thread.sleep(forTimeInterval: 0.001)
+                deleteUp.post(tap: .cghidEventTap)
+            } else {
+                // Fallback to individual deletes
+                for _ in 0..<count {
+                    deleteDown.post(tap: .cghidEventTap)
+                    Thread.sleep(forTimeInterval: 0.0005)
+                    deleteUp.post(tap: .cghidEventTap)
+                    Thread.sleep(forTimeInterval: 0.0005)
+                }
             }
-            
-            for _ in 0..<remainder {
-                deleteEvent.post(tap: .cghidEventTap)
-                usleep(700)
-            }
-        }
-        
-        if let deleteUpEvent = CGEvent(keyboardEventSource: source, virtualKey: 0x33, keyDown: false) {
-            deleteUpEvent.flags = .maskNonCoalesced
-            deleteUpEvent.post(tap: .cghidEventTap)
         }
     }
     
+    private func isWebBrowser() -> Bool {
+        guard let bundleID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier else {
+            return false
+        }
+
+        let browserBundleIDs = [
+            "com.google.Chrome",
+            "com.apple.Safari",
+            "org.mozilla.firefox",
+            "com.microsoft.edgemac",
+            "com.brave.Browser",
+            "com.opera.Opera",
+            "com.vivaldi.Vivaldi",
+            "com.coccoc.Coccoc"  // Cốc Cốc browser
+        ]
+
+        #if DEBUG
+        print("[TextReplacementService] Current app: \(bundleID)")
+        #endif
+
+        return browserBundleIDs.contains(bundleID)
+    }
+
+    private func isTerminalApp() -> Bool {
+        guard let bundleID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier else {
+            return false
+        }
+
+        let terminalBundleIDs = [
+            "com.apple.Terminal",
+            "com.googlecode.iterm2",
+            "net.kovidgoyal.kitty",
+            "com.github.wez.wezterm",
+            "io.alacritty",
+            "dev.warp.Warp-Stable",
+            "com.microsoft.VSCode"  // VSCode's integrated terminal
+        ]
+
+        return terminalBundleIDs.contains(bundleID)
+    }
+
     private func insertText(_ text: String) {
         guard !text.isEmpty else { return }
-        
+
         // First find cursor position marker in the original text
         var processedText = text
         var cursorPosition: Int? = nil
-        
+
         // Process special keywords while tracking cursor position
         processedText = processSpecialKeywordsWithCursor(processedText, cursorPosition: &cursorPosition)
-        
+
         let pasteboard = NSPasteboard.general
         let previousContent = pasteboard.string(forType: .string)
-        
+
+        // Detect if we're in a browser
+        let isBrowser = isWebBrowser()
+
+        #if DEBUG
+        if isBrowser {
+            print("[TextReplacementService] 🌐 Browser detected - using extended timing")
+        }
+        #endif
+
         // Clear and set new content
         pasteboard.clearContents()
         pasteboard.setString(processedText, forType: .string)
-        
-        // Perform paste
+
+        // Perform paste with appropriate timing
         if let source = CGEventSource(stateID: .hidSystemState) {
             if let cmdDown = CGEvent(keyboardEventSource: source, virtualKey: 0x37, keyDown: true),
                let vDown = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: true),
                let vUp = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: false),
                let cmdUp = CGEvent(keyboardEventSource: source, virtualKey: 0x37, keyDown: false) {
-                
+
                 cmdDown.flags = [.maskCommand, .maskNonCoalesced]
                 vDown.flags = [.maskCommand, .maskNonCoalesced]
                 vUp.flags = [.maskCommand, .maskNonCoalesced]
                 cmdUp.flags = .maskNonCoalesced
-                
-                // Execute paste command with minimal delays
+
+                // Use longer delays for browsers
+                let delay: useconds_t = isBrowser ? 2000 : 800  // 2ms for browsers, 0.8ms for others
+
+                // Execute paste command with appropriate delays
                 cmdDown.post(tap: .cghidEventTap)
-                usleep(800)
+                usleep(delay)
                 vDown.post(tap: .cghidEventTap)
-                usleep(800)
+                usleep(delay)
                 vUp.post(tap: .cghidEventTap)
-                usleep(800)
+                usleep(delay)
                 cmdUp.post(tap: .cghidEventTap)
+
+                // Extra delay for browsers to ensure paste completes
+                if isBrowser {
+                    usleep(3000) // Additional 3ms for browsers
+                }
                 
                 // If cursor position is specified, move cursor to that position after paste is complete
                 if let position = cursorPosition {
@@ -578,13 +693,15 @@ class TextReplacementService {
                     print("[TextReplacementService] 📍 Will move cursor to position: \(position)")
                     #endif
                     
-                    // Wait for paste to complete before moving cursor
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    // Wait for paste to complete before moving cursor (longer for browsers)
+                    let cursorDelay = isBrowser ? 0.25 : 0.15
+                    DispatchQueue.main.asyncAfter(deadline: .now() + cursorDelay) {
                         // Use a more reliable approach for cursor positioning that works in most applications
                         self.universalCursorPositioning(source: source, position: position, textLength: processedText.count)
-                        
-                        // Restore clipboard after cursor positioning
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+
+                        // Restore clipboard after cursor positioning (longer delay for browsers)
+                        let restoreDelay = isBrowser ? 0.2 : 0.1
+                        DispatchQueue.main.asyncAfter(deadline: .now() + restoreDelay) {
                             pasteboard.clearContents()
                             if let previous = previousContent {
                                 pasteboard.setString(previous, forType: .string)
@@ -592,8 +709,9 @@ class TextReplacementService {
                         }
                     }
                 } else {
-                    // No cursor position specified, just restore clipboard
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    // No cursor position specified, just restore clipboard (longer delay for browsers)
+                    let restoreDelay = isBrowser ? 0.2 : 0.1
+                    DispatchQueue.main.asyncAfter(deadline: .now() + restoreDelay) {
                         pasteboard.clearContents()
                         if let previous = previousContent {
                             pasteboard.setString(previous, forType: .string)
