@@ -90,13 +90,7 @@ final class EdgeCaseHandler {
 
     private static func isPasswordField() -> Bool {
         // Check if secure text input is active
-        if let context = NSTextInputContext.current {
-            // Check for secure input mode
-            if TSMGetAbsoluteLayoutActiveInputMode() != nil {
-                return IsSecureEventInputEnabled()
-            }
-        }
-        return false
+        return IsSecureEventInputEnabled()
     }
 
     private static func isVMApp(_ bundleID: String) -> Bool {
@@ -240,21 +234,27 @@ final class EdgeCaseHandler {
 
     static func isIMEComposing() -> Bool {
         // Check if IME is in composition mode
-        if let inputSource = TISCopyCurrentKeyboardInputSource().takeRetainedValue() as TISInputSource? {
+        if let inputSource = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue() {
             if let sourceID = TISGetInputSourceProperty(inputSource, kTISPropertyInputSourceID) {
                 let id = Unmanaged<CFString>.fromOpaque(sourceID).takeUnretainedValue() as String
 
-                // Vietnamese IME IDs
-                let vietnameseIMEs = [
+                // Vietnamese IME IDs and other IMEs that use composition
+                let composingIMEs = [
                     "com.apple.inputmethod.VietnameseIM",
                     "org.tuyenmai.openkey",
-                    "com.trankynam.GoTiengViet"
+                    "com.trankynam.GoTiengViet",
+                    "com.apple.inputmethod.TCIM",     // Chinese Traditional
+                    "com.apple.inputmethod.SCIM",     // Chinese Simplified
+                    "com.apple.inputmethod.Kotoeri",  // Japanese
+                    "com.apple.inputmethod.Korean"    // Korean
                 ]
 
-                for imeID in vietnameseIMEs {
+                for imeID in composingIMEs {
                     if id.contains(imeID) {
-                        // Check composition state
-                        return TSMDocumentIsInputBottomWindowLevel()
+                        // For IMEs that use composition, we can check if marked text exists
+                        // This is a simple heuristic - return true when these IMEs are active
+                        // to be safe and avoid interfering with composition
+                        return true
                     }
                 }
             }
