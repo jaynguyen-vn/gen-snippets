@@ -12,11 +12,12 @@ class LocalStorageService {
     private var saveTimer: Timer?
     private let saveQueue = DispatchQueue(label: "com.gensnippets.storage", attributes: .concurrent)
     
-    // Cached data
+    // Cached data with size limits
     private var cachedCategories: [Category]?
     private var cachedSnippets: [Snippet]?
     private var pendingCategorySave = false
     private var pendingSnippetSave = false
+    private let maxCacheSize = 1000 // Limit cache size to prevent unbounded growth
     
     private init() {
         // Load initial data into cache
@@ -27,7 +28,17 @@ class LocalStorageService {
     deinit {
         // Perform any pending saves
         performPendingSaves()
-        saveTimer?.invalidate()
+
+        // Invalidate timer on main thread
+        if Thread.isMainThread {
+            saveTimer?.invalidate()
+            saveTimer = nil
+        } else {
+            DispatchQueue.main.sync {
+                saveTimer?.invalidate()
+                saveTimer = nil
+            }
+        }
     }
     
     // MARK: - Categories
@@ -142,7 +153,12 @@ class LocalStorageService {
                 do {
                     let decoded = try JSONDecoder().decode([Snippet].self, from: data)
                     // Validate decoded data
-                    let validSnippets = decoded.filter { !$0.id.isEmpty && !$0.command.isEmpty }
+                    var validSnippets = decoded.filter { !$0.id.isEmpty && !$0.command.isEmpty }
+                    // Limit cache size to prevent memory issues
+                    if validSnippets.count > maxCacheSize {
+                        print("[LocalStorage] ⚠️ Truncating snippets from \(validSnippets.count) to \(maxCacheSize)")
+                        validSnippets = Array(validSnippets.prefix(maxCacheSize))
+                    }
                     cachedSnippets = validSnippets
                     print("[LocalStorage] Loaded \(validSnippets.count) snippets")
                     return validSnippets
@@ -252,12 +268,25 @@ class LocalStorageService {
     
     // MARK: - Batch Save Management
     private func scheduleSave() {
-        // Cancel existing timer
-        saveTimer?.invalidate()
-        
-        // Schedule new save after 0.5 seconds
-        saveTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { [weak self] _ in
-            self?.performPendingSaves()
+        // Ensure timer operations happen on main thread
+        let setupTimer = { [weak self] in
+            // IMPORTANT: Always invalidate existing timer before creating new one
+            self?.saveTimer?.invalidate()
+            self?.saveTimer = nil
+
+            // Schedule new save after 0.5 seconds
+            self?.saveTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { [weak self] _ in
+                self?.performPendingSaves()
+                self?.saveTimer = nil // Clear reference after execution
+            }
+        }
+
+        if Thread.isMainThread {
+            setupTimer()
+        } else {
+            DispatchQueue.main.async {
+                setupTimer()
+            }
         }
     }
     
@@ -277,13 +306,23 @@ class LocalStorageService {
     
     // Force save immediately without waiting for timer
     func forceSave() {
-        saveTimer?.invalidate()
+        // Invalidate timer on main thread
+        if Thread.isMainThread {
+            saveTimer?.invalidate()
+            saveTimer = nil
+        } else {
+            DispatchQueue.main.sync {
+                saveTimer?.invalidate()
+                saveTimer = nil
+            }
+        }
+
         saveQueue.sync(flags: .barrier) {
             if self.pendingCategorySave, let categories = self.cachedCategories {
                 self.performCategorySave(categories)
                 self.pendingCategorySave = false
             }
-            
+
             if self.pendingSnippetSave, let snippets = self.cachedSnippets {
                 self.performSnippetSave(snippets)
                 self.pendingSnippetSave = false

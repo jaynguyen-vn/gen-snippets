@@ -10,27 +10,48 @@ class GlobalHotkeyManager {
     private var localEventMonitor: Any?
     private var hotkeyCheckTimer: Timer?
     
+    private var shortcutObserver: Any?
+
     private init() {
-        // Listen for shortcut updates
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(updateShortcut),
-            name: NSNotification.Name("UpdateSearchShortcut"),
-            object: nil
-        )
-        
+        // Listen for shortcut updates with proper observer storage
+        shortcutObserver = NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("UpdateSearchShortcut"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.updateShortcut()
+        }
+
         // Start timer to periodically check and re-register hotkeys if needed
         startHotkeyCheckTimer()
     }
     
     deinit {
-        hotkeyCheckTimer?.invalidate()
-        hotkeyCheckTimer = nil
+        // Invalidate timer on main thread
+        if Thread.isMainThread {
+            hotkeyCheckTimer?.invalidate()
+            hotkeyCheckTimer = nil
+        } else {
+            DispatchQueue.main.sync {
+                hotkeyCheckTimer?.invalidate()
+                hotkeyCheckTimer = nil
+            }
+        }
+
+        // Remove event monitors
         if let monitor = globalEventMonitor {
             NSEvent.removeMonitor(monitor)
+            globalEventMonitor = nil
         }
         if let monitor = localEventMonitor {
             NSEvent.removeMonitor(monitor)
+            localEventMonitor = nil
+        }
+
+        // Remove notification observer
+        if let observer = shortcutObserver {
+            NotificationCenter.default.removeObserver(observer)
+            shortcutObserver = nil
         }
     }
     
@@ -85,14 +106,28 @@ class GlobalHotkeyManager {
         return Int(event.keyCode) == keyCode && eventModifiers == modifiers
     }
     
-    @objc private func updateShortcut() {
+    private func updateShortcut() {
         registerHotkey()
     }
     
     private func startHotkeyCheckTimer() {
-        hotkeyCheckTimer?.invalidate()
-        hotkeyCheckTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
-            self?.checkAndReregisterHotkeysIfNeeded()
+        // Ensure timer operations happen on main thread
+        let setupTimer = { [weak self] in
+            self?.hotkeyCheckTimer?.invalidate()
+            self?.hotkeyCheckTimer = nil
+
+            // Reduced frequency from 5s to 30s to minimize overhead
+            self?.hotkeyCheckTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] _ in
+                self?.checkAndReregisterHotkeysIfNeeded()
+            }
+        }
+
+        if Thread.isMainThread {
+            setupTimer()
+        } else {
+            DispatchQueue.main.async {
+                setupTimer()
+            }
         }
     }
     
@@ -107,10 +142,10 @@ class GlobalHotkeyManager {
             registerHotkey()
         }
         
-        // Additionally, re-register every 30 seconds to ensure they stay active
+        // Re-register only every 5 minutes to reduce overhead (was 30 seconds)
         let now = Date()
         if let lastRegistration = UserDefaults.standard.object(forKey: "LastHotkeyRegistration") as? Date {
-            if now.timeIntervalSince(lastRegistration) > 30 {
+            if now.timeIntervalSince(lastRegistration) > 300 { // 5 minutes
                 print("[GlobalHotkeyManager] 🔄 Refreshing hotkey registration...")
                 registerHotkey()
                 UserDefaults.standard.set(now, forKey: "LastHotkeyRegistration")

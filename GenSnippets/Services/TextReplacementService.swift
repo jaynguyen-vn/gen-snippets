@@ -67,7 +67,7 @@ class TextReplacementService {
     private var cancellables = Set<AnyCancellable>()
     private var isMonitoring = false
     private var currentInputBuffer = ""
-    private let maxBufferSize = 100
+    private let maxBufferSize = 50 // Reduced to prevent memory accumulation
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var deadKeyState: UInt32 = 0
@@ -82,16 +82,19 @@ class TextReplacementService {
     private var eventTapDisabledCount = 0
     private var lastDisabledTime: Date?
     private var callbackExecutionTimes: [TimeInterval] = []
+    private let maxExecutionTimesCount = 50 // Limit array size to prevent memory growth
     
     private var cachedEventSource: CGEventSource?
     
     private init() {
         cachedEventSource = CGEventSource(stateID: .hidSystemState)
-        
+
+        // Use weak self in publisher to avoid retain cycles
         NotificationCenter.default.publisher(for: NSNotification.Name("SnippetsUpdated"))
             .sink { [weak self] notification in
+                guard let self = self else { return }
                 if let snippets = notification.object as? [Snippet] {
-                    self?.updateSnippets(snippets)
+                    self.updateSnippets(snippets)
                 }
             }
             .store(in: &cancellables)
@@ -115,14 +118,18 @@ class TextReplacementService {
 
         stopMonitoring()
 
-        // Clean up retain cycle
-        selfReference?.release()
-        selfReference = nil
+        // Clean up retain cycle - already handled in stopMonitoring
         weakSelf = nil
 
         // Cancel all Combine subscriptions
         cancellables.forEach { $0.cancel() }
         cancellables.removeAll()
+
+        // Clear all cached data
+        cachedEventSource = nil
+        sortedSnippetsCache.removeAll()
+        snippets.removeAll()
+        snippetLookup.removeAll()
     }
     
     private func setupKeyMonitor() {
@@ -176,8 +183,8 @@ class TextReplacementService {
                     defer {
                         let executionTime = CFAbsoluteTimeGetCurrent() - startTime
                         service.callbackExecutionTimes.append(executionTime)
-                        if service.callbackExecutionTimes.count > 100 {
-                            service.callbackExecutionTimes.removeFirst()
+                        if service.callbackExecutionTimes.count > service.maxExecutionTimesCount {
+                            service.callbackExecutionTimes.removeFirst(service.callbackExecutionTimes.count - service.maxExecutionTimesCount)
                         }
                         if executionTime > 0.01 { // Log if takes more than 10ms
                             print("[TextReplacementService] ⚠️ Slow callback: \(String(format: "%.3f", executionTime * 1000))ms")
@@ -328,35 +335,79 @@ class TextReplacementService {
     }
     
     private func startEventTapCheckTimer() {
-        eventTapCheckTimer?.invalidate()
-        eventTapCheckTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
-            self?.checkAndReenableEventTap()
+        // Ensure timer operations happen on main thread
+        let setupTimer = { [weak self] in
+            self?.eventTapCheckTimer?.invalidate()
+            self?.eventTapCheckTimer = nil
+
+            // Increased interval to reduce overhead (from 5s to 10s)
+            self?.eventTapCheckTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { [weak self] _ in
+                self?.checkAndReenableEventTap()
+
+                // Periodically clear accumulated monitoring data
+                if let self = self, self.callbackExecutionTimes.count > self.maxExecutionTimesCount / 2 {
+                    self.callbackExecutionTimes.removeAll(keepingCapacity: true)
+                    #if DEBUG
+                    print("[TextReplacementService] 🧹 Cleared callback execution times")
+                    #endif
+                }
+            }
+        }
+
+        if Thread.isMainThread {
+            setupTimer()
+        } else {
+            DispatchQueue.main.async {
+                setupTimer()
+            }
         }
     }
     
     private func checkAndReenableEventTap() {
         guard let eventTap = eventTap else { return }
-        
+
         let isEnabled = CGEvent.tapIsEnabled(tap: eventTap)
-        print("[TextReplacementService] 🔍 Periodic check - Tap enabled: \(isEnabled), Disabled count: \(eventTapDisabledCount)")
-        
-        if let lastDisabled = lastDisabledTime {
-            print("[TextReplacementService] 📊 Last disabled: \(lastDisabled.timeIntervalSinceNow * -1)s ago")
+
+        // Only log if there's an issue
+        if !isEnabled || eventTapDisabledCount > 0 {
+            print("[TextReplacementService] 🔍 Periodic check - Tap enabled: \(isEnabled), Disabled count: \(eventTapDisabledCount)")
+
+            if let lastDisabled = lastDisabledTime {
+                print("[TextReplacementService] 📊 Last disabled: \(lastDisabled.timeIntervalSinceNow * -1)s ago")
+            }
         }
-        
+
         if !isEnabled {
             print("[TextReplacementService] 🔴 Event tap found disabled in periodic check!")
             CGEvent.tapEnable(tap: eventTap, enable: true)
-            
-            // If re-enabling fails, recreate the event tap
+
+            // If re-enabling fails multiple times, recreate the event tap with exponential backoff
             if !CGEvent.tapIsEnabled(tap: eventTap) {
-                print("[TextReplacementService] ❌ Failed to re-enable tap, recreating...")
-                stopMonitoring()
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                    self?.startMonitoring()
+                eventTapDisabledCount += 1
+
+                if eventTapDisabledCount > 3 {
+                    print("[TextReplacementService] ❌ Event tap failed \(eventTapDisabledCount) times, recreating with backoff...")
+                    let backoffDelay = min(Double(eventTapDisabledCount) * 0.5, 5.0) // Max 5 second delay
+
+                    stopMonitoring()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + backoffDelay) { [weak self] in
+                        self?.eventTapDisabledCount = 0 // Reset counter after recreation
+                        self?.startMonitoring()
+                    }
+                } else {
+                    print("[TextReplacementService] ⚠️ Failed to re-enable tap (attempt \(eventTapDisabledCount))")
                 }
             } else {
                 print("[TextReplacementService] ✅ Event tap re-enabled successfully")
+                // Reset counter on successful re-enable
+                if eventTapDisabledCount > 0 {
+                    eventTapDisabledCount = 0
+                }
+            }
+        } else {
+            // Reset counter if tap is working fine
+            if eventTapDisabledCount > 0 {
+                eventTapDisabledCount = 0
             }
         }
     }
@@ -418,7 +469,9 @@ class TextReplacementService {
         
         if char.rangeOfCharacter(from: .whitespaces.union(.alphanumerics).union(.punctuationCharacters)) != nil {
             if currentInputBuffer.count >= maxBufferSize {
-                currentInputBuffer.removeFirst(currentInputBuffer.count - maxBufferSize + 1)
+                // Keep only recent characters to prevent memory accumulation
+                let keepCount = maxBufferSize / 2
+                currentInputBuffer = String(currentInputBuffer.suffix(keepCount))
             }
             
             currentInputBuffer += char
@@ -436,63 +489,89 @@ class TextReplacementService {
     }
     
     private func resetBufferClearTimer() {
-        // Cancel any existing timer
-        bufferClearTimer?.invalidate()
-        
-        // Create a new timer that will clear the buffer after the inactivity timeout
-        bufferClearTimer = Timer.scheduledTimer(withTimeInterval: bufferInactivityTimeout, repeats: false) { [weak self] _ in
-            guard let self = self else { return }
-            
-            #if DEBUG
-            if !self.currentInputBuffer.isEmpty {
-                print("[TextReplacementService] 🧹 Clearing buffer due to inactivity: '\(self.currentInputBuffer)'")
+        // IMPORTANT: Always invalidate existing timer on main thread before creating new one
+        if Thread.isMainThread {
+            bufferClearTimer?.invalidate()
+            bufferClearTimer = nil
+        } else {
+            DispatchQueue.main.sync {
+                bufferClearTimer?.invalidate()
+                bufferClearTimer = nil
             }
-            #endif
-            
-            self.currentInputBuffer = ""
+        }
+
+        // Create a new timer on main thread to prevent memory leaks
+        let createTimer = { [weak self] in
+            guard let self = self else { return }
+
+            self.bufferClearTimer = Timer.scheduledTimer(withTimeInterval: self.bufferInactivityTimeout, repeats: false) { [weak self] _ in
+                guard let self = self else { return }
+
+                #if DEBUG
+                if !self.currentInputBuffer.isEmpty {
+                    print("[TextReplacementService] 🧹 Clearing buffer due to inactivity: '\(self.currentInputBuffer)'")
+                }
+                #endif
+
+                self.currentInputBuffer = ""
+            }
+        }
+
+        if Thread.isMainThread {
+            createTimer()
+        } else {
+            DispatchQueue.main.async {
+                createTimer()
+            }
         }
     }
     
     private func checkForCommands() {
-        // Use cached sorted snippets if available and recent
+        // Early exit if buffer is too small to contain any commands
+        guard currentInputBuffer.count >= 2 else { return }
+
+        // Use cached sorted snippets if available
         let sortedSnippets = snippetQueue.sync {
-            if !sortedSnippetsCache.isEmpty {
-                return sortedSnippetsCache
-            } else {
-                let sorted = snippets.sorted { $0.command.count > $1.command.count }
-                sortedSnippetsCache = sorted
-                return sorted
-            }
+            return sortedSnippetsCache.isEmpty ? snippets.sorted { $0.command.count > $1.command.count } : sortedSnippetsCache
         }
-        
+
+        // Early exit if no snippets
+        guard !sortedSnippets.isEmpty else { return }
+
+        // Only check snippets that could possibly match based on buffer size
         for snippet in sortedSnippets {
+            // Skip if buffer is too small for this command
             if currentInputBuffer.count < snippet.command.count {
                 continue
             }
-            
-            // Only check if the buffer ends with the snippet command
-            // This prevents false matches where any character typed gets replaced
+
+            // Optimize: only check suffix if last character matches
+            if let lastChar = snippet.command.last,
+               let bufferLastChar = currentInputBuffer.last,
+               lastChar != bufferLastChar {
+                continue
+            }
+
+            // Check if buffer ends with the snippet command
             if currentInputBuffer.hasSuffix(snippet.command) {
                 let charsToDelete = snippet.command.count
-                
+
                 currentInputBuffer = String(currentInputBuffer.dropLast(charsToDelete))
-                
+
                 #if DEBUG
                 print("[TextReplacementService] ✅ Found matching suffix command: '\(snippet.command)'")
-                
-                if snippet.content.contains("{") && snippet.content.contains("}") {
-                    print("[TextReplacementService] 🔍 Content contains special keywords that will be processed")
-                }
                 #endif
-                
+
                 deleteLastCharacters(count: charsToDelete)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                     self.insertText(snippet.content)
                     // Track usage when replacement happens
                     UsageTracker.shared.recordUsage(for: snippet.id)
+                    #if DEBUG
                     print("[TextReplacementService] 📊 Recorded usage for snippet: \(snippet.command)")
+                    #endif
                 }
-                return
+                return // Exit early once a match is found
             }
         }
     }
@@ -907,31 +986,50 @@ class TextReplacementService {
     
     func stopMonitoring() {
         isMonitoring = false
-        
-        // Clear the timers
-        bufferClearTimer?.invalidate()
-        bufferClearTimer = nil
-        eventTapCheckTimer?.invalidate()
-        eventTapCheckTimer = nil
-        
+
+        // Clear the timers on main thread
+        let clearTimers = {
+            self.bufferClearTimer?.invalidate()
+            self.bufferClearTimer = nil
+            self.eventTapCheckTimer?.invalidate()
+            self.eventTapCheckTimer = nil
+        }
+
+        if Thread.isMainThread {
+            clearTimers()
+        } else {
+            DispatchQueue.main.sync {
+                clearTimers()
+            }
+        }
+
         if let eventTap = eventTap {
             CGEvent.tapEnable(tap: eventTap, enable: false)
         }
-        
+
         if let runLoopSource = runLoopSource {
             CFRunLoopRemoveSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
         }
-        
-        selfReference?.release()
-        selfReference = nil
-        
+
+        // Properly release the retain cycle
+        if let selfRef = selfReference {
+            selfRef.release()
+            selfReference = nil
+        }
+
         eventTap = nil
         runLoopSource = nil
         currentInputBuffer = ""
         lastCharHandled = ""
         lastKeyCode = 0
         lastKeyTime = 0
-        print("[TextReplacementService] Stopped monitoring")
+
+        // Clear accumulated monitoring data
+        callbackExecutionTimes.removeAll()
+        eventTapDisabledCount = 0
+        lastDisabledTime = nil
+
+        print("[TextReplacementService] Stopped monitoring and cleaned up resources")
     }
     
     func updateSnippets(_ snippets: [Snippet]) {

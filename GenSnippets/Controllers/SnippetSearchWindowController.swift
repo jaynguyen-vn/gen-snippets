@@ -53,23 +53,30 @@ class SnippetSearchWindowController: NSWindowController, NSWindowDelegate {
         
         // Make window key and order front when created
         window.makeKeyAndOrderFront(nil)
-        
+
         // Activate the app temporarily to ensure proper focus
         NSApp.activate(ignoringOtherApps: true)
         
-        // Store the shared instance
-        SnippetSearchWindowController.shared = self
+        // Store the shared instance (only if not already set)
+        if SnippetSearchWindowController.shared == nil {
+            SnippetSearchWindowController.shared = self
+        }
     }
     
     static func showSearchWindow() {
         // Save the currently active app before activating our app
         previousApp = NSWorkspace.shared.frontmostApplication
-        
+
+        // Clean up any orphaned shared instance if its window is gone
+        if let existingShared = shared, existingShared.window == nil {
+            shared = nil
+        }
+
         if let existingWindow = shared?.window {
             // If window already exists, bring it to front
             NSApp.activate(ignoringOtherApps: true)
             existingWindow.makeKeyAndOrderFront(nil)
-            
+
             // Force focus to the text field
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 if let contentView = existingWindow.contentView,
@@ -93,6 +100,11 @@ class SnippetSearchWindowController: NSWindowController, NSWindowDelegate {
     
     func windowWillClose(_ notification: Notification) {
         // Clean up the shared reference when window closes
-        SnippetSearchWindowController.shared = nil
+        if SnippetSearchWindowController.shared === self {
+            SnippetSearchWindowController.shared = nil
+        }
+
+        // Ensure window delegate is cleared
+        self.window?.delegate = nil
     }
 }

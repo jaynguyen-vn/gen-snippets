@@ -58,13 +58,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     
     // Store notification observers to properly remove them
     private var notificationObservers: [NSObjectProtocol] = []
-    
+    private var localEventMonitor: Any?
+
     deinit {
         // Remove all notification observers
-        notificationObservers.forEach { 
+        notificationObservers.forEach {
             NotificationCenter.default.removeObserver($0)
         }
         notificationObservers.removeAll()
+
+        // Remove local event monitor
+        if let monitor = localEventMonitor {
+            NSEvent.removeMonitor(monitor)
+            localEventMonitor = nil
+        }
     }
     
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -170,16 +177,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         notificationObservers.append(statusBarObserver)
         
-        // Handle keyboard shortcuts
-        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+        // Handle keyboard shortcuts with proper cleanup
+        localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             // Command+Q for quit dialog
             if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "q" {
                 NotificationCenter.default.post(name: NSNotification.Name("ShowQuitDialog"), object: nil)
                 return nil // Consume the event
             }
-            
+
             // Custom shortcut for snippet search (handled by GlobalHotkeyManager)
-            
+
             return event
         }
     }
