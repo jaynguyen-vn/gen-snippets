@@ -589,43 +589,41 @@ class TextReplacementService {
         deleteDown.flags = .maskNonCoalesced
         deleteUp.flags = .maskNonCoalesced
 
-        // Check if we're in a Terminal app
-        let isTerminal = isTerminalApp()
+        // Get timing configuration for current app
+        let timingConfig = getTimingForCurrentApp()
 
         #if DEBUG
-        if isTerminal {
-            print("[TextReplacementService] 💻 Terminal detected - using simple deletion")
-        }
+        print("[TextReplacementService] ⏱️ Using deletion delay: \(timingConfig.deletion * 1000)ms, simple: \(timingConfig.useSimple)")
         #endif
 
-        // Terminal apps need simple, individual deletes (no selection)
-        if isTerminal {
-            // For terminals, always use individual deletes with proper timing
+        // Apps that need simple, individual deletes (no selection)
+        if timingConfig.useSimple {
+            // Always use individual deletes with proper timing
             for _ in 0..<count {
                 deleteDown.post(tap: .cghidEventTap)
-                Thread.sleep(forTimeInterval: 0.001) // 1ms per delete for terminals
+                Thread.sleep(forTimeInterval: timingConfig.deletion)
                 deleteUp.post(tap: .cghidEventTap)
-                Thread.sleep(forTimeInterval: 0.001)
+                Thread.sleep(forTimeInterval: timingConfig.deletion)
             }
             return
         }
 
-        // Non-terminal apps: use optimized deletion
+        // Non-app specific: use optimized deletion with configured timing
         if count <= 3 {
-            // Small count: individual deletes with minimal delay
+            // Small count: individual deletes with configured delay
             for _ in 0..<count {
                 deleteDown.post(tap: .cghidEventTap)
-                Thread.sleep(forTimeInterval: 0.0005) // 0.5ms
+                Thread.sleep(forTimeInterval: timingConfig.deletion)
                 deleteUp.post(tap: .cghidEventTap)
-                Thread.sleep(forTimeInterval: 0.0005)
+                Thread.sleep(forTimeInterval: timingConfig.deletion)
             }
         } else if count <= 10 {
             // Medium count: batch deletes
             for _ in 0..<count {
                 deleteDown.post(tap: .cghidEventTap)
-                Thread.sleep(forTimeInterval: 0.0003) // 0.3ms
+                Thread.sleep(forTimeInterval: timingConfig.deletion * 0.6) // Slightly faster for batch
                 deleteUp.post(tap: .cghidEventTap)
-                Thread.sleep(forTimeInterval: 0.0003)
+                Thread.sleep(forTimeInterval: timingConfig.deletion * 0.6)
             }
         } else {
             // Large count: select all and delete
@@ -724,13 +722,11 @@ class TextReplacementService {
         let pasteboard = NSPasteboard.general
         let previousContent = pasteboard.string(forType: .string)
 
-        // Detect if we're in a browser
-        let isBrowser = isWebBrowser()
+        // Get timing configuration for current app
+        let timingConfig = getTimingForCurrentApp()
 
         #if DEBUG
-        if isBrowser {
-            print("[TextReplacementService] 🌐 Browser detected - using extended timing")
-        }
+        print("[TextReplacementService] ⏱️ Using paste delay: \(timingConfig.paste * 1000)ms for current app")
         #endif
 
         // Clear and set new content
@@ -749,8 +745,8 @@ class TextReplacementService {
                 vUp.flags = [.maskCommand, .maskNonCoalesced]
                 cmdUp.flags = .maskNonCoalesced
 
-                // Use longer delays for browsers
-                let delay: useconds_t = isBrowser ? 2000 : 800  // 2ms for browsers, 0.8ms for others
+                // Convert TimeInterval to useconds_t
+                let delay = useconds_t(timingConfig.paste * 1_000_000)
 
                 // Execute paste command with appropriate delays
                 cmdDown.post(tap: .cghidEventTap)
@@ -761,9 +757,10 @@ class TextReplacementService {
                 usleep(delay)
                 cmdUp.post(tap: .cghidEventTap)
 
-                // Extra delay for browsers to ensure paste completes
-                if isBrowser {
-                    usleep(3000) // Additional 3ms for browsers
+                // Extra delay for Discord and similar apps to ensure paste completes
+                let extraDelay = EdgeCaseHandler.detectAppCategory() == .discord ? 5000 : 0  // 5ms extra for Discord
+                if extraDelay > 0 {
+                    usleep(useconds_t(extraDelay))
                 }
                 
                 // If cursor position is specified, move cursor to that position after paste is complete
@@ -771,15 +768,15 @@ class TextReplacementService {
                     #if DEBUG
                     print("[TextReplacementService] 📍 Will move cursor to position: \(position)")
                     #endif
-                    
-                    // Wait for paste to complete before moving cursor (longer for browsers)
-                    let cursorDelay = isBrowser ? 0.25 : 0.15
+
+                    // Wait for paste to complete before moving cursor (extra time for Discord)
+                    let cursorDelay = EdgeCaseHandler.detectAppCategory() == .discord ? 0.3 : 0.15
                     DispatchQueue.main.asyncAfter(deadline: .now() + cursorDelay) {
                         // Use a more reliable approach for cursor positioning that works in most applications
                         self.universalCursorPositioning(source: source, position: position, textLength: processedText.count)
 
-                        // Restore clipboard after cursor positioning (longer delay for browsers)
-                        let restoreDelay = isBrowser ? 0.2 : 0.1
+                        // Restore clipboard after cursor positioning (extra time for Discord)
+                        let restoreDelay = EdgeCaseHandler.detectAppCategory() == .discord ? 0.25 : 0.1
                         DispatchQueue.main.asyncAfter(deadline: .now() + restoreDelay) {
                             pasteboard.clearContents()
                             if let previous = previousContent {
@@ -788,8 +785,8 @@ class TextReplacementService {
                         }
                     }
                 } else {
-                    // No cursor position specified, just restore clipboard (longer delay for browsers)
-                    let restoreDelay = isBrowser ? 0.2 : 0.1
+                    // No cursor position specified, just restore clipboard (extra time for Discord)
+                    let restoreDelay = EdgeCaseHandler.detectAppCategory() == .discord ? 0.25 : 0.1
                     DispatchQueue.main.asyncAfter(deadline: .now() + restoreDelay) {
                         pasteboard.clearContents()
                         if let previous = previousContent {

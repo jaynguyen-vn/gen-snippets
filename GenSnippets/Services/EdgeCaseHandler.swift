@@ -14,6 +14,7 @@ final class EdgeCaseHandler {
 
         // Check each category
         if isPasswordField() { return .passwordField }
+        if isDiscord(bundleID) { return .discord }
         if isVMApp(bundleID) { return .virtualMachine }
         if isRemoteDesktop(bundleID) { return .remoteDesktop }
         if isElectronApp(bundleID) { return .electronApp }
@@ -34,6 +35,7 @@ final class EdgeCaseHandler {
         case virtualMachine
         case remoteDesktop
         case electronApp
+        case discord
         case ide
         case game
         case sshSession
@@ -52,6 +54,8 @@ final class EdgeCaseHandler {
             switch self {
             case .terminal, .sshSession:
                 return 0.001  // 1ms - simple deletion
+            case .discord:
+                return 0.004  // 4ms - Discord needs extra time for processing
             case .browser, .electronApp:
                 return 0.002  // 2ms - slower for web
             case .virtualMachine, .remoteDesktop:
@@ -65,6 +69,8 @@ final class EdgeCaseHandler {
 
         var pasteDelay: TimeInterval {
             switch self {
+            case .discord:
+                return 0.005  // 5ms - Discord needs significant delay for paste operations
             case .browser, .electronApp:
                 return 0.002  // 2ms
             case .virtualMachine, .remoteDesktop:
@@ -119,7 +125,6 @@ final class EdgeCaseHandler {
     private static func isElectronApp(_ bundleID: String) -> Bool {
         let electronApps = [
             "com.tinyspeck.slackmacgap",  // Slack
-            "com.hnc.Discord",             // Discord
             "com.microsoft.VSCode",        // VS Code (also in IDE)
             "com.github.atom",             // Atom
             "com.spotify.client",          // Spotify
@@ -132,6 +137,10 @@ final class EdgeCaseHandler {
             "com.electron.postman"         // Postman
         ]
         return electronApps.contains(bundleID)
+    }
+
+    private static func isDiscord(_ bundleID: String) -> Bool {
+        return bundleID == "com.hnc.Discord"
     }
 
     private static func isIDE(_ bundleID: String) -> Bool {
