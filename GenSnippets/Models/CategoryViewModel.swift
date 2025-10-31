@@ -62,7 +62,10 @@ class CategoryViewModel: ObservableObject {
         
         // Remove existing special categories if exists
         allCategories.removeAll { $0.id == "uncategory" || $0.id == "all-snippets" }
-        
+
+        // Sort regular categories alphabetically by name
+        allCategories.sort { $0.name.lowercased() < $1.name.lowercased() }
+
         // Insert special categories at the beginning
         allCategories.insert(uncategory, at: 0)
         allCategories.insert(allCategory, at: 0)
