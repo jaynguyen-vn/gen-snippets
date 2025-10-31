@@ -565,8 +565,8 @@ class TextReplacementService {
                 deleteLastCharacters(count: charsToDelete)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                     self.insertText(snippet.content)
-                    // Track usage when replacement happens
-                    UsageTracker.shared.recordUsage(for: snippet.id)
+                    // Track usage when replacement happens (by command, not ID)
+                    UsageTracker.shared.recordUsage(for: snippet.command)
                     #if DEBUG
                     print("[TextReplacementService] 📊 Recorded usage for snippet: \(snippet.command)")
                     #endif
@@ -1069,9 +1069,9 @@ class TextReplacementService {
                 // Process special keywords in the snippet content before replacing
                 let processedContent = processSpecialKeywords(snippet.content)
                 result = result.replacingOccurrences(of: snippet.command, with: processedContent)
-                
-                // Track usage
-                UsageTracker.shared.recordUsage(for: snippet.id)
+
+                // Track usage (by command, not ID)
+                UsageTracker.shared.recordUsage(for: snippet.command)
                 
                 #if DEBUG
                 print("[TextReplacementService] Replaced command: \(snippet.command) with processed content")
@@ -1145,9 +1145,9 @@ class TextReplacementService {
         
         // Process the snippet content with placeholder handling
         let processedContent = processSnippetWithPlaceholders(snippet.content)
-        
-        // Track usage
-        UsageTracker.shared.recordUsage(for: snippet.id)
+
+        // Track usage (by command, not ID)
+        UsageTracker.shared.recordUsage(for: snippet.command)
         print("[TextReplacementService] 📊 Recorded usage for snippet: \(snippet.command)")
         
         // Insert the processed text

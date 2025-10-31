@@ -1,16 +1,29 @@
 import Foundation
 
 struct SnippetUsage: Codable {
-    let snippetId: String
+    let snippetCommand: String
     var usageCount: Int
     var lastUsedDate: Date?
     var firstUsedDate: Date
-    
-    init(snippetId: String) {
-        self.snippetId = snippetId
+
+    // Legacy field for migration
+    let snippetId: String?
+
+    init(snippetCommand: String) {
+        self.snippetCommand = snippetCommand
         self.usageCount = 0
         self.lastUsedDate = nil
         self.firstUsedDate = Date()
+        self.snippetId = nil
+    }
+
+    // Legacy init for backward compatibility during migration
+    init(snippetId: String) {
+        self.snippetCommand = ""
+        self.usageCount = 0
+        self.lastUsedDate = nil
+        self.firstUsedDate = Date()
+        self.snippetId = snippetId
     }
     
     mutating func recordUsage() {
@@ -55,19 +68,22 @@ struct SnippetUsage: Codable {
 
 class UsageTracker: ObservableObject {
     static let shared = UsageTracker()
-    
-    @Published private var usageData: [String: SnippetUsage] = [:]
-    private let storageKey = "snippetUsageData"
-    
+
+    @Published private var usageData: [String: SnippetUsage] = [:]  // Key = snippet command
+    private let storageKey = "snippetUsageData_v2"  // New key for command-based tracking
+    private let legacyStorageKey = "snippetUsageData"  // Old key for migration
+    private let migrationKey = "didMigrateToCommandBased_v2"
+
     // Thread safety
     private let dataQueue = DispatchQueue(label: "com.gensnippets.usage", attributes: .concurrent)
-    
+
     // Batch save management
     private var saveTimer: Timer?
     private var pendingSave = false
-    
+
     init() {
         loadUsageData()
+        migrateIfNeeded()
     }
     
     deinit {
@@ -117,55 +133,55 @@ class UsageTracker: ObservableObject {
         }
     }
     
-    func recordUsage(for snippetId: String) {
+    func recordUsage(for snippetCommand: String) {
         dataQueue.async(flags: .barrier) { [weak self] in
             guard let self = self else { return }
-            
+
             var updatedData = self.usageData
-            
-            if updatedData[snippetId] != nil {
-                updatedData[snippetId]?.recordUsage()
+
+            if updatedData[snippetCommand] != nil {
+                updatedData[snippetCommand]?.recordUsage()
             } else {
-                var newUsage = SnippetUsage(snippetId: snippetId)
+                var newUsage = SnippetUsage(snippetCommand: snippetCommand)
                 newUsage.recordUsage()
-                updatedData[snippetId] = newUsage
+                updatedData[snippetCommand] = newUsage
             }
-            
-            let count = updatedData[snippetId]?.usageCount ?? 0
-            
+
+            let count = updatedData[snippetCommand]?.usageCount ?? 0
+
             // Update on main thread for UI
             DispatchQueue.main.async {
                 self.usageData = updatedData
                 self.objectWillChange.send()
                 // Post notification for UI update
-                NotificationCenter.default.post(name: NSNotification.Name("SnippetUsageUpdated"), object: snippetId)
+                NotificationCenter.default.post(name: NSNotification.Name("SnippetUsageUpdated"), object: snippetCommand)
             }
-            
+
             self.saveUsageData()
-            
-            print("[UsageTracker] 📊 Recorded usage for snippet \(snippetId), total: \(count)")
+
+            print("[UsageTracker] 📊 Recorded usage for command '\(snippetCommand)', total: \(count)")
         }
     }
     
-    func getUsage(for snippetId: String) -> SnippetUsage? {
+    func getUsage(for snippetCommand: String) -> SnippetUsage? {
         return dataQueue.sync {
-            return usageData[snippetId]
+            return usageData[snippetCommand]
         }
     }
-    
-    func getUsageCount(for snippetId: String) -> Int {
+
+    func getUsageCount(for snippetCommand: String) -> Int {
         return dataQueue.sync {
-            return usageData[snippetId]?.usageCount ?? 0
+            return usageData[snippetCommand]?.usageCount ?? 0
         }
     }
-    
-    func getLastUsed(for snippetId: String) -> String {
+
+    func getLastUsed(for snippetCommand: String) -> String {
         return dataQueue.sync {
-            return usageData[snippetId]?.formattedLastUsed ?? "Never"
+            return usageData[snippetCommand]?.formattedLastUsed ?? "Never"
         }
     }
-    
-    func getMostUsedSnippets(limit: Int = 10) -> [(snippetId: String, usage: SnippetUsage)] {
+
+    func getMostUsedSnippets(limit: Int = 10) -> [(snippetCommand: String, usage: SnippetUsage)] {
         return dataQueue.sync {
             return usageData
                 .map { ($0.key, $0.value) }
@@ -174,15 +190,15 @@ class UsageTracker: ObservableObject {
                 .map { ($0, $1) }
         }
     }
-    
-    func getRecentlyUsedSnippets(limit: Int = 10) -> [(snippetId: String, usage: SnippetUsage)] {
+
+    func getRecentlyUsedSnippets(limit: Int = 10) -> [(snippetCommand: String, usage: SnippetUsage)] {
         return dataQueue.sync {
             return usageData
                 .compactMap { key, value in
                     guard value.lastUsedDate != nil else { return nil }
                     return (key, value)
                 }
-                .sorted { 
+                .sorted {
                     ($0.1.lastUsedDate ?? Date.distantPast) > ($1.1.lastUsedDate ?? Date.distantPast)
                 }
                 .prefix(limit)
@@ -196,6 +212,77 @@ class UsageTracker: ObservableObject {
                 self?.usageData.removeAll()
             }
             self?.saveUsageData()
+        }
+    }
+
+    // MARK: - Migration from ID-based to Command-based tracking
+    private func migrateIfNeeded() {
+        // Check if migration already completed
+        if UserDefaults.standard.bool(forKey: migrationKey) {
+            print("[UsageTracker] ✅ Already migrated to command-based tracking")
+            return
+        }
+
+        // Load legacy ID-based usage data
+        guard let legacyData = UserDefaults.standard.data(forKey: legacyStorageKey),
+              let legacyUsage = try? JSONDecoder().decode([String: SnippetUsage].self, from: legacyData) else {
+            print("[UsageTracker] ℹ️ No legacy usage data to migrate")
+            UserDefaults.standard.set(true, forKey: migrationKey)
+            return
+        }
+
+        print("[UsageTracker] 🔄 Starting migration from ID-based to command-based tracking...")
+
+        // Load all snippets to map IDs to commands
+        let snippets = LocalStorageService.shared.loadSnippets()
+        let idToCommandMap = Dictionary(uniqueKeysWithValues: snippets.map { ($0.id, $0.command) })
+
+        var migratedData: [String: SnippetUsage] = [:]
+        var migratedCount = 0
+        var skippedCount = 0
+
+        for (snippetId, usage) in legacyUsage {
+            if let command = idToCommandMap[snippetId] {
+                // Migrate usage data to command-based key
+                var migratedUsage = SnippetUsage(snippetCommand: command)
+                migratedUsage.usageCount = usage.usageCount
+                migratedUsage.lastUsedDate = usage.lastUsedDate
+                migratedUsage.firstUsedDate = usage.firstUsedDate
+
+                // If command already exists (unlikely), merge the data
+                if let existing = migratedData[command] {
+                    migratedUsage.usageCount += existing.usageCount
+                    if let existingLastUsed = existing.lastUsedDate,
+                       let migratedLastUsed = migratedUsage.lastUsedDate {
+                        migratedUsage.lastUsedDate = max(existingLastUsed, migratedLastUsed)
+                    }
+                    migratedUsage.firstUsedDate = min(existing.firstUsedDate, migratedUsage.firstUsedDate)
+                }
+
+                migratedData[command] = migratedUsage
+                migratedCount += 1
+            } else {
+                // Snippet was deleted, skip orphaned data
+                skippedCount += 1
+            }
+        }
+
+        // Save migrated data
+        dataQueue.async(flags: .barrier) { [weak self] in
+            guard let self = self else { return }
+
+            DispatchQueue.main.async {
+                self.usageData = migratedData
+            }
+
+            do {
+                let encoded = try JSONEncoder().encode(migratedData)
+                UserDefaults.standard.set(encoded, forKey: self.storageKey)
+                UserDefaults.standard.set(true, forKey: self.migrationKey)
+                print("[UsageTracker] ✅ Migration complete: \(migratedCount) migrated, \(skippedCount) orphaned data cleaned")
+            } catch {
+                print("[UsageTracker] ❌ Migration failed: \(error)")
+            }
         }
     }
 }

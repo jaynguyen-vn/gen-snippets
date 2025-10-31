@@ -76,8 +76,8 @@ struct InsightsView: View {
                     message: "Start using snippets to see statistics here"
                 )
             } else {
-                ForEach(mostUsed, id: \.snippetId) { item in
-                    if let snippet = snippetsViewModel.snippets.first(where: { $0.id == item.snippetId }) {
+                ForEach(mostUsed, id: \.snippetCommand) { item in
+                    if let snippet = snippetsViewModel.snippets.first(where: { $0.command == item.snippetCommand }) {
                         HStack {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(snippet.command)
@@ -132,8 +132,8 @@ struct InsightsView: View {
                     message: "Your recently used snippets will appear here"
                 )
             } else {
-                ForEach(recentlyUsed, id: \.snippetId) { item in
-                    if let snippet = snippetsViewModel.snippets.first(where: { $0.id == item.snippetId }) {
+                ForEach(recentlyUsed, id: \.snippetCommand) { item in
+                    if let snippet = snippetsViewModel.snippets.first(where: { $0.command == item.snippetCommand }) {
                         HStack {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(snippet.command)
@@ -181,7 +181,7 @@ struct InsightsView: View {
         VStack(alignment: .leading, spacing: 16) {
             let allSnippets = snippetsViewModel.snippets
             let neverUsed = allSnippets.filter { snippet in
-                usageTracker.getUsageCount(for: snippet.id) == 0
+                usageTracker.getUsageCount(for: snippet.command) == 0
             }
             
             if neverUsed.isEmpty {
@@ -237,10 +237,10 @@ struct InsightsView: View {
         VStack(spacing: 20) {
             let allSnippets = snippetsViewModel.snippets
             let usedSnippets = allSnippets.filter { snippet in
-                usageTracker.getUsageCount(for: snippet.id) > 0
+                usageTracker.getUsageCount(for: snippet.command) > 0
             }
             let totalUsage = allSnippets.reduce(0) { sum, snippet in
-                sum + usageTracker.getUsageCount(for: snippet.id)
+                sum + usageTracker.getUsageCount(for: snippet.command)
             }
             
             // Overview Cards
@@ -286,8 +286,8 @@ struct InsightsView: View {
                         .font(.headline)
                         .padding(.horizontal, 20)
                     
-                    ForEach(usageTracker.getMostUsedSnippets(limit: 5), id: \.snippetId) { item in
-                        if let snippet = snippetsViewModel.snippets.first(where: { $0.id == item.snippetId }) {
+                    ForEach(usageTracker.getMostUsedSnippets(limit: 5), id: \.snippetCommand) { item in
+                        if let snippet = snippetsViewModel.snippets.first(where: { $0.command == item.snippetCommand }) {
                             HStack {
                                 Text(snippet.command)
                                     .font(.system(.body, design: .monospaced))
