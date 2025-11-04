@@ -6,41 +6,41 @@
   <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT License">
 </div>
 
-## 📝 Overview
+## Overview
 
-GenSnippets is a powerful macOS text snippet management application that enables system-wide text replacement. Running seamlessly in both the menu bar and dock, it monitors your keyboard input to instantly replace trigger commands with pre-defined snippets, boosting your productivity across all applications.
+GenSnippets is a lightweight macOS application for system-wide text expansion. It runs quietly in your menu bar, monitoring keyboard input and instantly replacing custom trigger commands with pre-defined text snippets across all applications.
 
-## ✨ Features
+## Features
 
 ### Core Functionality
-- 🚀 **System-wide Text Replacement**: Works in any application across macOS using CGEvent monitoring
-- 📁 **Category Management**: Organize snippets into custom categories for better organization
-- 🔍 **Smart Command Matching**: Uses Trie data structure for O(m) lookup performance
-- 🎯 **Priority Matching**: Longer commands take precedence for accurate replacements
-- 🔄 **Auto-cleanup**: Automatically removes typed commands after replacement
-- ⚡ **Dynamic Content**: Insert clipboard content, current date, or position cursor with special keywords
-- ⏱️ **Security Buffer**: 15-second timeout prevents accidental replacements of old inputs
+- **System-wide Text Replacement** - Works in any application across macOS using CGEvent monitoring
+- **Category Management** - Organize snippets into custom categories
+- **Smart Command Matching** - Trie data structure provides O(m) lookup performance
+- **Priority Matching** - Longer commands take precedence for accurate replacements
+- **Auto-cleanup** - Automatically removes typed commands after replacement
+- **Dynamic Content** - Insert clipboard content, current date, or position cursor with special keywords
+- **Security Buffer** - 15-second timeout prevents accidental replacements of old inputs
 
 ### User Interface
-- 🖥️ **Three-Column Layout**: Intuitive category list, snippet list, and detail view
-- 📊 **Menu Bar Integration**: Quick access from the system menu bar with snippet count
-- 🎨 **Native macOS Design**: Built with SwiftUI for a seamless Mac experience
-- 👁️ **Show/Hide Options**: Toggle between dock and menu bar visibility
-- 🔎 **Quick Search**: Global hotkey (default: Cmd+Ctrl+S) opens instant snippet search
-- ⌨️ **Customizable Shortcuts**: Configure your preferred keyboard shortcuts
+- **Three-Column Layout** - Intuitive category list, snippet list, and detail view
+- **Menu Bar Integration** - Quick access from the system menu bar with snippet count
+- **Native macOS Design** - Built with SwiftUI for a seamless experience
+- **Flexible Visibility** - Toggle between dock and menu bar visibility
+- **Quick Search** - Global hotkey (default: Cmd+Ctrl+S) opens instant snippet search
+- **Customizable Shortcuts** - Configure your preferred keyboard shortcuts
 
 ### Data Management
-- 💾 **100% Offline**: All data stored locally in UserDefaults with batch saving
-- 📤 **Export/Import**: Backup and share your snippet collections as JSON
-- 🔒 **Privacy-First**: Your data never leaves your devices
-- 💨 **Optimized Storage**: Caching layer with batch operations for performance
+- **100% Offline** - All data stored locally in UserDefaults with batch saving
+- **Export/Import** - Backup and share your snippet collections as JSON
+- **Privacy-First** - Your data never leaves your device
+- **Optimized Storage** - Caching layer with batch operations for performance
 
 ### Advanced Features
-- 📈 **Usage Tracking**: Monitor snippet usage with automatic counting
-- 🌍 **Multi-language Support**: Localization infrastructure ready for expansion
-- 🚦 **Accessibility Integration**: Full macOS accessibility permission handling
-- ⚡ **Performance Optimized**: Trie-based matching with memory-efficient caching
-- 📋 **Smart Keywords**: Dynamic content insertion with multiple placeholders:
+- **Usage Tracking** - Monitor snippet usage with automatic counting
+- **Multi-language Support** - Localization infrastructure ready for expansion
+- **Accessibility Integration** - Full macOS accessibility permission handling
+- **Performance Optimized** - Trie-based matching with memory-efficient caching
+- **Smart Keywords** - Dynamic content insertion with multiple placeholders:
   - `{clipboard}` - Current clipboard content
   - `{cursor}` - Cursor positioning after insertion
   - `{timestamp}` - Unix timestamp
@@ -49,9 +49,9 @@ GenSnippets is a powerful macOS text snippet management application that enables
   - `{dd/mm/yyyy}` - Full date format
   - `{time}` - Current time (HH:mm:ss)
   - `{uuid}` - Unique identifier
-- 🔄 **Batch Operations**: Efficient batch saving and loading for large snippet collections
+- **Batch Operations** - Efficient batch saving and loading for large snippet collections
 
-## 🚀 Installation
+## Installation
 
 ### Requirements
 - macOS 11.5 (Big Sur) or later
@@ -86,7 +86,7 @@ xcodebuild -project GenSnippets.xcodeproj -scheme "GenSnippets" -configuration R
 open "build/Debug/GenSnippets.app"
 ```
 
-## 🎯 Getting Started
+## Getting Started
 
 ### First Launch
 
@@ -113,7 +113,7 @@ Categories help you organize related snippets:
 - The "Uncategory" is always available for miscellaneous snippets
 - Deleted categories automatically move their snippets to Uncategory
 
-## 💡 Usage Examples
+## Usage Examples
 
 ### Email Templates
 - Command: `!sig` → Your full email signature
@@ -134,15 +134,15 @@ Categories help you organize related snippets:
 - Command: `!log` → "[{time}] {uuid}: " (inserts time and unique ID)
 - Command: `!today` → "Date: {dd/mm/yyyy}" (inserts today's date)
 
-## ⚙️ Configuration
+## Configuration
 
 ### Settings Options
 
-- **Menu Bar Icon**: Show/hide the menu bar icon with snippet count
-- **Dock Icon**: Show/hide the dock icon
-- **Launch at Login**: Automatically start GenSnippets when you log in
-- **Global Hotkey**: Customize the keyboard shortcut (default: Cmd+Ctrl+S)
-- **Search View**: Quick access to snippet search with customizable shortcut
+- **Menu Bar Icon** - Show/hide the menu bar icon with snippet count
+- **Dock Icon** - Show/hide the dock icon
+- **Launch at Login** - Automatically start GenSnippets when you log in
+- **Global Hotkey** - Customize the keyboard shortcut (default: Cmd+Ctrl+S)
+- **Search View** - Quick access to snippet search with customizable shortcut
 
 ### Data Storage
 
@@ -151,7 +151,7 @@ Local data is stored in:
 ~/Library/Preferences/Jay8448.Gen-Snippets.plist
 ```
 
-## 🏗️ Architecture
+## Architecture
 
 ### Technology Stack
 - **Language**: Swift 5.0+
@@ -169,25 +169,27 @@ Local data is stored in:
 - **SearchViewModel**: Powers the global quick search functionality
 - **KeyboardShortcutManager**: Handles customizable global hotkeys
 
-## 🤝 Contributing
+## Contributing
 
-We welcome contributions! Please see our [CONTRIBUTING.md](CONTRIBUTING.md) for details on:
+Contributions are welcome! Whether you're fixing bugs, adding features, or improving documentation, we appreciate your help.
+
+Please see our [CONTRIBUTING.md](CONTRIBUTING.md) for details on:
 - Code of conduct
 - Development setup
 - Submitting pull requests
 - Reporting issues
 
-## 📄 License
+## License
 
 GenSnippets is released under the MIT License. See [LICENSE](LICENSE) for details.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
-- Built with ❤️ for the macOS community
+- Built for the macOS community
 - Thanks to all contributors and users
 - Special thanks to the SwiftUI team for the amazing framework
 
-## 📮 Support
+## Support
 
 - **Issues**: [GitHub Issues](https://github.com/jaynguyen-vn/gen-snippets/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/jaynguyen-vn/gen-snippets/discussions)
@@ -196,5 +198,5 @@ GenSnippets is released under the MIT License. See [LICENSE](LICENSE) for detail
 ---
 
 <div align="center">
-  Made with ⚡ for productivity enthusiasts
+  Made for productivity enthusiasts
 </div>
