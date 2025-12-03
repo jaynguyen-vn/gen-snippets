@@ -1,9 +1,10 @@
 # GenSnippets
 
 <div align="center">
-  <img src="https://img.shields.io/badge/Platform-macOS%2011.0%2B-blue" alt="macOS 11.0+">
+  <img src="https://img.shields.io/badge/Platform-macOS%2011.5%2B-blue" alt="macOS 11.5+">
   <img src="https://img.shields.io/badge/Swift-5.5%2B-orange" alt="Swift 5.5+">
   <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT License">
+  <img src="https://img.shields.io/badge/Version-2.1.9-purple" alt="Version 2.1.9">
 </div>
 
 ## Overview
@@ -14,12 +15,13 @@ GenSnippets is a lightweight macOS application for system-wide text expansion. I
 
 ### Core Functionality
 - **System-wide Text Replacement** - Works in any application across macOS using CGEvent monitoring
-- **Category Management** - Organize snippets into custom categories
+- **Category Management** - Organize snippets into custom categories with alphabetical sorting
 - **Smart Command Matching** - Trie data structure provides O(m) lookup performance
 - **Priority Matching** - Longer commands take precedence for accurate replacements
 - **Auto-cleanup** - Automatically removes typed commands after replacement
 - **Dynamic Content** - Insert clipboard content, current date, or position cursor with special keywords
 - **Security Buffer** - 15-second timeout prevents accidental replacements of old inputs
+- **Browser Compatibility** - Specialized timing adjustments for Discord, Chrome, and other web browsers
 
 ### User Interface
 - **Three-Column Layout** - Intuitive category list, snippet list, and detail view
@@ -36,7 +38,8 @@ GenSnippets is a lightweight macOS application for system-wide text expansion. I
 - **Optimized Storage** - Caching layer with batch operations for performance
 
 ### Advanced Features
-- **Usage Tracking** - Monitor snippet usage with automatic counting
+- **Usage Tracking** - Command-based usage tracking for accurate statistics
+- **Insights Dashboard** - Monitor snippet usage patterns and analytics
 - **Multi-language Support** - Localization infrastructure ready for expansion
 - **Accessibility Integration** - Full macOS accessibility permission handling
 - **Performance Optimized** - Trie-based matching with memory-efficient caching
@@ -82,8 +85,8 @@ xcodebuild -project GenSnippets.xcodeproj -scheme "GenSnippets" -configuration D
 # Release build
 xcodebuild -project GenSnippets.xcodeproj -scheme "GenSnippets" -configuration Release build
 
-# Run the app
-open "build/Debug/GenSnippets.app"
+# Run the app (path may vary based on build settings)
+open ~/Library/Developer/Xcode/DerivedData/GenSnippets-*/Build/Products/Debug/GenSnippets.app
 ```
 
 ## Getting Started
@@ -154,20 +157,21 @@ Local data is stored in:
 ## Architecture
 
 ### Technology Stack
-- **Language**: Swift 5.0+
+- **Language**: Swift 5.5+
 - **UI Framework**: SwiftUI
 - **Platform**: macOS 11.5+
 - **Storage**: UserDefaults (local only)
 
 ### Key Components
 
-- **TextReplacementService** (906 lines): Core engine using Trie data structure for O(m) text matching
-- **CategoryViewModel**: Manages category state with real-time updates
-- **SnippetsViewModel**: Handles snippet CRUD operations with usage tracking
+- **TextReplacementService** (~1,195 lines): Core engine with embedded TrieNode class for O(m) text matching
+- **BrowserCompatibleTextInsertion**: Special handling for web browsers with timing adjustments
+- **CategoryViewModel**: Manages category state with alphabetical sorting
+- **SnippetsViewModel**: Handles snippet CRUD operations with batch saving
 - **AccessibilityPermissionManager**: Manages macOS permission requests and status
-- **LocalStorageService**: Batch-optimized UserDefaults persistence with caching
-- **SearchViewModel**: Powers the global quick search functionality
-- **KeyboardShortcutManager**: Handles customizable global hotkeys
+- **LocalStorageService**: Batch-optimized UserDefaults persistence with caching layer
+- **GlobalHotkeyManager**: Carbon-based global hotkey registration
+- **OptimizedSnippetMatcher**: High-performance snippet matching algorithms
 
 ## Contributing
 
