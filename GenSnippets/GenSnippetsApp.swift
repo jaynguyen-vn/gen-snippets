@@ -46,16 +46,19 @@ struct GenSnippetsApp: App {
 // AppDelegate to handle menu bar item for macOS 11 compatibility
 class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     static let shared = AppDelegate()
-    
+
     private var statusItem: NSStatusItem?
     private var popover: NSPopover?
     private var dockMenu: NSMenu?
     private var shouldTerminate = false
-    
+
+    // Track if app is running in background (menu bar only) mode
+    private(set) var isRunningInBackground = false
+
     @Published private(set) var startAtLogin: Bool = false
-    
+
     private let loginItemIdentifier = "com.gensnippets.launcher"
-    
+
     // Store notification observers to properly remove them
     private var notificationObservers: [NSObjectProtocol] = []
     private var localEventMonitor: Any?
@@ -146,7 +149,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self?.hideDockIcon()
         }
         notificationObservers.append(hideDockObserver)
-        
+
+        // Listen for show dock icon request
+        let showDockObserver = NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("ShowDockIcon"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.showDockIcon()
+        }
+        notificationObservers.append(showDockObserver)
+
         // Listen for confirmed quit
         let confirmedQuitObserver = NotificationCenter.default.addObserver(
             forName: NSNotification.Name("ConfirmedQuit"),
@@ -193,10 +206,21 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     
     
     @objc private func hideDockIcon() {
+        isRunningInBackground = true
+
+        // Close all main windows (but not panels like the search window)
+        for window in NSApplication.shared.windows {
+            // Skip NSPanel windows (like our search panel) and status bar windows
+            if !(window is NSPanel) && window.className != "NSStatusBarWindow" {
+                window.close()
+            }
+        }
+
         NSApplication.shared.setActivationPolicy(.accessory)
     }
-    
+
     @objc private func showDockIcon() {
+        isRunningInBackground = false
         NSApplication.shared.setActivationPolicy(.regular)
     }
     
@@ -332,6 +356,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return false
+    }
+
+    // Prevent window restoration when running in background mode
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        // If running in background mode, don't open any windows
+        if isRunningInBackground {
+            return false
+        }
+        return true
     }
 
     func applicationWillTerminate(_ notification: Notification) {

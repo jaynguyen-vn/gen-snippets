@@ -18,7 +18,7 @@ extension NSView {
 class SnippetSearchWindowController: NSWindowController, NSWindowDelegate {
     static var shared: SnippetSearchWindowController?
     private static var previousApp: NSRunningApplication?
-    
+
     convenience init() {
         let hostingController: NSViewController
         if #available(macOS 12.0, *) {
@@ -27,36 +27,36 @@ class SnippetSearchWindowController: NSWindowController, NSWindowDelegate {
             // Fallback for macOS 11
             hostingController = NSHostingController(rootView: Text("Snippet Search requires macOS 12.0 or later"))
         }
-        
-        let window = NSWindow(
+
+        // Use NSPanel with nonactivatingPanel to avoid activating the app
+        // This allows the search window to appear without showing the main window
+        let panel = NSPanel(
             contentViewController: hostingController
         )
-        
-        window.title = "Snippet Search"
-        window.titlebarAppearsTransparent = false
-        window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
-        window.setContentSize(NSSize(width: 860, height: 580))
-        window.minSize = NSSize(width: 800, height: 500)
-        
-        self.init(window: window)
-        
-        // Set window delegate
-        window.delegate = self
-        
-        // Center the window on screen
-        window.center()
-        
-        // Set window level to floating and make it appear above all apps
-        window.level = .floating
-        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        window.hidesOnDeactivate = false
-        
-        // Make window key and order front when created
-        window.makeKeyAndOrderFront(nil)
 
-        // Activate the app temporarily to ensure proper focus
-        NSApp.activate(ignoringOtherApps: true)
-        
+        panel.title = "Snippet Search"
+        panel.titlebarAppearsTransparent = false
+        // nonactivatingPanel allows the panel to become key without activating the app
+        panel.styleMask = [.titled, .closable, .resizable, .nonactivatingPanel, .utilityWindow]
+        panel.setContentSize(NSSize(width: 860, height: 580))
+        panel.minSize = NSSize(width: 800, height: 500)
+
+        self.init(window: panel)
+
+        // Set window delegate
+        panel.delegate = self
+
+        // Center the window on screen
+        panel.center()
+
+        // Set window level to floating and make it appear above all apps
+        panel.level = .floating
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
+        panel.hidesOnDeactivate = false
+
+        // Allow the panel to become key window even when app is not active
+        panel.becomesKeyOnlyIfNeeded = false
+
         // Store the shared instance (only if not already set)
         if SnippetSearchWindowController.shared == nil {
             SnippetSearchWindowController.shared = self
@@ -64,7 +64,7 @@ class SnippetSearchWindowController: NSWindowController, NSWindowDelegate {
     }
     
     static func showSearchWindow() {
-        // Save the currently active app before activating our app
+        // Save the currently active app before showing our panel
         previousApp = NSWorkspace.shared.frontmostApplication
 
         // Clean up any orphaned shared instance if its window is gone
@@ -72,22 +72,52 @@ class SnippetSearchWindowController: NSWindowController, NSWindowDelegate {
             shared = nil
         }
 
-        if let existingWindow = shared?.window {
-            // If window already exists, bring it to front
-            NSApp.activate(ignoringOtherApps: true)
-            existingWindow.makeKeyAndOrderFront(nil)
+        // Check if in background mode and hide any main windows that might appear
+        let appDelegate = NSApp.delegate as? AppDelegate
+        let isInBackground = appDelegate?.isRunningInBackground ?? false
 
-            // Force focus to the text field
+        // Helper to hide non-panel windows when in background mode
+        let hideMainWindowsIfNeeded = {
+            if isInBackground {
+                for window in NSApplication.shared.windows {
+                    // Skip NSPanel windows and status bar windows
+                    if !(window is NSPanel) && window.className != "NSStatusBarWindow" {
+                        window.orderOut(nil)
+                    }
+                }
+            }
+        }
+
+        // Hide any main windows that might have appeared
+        hideMainWindowsIfNeeded()
+
+        if let existingPanel = shared?.window as? NSPanel {
+            // If panel already exists, bring it to front without activating the app
+            existingPanel.orderFrontRegardless()
+            existingPanel.makeKey()
+
+            // Force focus to the text field and ensure main windows stay hidden
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                if let contentView = existingWindow.contentView,
+                hideMainWindowsIfNeeded()
+                if let contentView = existingPanel.contentView,
                    let textField = contentView.firstResponder(ofType: NSTextField.self) {
-                    existingWindow.makeFirstResponder(textField)
+                    existingPanel.makeFirstResponder(textField)
                 }
             }
         } else {
-            // Create new window
+            // Create new panel
             let controller = SnippetSearchWindowController()
-            controller.showWindow(nil)
+            if let panel = controller.window as? NSPanel {
+                panel.orderFrontRegardless()
+                panel.makeKey()
+
+                // Ensure main windows stay hidden after panel creation
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    hideMainWindowsIfNeeded()
+                }
+            } else {
+                controller.showWindow(nil)
+            }
         }
     }
     
