@@ -208,11 +208,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func hideDockIcon() {
         isRunningInBackground = true
 
-        // Close all main windows (but not panels like the search window)
+        // Hide all main windows (but not panels like the search window)
+        // Use orderOut instead of close so windows can be restored later
         for window in NSApplication.shared.windows {
             // Skip NSPanel windows (like our search panel) and status bar windows
             if !(window is NSPanel) && window.className != "NSStatusBarWindow" {
-                window.close()
+                window.orderOut(nil)
             }
         }
 
@@ -222,6 +223,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func showDockIcon() {
         isRunningInBackground = false
         NSApplication.shared.setActivationPolicy(.regular)
+
+        // Restore main window
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            // Find and show the main window
+            for window in NSApplication.shared.windows {
+                if !(window is NSPanel) && window.className != "NSStatusBarWindow" {
+                    window.makeKeyAndOrderFront(nil)
+                    NSApplication.shared.activate(ignoringOtherApps: true)
+                    break
+                }
+            }
+        }
     }
     
     @objc private func hideMenuBarIcon() {
@@ -358,11 +371,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return false
     }
 
-    // Prevent window restoration when running in background mode
+    // Handle app reopen (from Spotlight, dock click, etc.)
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        // If running in background mode, don't open any windows
+        // If running in background mode, exit background mode and show window
         if isRunningInBackground {
-            return false
+            showDockIcon()
+            return false // We handle it ourselves in showDockIcon
         }
         return true
     }
