@@ -57,12 +57,30 @@ class TextReplacementService {
     
     // Thread safety
     private let snippetQueue = DispatchQueue(label: "com.gensnippets.snippets", attributes: .concurrent)
-    
+    private let bufferLock = NSLock() // Lock for buffer and callback state
+
     // Trie for efficient snippet lookup
     private var snippetTrie = TrieNode()
-    
+
     // Cache compiled regex
     private static let keywordRegex = try? NSRegularExpression(pattern: "\\{([^}]+)\\}", options: [])
+
+    // Cached DateFormatters for performance (creating DateFormatter is expensive)
+    private static let dateFormatterDDMM: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "dd/MM"
+        return formatter
+    }()
+    private static let dateFormatterDDMMYYYY: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "dd/MM/yyyy"
+        return formatter
+    }()
+    private static let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        return formatter
+    }()
     
     private var cancellables = Set<AnyCancellable>()
     private var isMonitoring = false
@@ -101,18 +119,23 @@ class TextReplacementService {
     }
     
     deinit {
-        // Properly clean up all resources on main thread
+        // Capture timer references before cleanup to avoid sync deadlock
+        let bufferTimer = bufferClearTimer
+        let eventTapTimer = eventTapCheckTimer
+
+        // Clear our references first
+        bufferClearTimer = nil
+        eventTapCheckTimer = nil
+
+        // Invalidate timers on main thread without blocking
+        // This is safe because Timer retains itself until invalidated
         if Thread.isMainThread {
-            bufferClearTimer?.invalidate()
-            bufferClearTimer = nil
-            eventTapCheckTimer?.invalidate()
-            eventTapCheckTimer = nil
+            bufferTimer?.invalidate()
+            eventTapTimer?.invalidate()
         } else {
-            DispatchQueue.main.sync {
-                bufferClearTimer?.invalidate()
-                bufferClearTimer = nil
-                eventTapCheckTimer?.invalidate()
-                eventTapCheckTimer = nil
+            DispatchQueue.main.async {
+                bufferTimer?.invalidate()
+                eventTapTimer?.invalidate()
             }
         }
 
@@ -489,20 +512,13 @@ class TextReplacementService {
     }
     
     private func resetBufferClearTimer() {
-        // IMPORTANT: Always invalidate existing timer on main thread before creating new one
-        if Thread.isMainThread {
-            bufferClearTimer?.invalidate()
-            bufferClearTimer = nil
-        } else {
-            DispatchQueue.main.sync {
-                bufferClearTimer?.invalidate()
-                bufferClearTimer = nil
-            }
-        }
-
-        // Create a new timer on main thread to prevent memory leaks
+        // Create timer setup closure
         let createTimer = { [weak self] in
             guard let self = self else { return }
+
+            // Invalidate existing timer
+            self.bufferClearTimer?.invalidate()
+            self.bufferClearTimer = nil
 
             self.bufferClearTimer = Timer.scheduledTimer(withTimeInterval: self.bufferInactivityTimeout, repeats: false) { [weak self] _ in
                 guard let self = self else { return }
@@ -517,6 +533,7 @@ class TextReplacementService {
             }
         }
 
+        // Always use async to avoid potential deadlocks
         if Thread.isMainThread {
             createTimer()
         } else {
@@ -940,17 +957,14 @@ class TextReplacementService {
         case "random-number":
             return "\(Int.random(in: 1...1000))"
         case "dd/mm":
-            let formatter = DateFormatter()
-            formatter.dateFormat = "dd/MM"
-            return formatter.string(from: Date())
+            // Use cached formatter for performance
+            return TextReplacementService.dateFormatterDDMM.string(from: Date())
         case "dd/mm/yyyy":
-            let formatter = DateFormatter()
-            formatter.dateFormat = "dd/MM/yyyy"
-            return formatter.string(from: Date())
+            // Use cached formatter for performance
+            return TextReplacementService.dateFormatterDDMMYYYY.string(from: Date())
         case "time":
-            let formatter = DateFormatter()
-            formatter.dateFormat = "HH:mm:ss"
-            return formatter.string(from: Date())
+            // Use cached formatter for performance
+            return TextReplacementService.timeFormatter.string(from: Date())
         case "uuid":
             return UUID().uuidString
         case "timestamp":
@@ -984,19 +998,25 @@ class TextReplacementService {
     func stopMonitoring() {
         isMonitoring = false
 
-        // Clear the timers on main thread
-        let clearTimers = {
-            self.bufferClearTimer?.invalidate()
-            self.bufferClearTimer = nil
-            self.eventTapCheckTimer?.invalidate()
-            self.eventTapCheckTimer = nil
+        // Capture timer references
+        let bufferTimer = bufferClearTimer
+        let eventTapTimer = eventTapCheckTimer
+
+        // Clear our references
+        bufferClearTimer = nil
+        eventTapCheckTimer = nil
+
+        // Invalidate timers on main thread without blocking
+        let invalidateTimers = {
+            bufferTimer?.invalidate()
+            eventTapTimer?.invalidate()
         }
 
         if Thread.isMainThread {
-            clearTimers()
+            invalidateTimers()
         } else {
-            DispatchQueue.main.sync {
-                clearTimers()
+            DispatchQueue.main.async {
+                invalidateTimers()
             }
         }
 

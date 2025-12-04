@@ -27,6 +27,13 @@ struct ThreeColumnView: View {
     @State private var showInsightsSheet = false
     @State private var showSettingsSheet = false
     @State private var showShortcutsGuide = false
+
+    // Move snippet state
+    @State private var showMoveSheet = false
+    @State private var snippetToMove: Snippet?
+
+    // Event monitor reference to prevent memory leak
+    @State private var keyboardEventMonitor: Any?
     
     var filteredSnippets: [Snippet] {
         let categoryFiltered = snippetsViewModel.snippets.filter { snippet in
@@ -42,7 +49,7 @@ struct ThreeColumnView: View {
             }
             return true
         }
-        
+
         if searchText.isEmpty {
             return categoryFiltered
         } else {
@@ -52,6 +59,34 @@ struct ThreeColumnView: View {
                 (snippet.description ?? "").localizedCaseInsensitiveContains(searchText)
             }
         }
+    }
+
+    // Pre-computed lookup tables for scroll performance
+    private var snippetCountByCategory: [String: Int] {
+        var counts: [String: Int] = [:]
+        var uncategorizedCount = 0
+        var totalCount = 0
+
+        for snippet in snippetsViewModel.snippets {
+            totalCount += 1
+            if let categoryId = snippet.categoryId, !categoryId.isEmpty {
+                counts[categoryId, default: 0] += 1
+            } else {
+                uncategorizedCount += 1
+            }
+        }
+
+        counts["uncategory"] = uncategorizedCount
+        counts["all-snippets"] = totalCount
+        return counts
+    }
+
+    private var categoryNameById: [String: String] {
+        var names: [String: String] = [:]
+        for category in categoryViewModel.categories {
+            names[category.id] = category.name
+        }
+        return names
     }
     
     var body: some View {
@@ -102,47 +137,12 @@ struct ThreeColumnView: View {
             // Force refresh snippets to update UI
             snippetsViewModel.fetchSnippets()
         }
-        // Keyboard shortcuts
-        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-                // Command+N for new snippet
-                if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "n" {
-                    showAddSnippetSheet = true
-                    return nil
-                }
-                // Command+Shift+N for new category
-                if event.modifierFlags.contains([.command, .shift]) && event.charactersIgnoringModifiers == "N" {
-                    showAddCategorySheet = true
-                    return nil
-                }
-                // Command+F for search focus
-                if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "f" {
-                    // Focus search field
-                    return nil
-                }
-                // Command+D for duplicate
-                if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "d" {
-                    if let snippet = selectedSnippet {
-                        duplicateSnippet(snippet)
-                    }
-                    return nil
-                }
-                // Command+Delete for delete
-                if event.modifierFlags.contains(.command) && event.keyCode == 51 { // 51 is delete key
-                    if let snippet = selectedSnippet {
-                        snippetToDelete = snippet
-                        showDeleteSnippetAlert = true
-                    }
-                    return nil
-                }
-                // Escape to exit multi-select mode
-                if event.keyCode == 53 && isMultiSelectMode {
-                    isMultiSelectMode = false
-                    selectedSnippetIds.removeAll()
-                    return nil
-                }
-                return event
-            }
+        // Keyboard shortcuts - setup once on appear, not on every activation
+        .onAppear {
+            setupKeyboardShortcuts()
+        }
+        .onDisappear {
+            cleanupKeyboardShortcuts()
         }
         .sheet(isPresented: $showAddCategorySheet) {
             AddCategorySheet(viewModel: categoryViewModel)
@@ -176,6 +176,27 @@ struct ThreeColumnView: View {
         }
         .sheet(isPresented: $showShortcutsGuide) {
             ShortcutsGuideView()
+        }
+        .sheet(isPresented: $showMoveSheet) {
+            CategoryPickerSheet(
+                categories: categoryViewModel.categories,
+                snippetCount: snippetToMove != nil ? 1 : selectedSnippetIds.count,
+                onSelect: { targetCategoryId in
+                    if let snippet = snippetToMove {
+                        // Move single snippet
+                        snippetsViewModel.moveMultipleSnippets(Set([snippet.id]), toCategoryId: targetCategoryId)
+                        snippetToMove = nil
+                        currentToast = Toast(type: .success, message: "Snippet moved successfully", duration: 2.0)
+                    } else if !selectedSnippetIds.isEmpty {
+                        // Move multiple snippets
+                        let count = selectedSnippetIds.count
+                        snippetsViewModel.moveMultipleSnippets(selectedSnippetIds, toCategoryId: targetCategoryId)
+                        selectedSnippetIds.removeAll()
+                        isMultiSelectMode = false
+                        currentToast = Toast(type: .success, message: "\(count) snippet\(count > 1 ? "s" : "") moved successfully", duration: 2.0)
+                    }
+                }
+            )
         }
         .alert(isPresented: $showDeleteMultipleAlert) {
             Alert(
@@ -275,14 +296,15 @@ struct ThreeColumnView: View {
             
             Divider()
             
-            // Category List
+            // Category List - optimized for smooth scrolling
             ScrollView {
+                let counts = snippetCountByCategory // Pre-compute once
                 LazyVStack(alignment: .leading, spacing: 2, pinnedViews: []) {
                     ForEach(categoryViewModel.categories) { category in
                         CategoryRowView(
                             category: category,
                             isSelected: categoryViewModel.selectedCategory?.id == category.id,
-                            snippetCount: getSnippetCount(for: category),
+                            snippetCount: counts[category.id] ?? 0,
                             onSelect: {
                                 categoryViewModel.selectCategory(category)
                                 // Get first snippet of the new category
@@ -293,12 +315,11 @@ struct ThreeColumnView: View {
                                 categoryToEdit = category
                             } : nil,
                             onDelete: (category.id != "uncategory" && category.id != "all-snippets") ? {
-                                print("[ThreeColumnView] Delete button clicked for category: \(category.name)")
                                 categoryToDelete = category
                                 showDeleteCategoryAlert = true
-                                print("[ThreeColumnView] showDeleteCategoryAlert set to true, categoryToDelete: \(category.name)")
                             } : nil
                         )
+                        .id(category.id) // Stable identity for better reuse
                     }
                 }
                 .padding(.vertical, 8)
@@ -360,7 +381,18 @@ struct ThreeColumnView: View {
                                 .font(.system(size: 12))
                         }
                         .buttonStyle(PlainButtonStyle())
-                        
+
+                        Button(action: {
+                            if !selectedSnippetIds.isEmpty {
+                                showMoveSheet = true
+                            }
+                        }) {
+                            Label("Move", systemImage: "folder")
+                                .font(.system(size: 12))
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .disabled(selectedSnippetIds.isEmpty)
+
                         Button(action: {
                             if !selectedSnippetIds.isEmpty {
                                 showDeleteMultipleAlert = true
@@ -372,7 +404,7 @@ struct ThreeColumnView: View {
                         }
                         .buttonStyle(PlainButtonStyle())
                         .disabled(selectedSnippetIds.isEmpty)
-                        
+
                         Button(action: {
                             isMultiSelectMode = false
                             selectedSnippetIds.removeAll()
@@ -462,15 +494,18 @@ struct ThreeColumnView: View {
                 }
                 .frame(maxWidth: .infinity)
             } else {
+                // Optimized snippet list for smooth scrolling
                 ScrollView {
+                    let categoryNames = categoryNameById // Pre-compute once
+                    let showCategoryBadge = categoryViewModel.selectedCategory?.id == "all-snippets"
                     LazyVStack(alignment: .leading, spacing: 8, pinnedViews: []) {
                         ForEach(filteredSnippets, id: \.id) { snippet in
+                            let catName = getCategoryNameFast(for: snippet, using: categoryNames)
                             if isMultiSelectMode {
                                 HStack(spacing: 8) {
                                     Image(systemName: selectedSnippetIds.contains(snippet.id) ? "checkmark.square.fill" : "square")
                                         .font(.system(size: 16))
                                         .foregroundColor(selectedSnippetIds.contains(snippet.id) ? .accentColor : .secondary)
-                                        .animation(.easeInOut(duration: 0.1), value: selectedSnippetIds.contains(snippet.id))
                                         .onTapGesture {
                                             if selectedSnippetIds.contains(snippet.id) {
                                                 selectedSnippetIds.remove(snippet.id)
@@ -478,12 +513,12 @@ struct ThreeColumnView: View {
                                                 selectedSnippetIds.insert(snippet.id)
                                             }
                                         }
-                                    
+
                                     SnippetRowView(
                                         snippet: snippet,
                                         isSelected: false,
-                                        categoryName: getCategoryName(for: snippet),
-                                        showCategory: categoryViewModel.selectedCategory?.id == "all-snippets",
+                                        categoryName: catName,
+                                        showCategory: showCategoryBadge,
                                         onSelect: {
                                             if selectedSnippetIds.contains(snippet.id) {
                                                 selectedSnippetIds.remove(snippet.id)
@@ -500,8 +535,8 @@ struct ThreeColumnView: View {
                                 SnippetRowView(
                                     snippet: snippet,
                                     isSelected: selectedSnippet?.id == snippet.id,
-                                    categoryName: getCategoryName(for: snippet),
-                                    showCategory: categoryViewModel.selectedCategory?.id == "all-snippets",
+                                    categoryName: catName,
+                                    showCategory: showCategoryBadge,
                                     onSelect: {
                                         selectedSnippet = snippet
                                     },
@@ -515,23 +550,30 @@ struct ThreeColumnView: View {
                                     }) {
                                         Label("Duplicate", systemImage: "doc.on.doc")
                                     }
-                                    
+
+                                    Button(action: {
+                                        snippetToMove = snippet
+                                        showMoveSheet = true
+                                    }) {
+                                        Label("Move to...", systemImage: "folder")
+                                    }
+
                                     Divider()
-                                    
+
                                     Button(action: {
                                         copySnippetToClipboard(snippet)
                                     }) {
                                         Label("Copy Content", systemImage: "doc.on.clipboard")
                                     }
-                                    
+
                                     Button(action: {
                                         copyCommandToClipboard(snippet)
                                     }) {
                                         Label("Copy Command", systemImage: "text.alignleft")
                                     }
-                                    
+
                                     Divider()
-                                    
+
                                     Button(action: {
                                         deleteSnippet(snippet)
                                     }) {
@@ -549,7 +591,7 @@ struct ThreeColumnView: View {
         }
         .background(Color(NSColor.windowBackgroundColor))
     }
-    
+
     // MARK: - Detail View
     private var detailView: some View {
         VStack(spacing: 0) {
@@ -624,6 +666,14 @@ struct ThreeColumnView: View {
         }
         return categoryViewModel.categories.first { $0.id == snippet.categoryId }?.name ?? "Uncategory"
     }
+
+    // Fast lookup version using pre-computed dictionary
+    private func getCategoryNameFast(for snippet: Snippet, using lookup: [String: String]) -> String {
+        guard let categoryId = snippet.categoryId, !categoryId.isEmpty else {
+            return "Uncategory"
+        }
+        return lookup[categoryId] ?? "Uncategory"
+    }
     
     private func duplicateSnippet(_ snippet: Snippet) {
         let duplicatedCommand = "\(snippet.command) (copy)"
@@ -659,6 +709,59 @@ struct ThreeColumnView: View {
     private func deleteSnippet(_ snippet: Snippet) {
         snippetToDelete = snippet
         showDeleteSnippetAlert = true
+    }
+
+    // MARK: - Keyboard Shortcuts Management
+    private func setupKeyboardShortcuts() {
+        // Remove existing monitor if any to prevent duplicates
+        cleanupKeyboardShortcuts()
+
+        keyboardEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [self] event in
+            // Command+N for new snippet
+            if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "n" {
+                showAddSnippetSheet = true
+                return nil
+            }
+            // Command+Shift+N for new category
+            if event.modifierFlags.contains([.command, .shift]) && event.charactersIgnoringModifiers == "N" {
+                showAddCategorySheet = true
+                return nil
+            }
+            // Command+F for search focus
+            if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "f" {
+                // Focus search field
+                return nil
+            }
+            // Command+D for duplicate
+            if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "d" {
+                if let snippet = selectedSnippet {
+                    duplicateSnippet(snippet)
+                }
+                return nil
+            }
+            // Command+Delete for delete
+            if event.modifierFlags.contains(.command) && event.keyCode == 51 { // 51 is delete key
+                if let snippet = selectedSnippet {
+                    snippetToDelete = snippet
+                    showDeleteSnippetAlert = true
+                }
+                return nil
+            }
+            // Escape to exit multi-select mode
+            if event.keyCode == 53 && isMultiSelectMode {
+                isMultiSelectMode = false
+                selectedSnippetIds.removeAll()
+                return nil
+            }
+            return event
+        }
+    }
+
+    private func cleanupKeyboardShortcuts() {
+        if let monitor = keyboardEventMonitor {
+            NSEvent.removeMonitor(monitor)
+            keyboardEventMonitor = nil
+        }
     }
 }
 
@@ -719,10 +822,12 @@ struct CategoryRowView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 6)
                 .fill(isSelected ? Color.accentColor : Color.clear)
         )
+        .contentShape(Rectangle()) // Make entire row clickable, not just text
         .onHover { hovering in
             isHovering = hovering
         }
@@ -736,10 +841,14 @@ struct CategoryRowView: View {
 struct UsageStatsView: View {
     let snippetId: String
     let isSelected: Bool
-    @StateObject private var usageTracker = UsageTracker.shared
-    
+
+    // Access shared tracker directly without @StateObject overhead
+    private var usage: SnippetUsage? {
+        UsageTracker.shared.getUsage(for: snippetId)
+    }
+
     var body: some View {
-        if let usage = usageTracker.getUsage(for: snippetId), usage.usageCount > 0 {
+        if let usage = usage, usage.usageCount > 0 {
             HStack(spacing: 8) {
                 HStack(spacing: 4) {
                     Image(systemName: "chart.bar.fill")
@@ -748,11 +857,11 @@ struct UsageStatsView: View {
                         .font(.system(size: 11))
                 }
                 .foregroundColor(isSelected ? .white.opacity(0.8) : .blue.opacity(0.8))
-                
-                Text("•")
+
+                Text("\u{2022}") // Unicode bullet
                     .font(.system(size: 10))
                     .foregroundColor(isSelected ? .white.opacity(0.5) : .secondary.opacity(0.5))
-                
+
                 HStack(spacing: 4) {
                     Image(systemName: "clock")
                         .font(.system(size: 10))

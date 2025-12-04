@@ -29,14 +29,16 @@ class LocalStorageService {
         // Perform any pending saves
         performPendingSaves()
 
-        // Invalidate timer on main thread
+        // Capture timer reference to avoid sync deadlock
+        let timer = saveTimer
+        saveTimer = nil
+
+        // Invalidate timer on main thread without blocking
         if Thread.isMainThread {
-            saveTimer?.invalidate()
-            saveTimer = nil
+            timer?.invalidate()
         } else {
-            DispatchQueue.main.sync {
-                saveTimer?.invalidate()
-                saveTimer = nil
+            DispatchQueue.main.async {
+                timer?.invalidate()
             }
         }
     }
@@ -61,11 +63,19 @@ class LocalStorageService {
     }
     
     func loadCategories() -> [Category] {
-        return saveQueue.sync {
+        // First, check cache with concurrent read
+        let cached: [Category]? = saveQueue.sync { cachedCategories }
+        if let cached = cached {
+            return cached
+        }
+
+        // Cache miss - use barrier to load and update cache atomically
+        return saveQueue.sync(flags: .barrier) {
+            // Double-check cache in case another thread loaded it
             if let cached = cachedCategories {
                 return cached
             }
-            
+
             if let data = UserDefaults.standard.data(forKey: categoriesKey) {
                 do {
                     let decoded = try JSONDecoder().decode([Category].self, from: data)
@@ -144,11 +154,19 @@ class LocalStorageService {
     }
     
     func loadSnippets() -> [Snippet] {
-        return saveQueue.sync {
+        // First, check cache with concurrent read
+        let cached: [Snippet]? = saveQueue.sync { cachedSnippets }
+        if let cached = cached {
+            return cached
+        }
+
+        // Cache miss - use barrier to load and update cache atomically
+        return saveQueue.sync(flags: .barrier) {
+            // Double-check cache in case another thread loaded it
             if let cached = cachedSnippets {
                 return cached
             }
-            
+
             if let data = UserDefaults.standard.data(forKey: snippetsKey) {
                 do {
                     let decoded = try JSONDecoder().decode([Snippet].self, from: data)
@@ -156,7 +174,7 @@ class LocalStorageService {
                     var validSnippets = decoded.filter { !$0.id.isEmpty && !$0.command.isEmpty }
                     // Limit cache size to prevent memory issues
                     if validSnippets.count > maxCacheSize {
-                        print("[LocalStorage] ⚠️ Truncating snippets from \(validSnippets.count) to \(maxCacheSize)")
+                        print("[LocalStorage] Warning: Truncating snippets from \(validSnippets.count) to \(maxCacheSize)")
                         validSnippets = Array(validSnippets.prefix(maxCacheSize))
                     }
                     cachedSnippets = validSnippets
@@ -306,14 +324,16 @@ class LocalStorageService {
     
     // Force save immediately without waiting for timer
     func forceSave() {
-        // Invalidate timer on main thread
+        // Capture timer reference to avoid sync deadlock
+        let timer = saveTimer
+        saveTimer = nil
+
+        // Invalidate timer on main thread without blocking
         if Thread.isMainThread {
-            saveTimer?.invalidate()
-            saveTimer = nil
+            timer?.invalidate()
         } else {
-            DispatchQueue.main.sync {
-                saveTimer?.invalidate()
-                saveTimer = nil
+            DispatchQueue.main.async {
+                timer?.invalidate()
             }
         }
 

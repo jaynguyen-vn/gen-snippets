@@ -36,7 +36,7 @@ struct ShortcutsGuideView: View {
                     // Global Shortcuts
                     ShortcutSection(title: "Global Shortcuts", shortcuts: [
                         ShortcutItem(
-                            keys: "⌃⌘ S",
+                            keys: "⌥⌘ E",
                             description: "Open Snippet Search",
                             note: "Quick access to search and insert snippets"
                         )
@@ -63,30 +63,6 @@ struct ShortcutsGuideView: View {
                             keys: "⌘ Q",
                             description: "Quit App",
                             note: "Show quit confirmation dialog"
-                        )
-                    ])
-                    
-                    // Search View Shortcuts
-                    ShortcutSection(title: "Search View Shortcuts", shortcuts: [
-                        ShortcutItem(
-                            keys: "↑ ↓",
-                            description: "Navigate snippets",
-                            note: "Move between search results"
-                        ),
-                        ShortcutItem(
-                            keys: "↩",
-                            description: "Insert snippet",
-                            note: "Insert selected snippet into previous app"
-                        ),
-                        ShortcutItem(
-                            keys: "⎋",
-                            description: "Close search",
-                            note: "Close search window without inserting"
-                        ),
-                        ShortcutItem(
-                            keys: "Double-click",
-                            description: "Quick insert",
-                            note: "Insert snippet immediately"
                         )
                     ])
                     

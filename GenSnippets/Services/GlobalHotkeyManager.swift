@@ -27,14 +27,16 @@ class GlobalHotkeyManager {
     }
     
     deinit {
-        // Invalidate timer on main thread
+        // Capture timer reference to avoid sync deadlock
+        let timer = hotkeyCheckTimer
+        hotkeyCheckTimer = nil
+
+        // Invalidate timer on main thread without blocking
         if Thread.isMainThread {
-            hotkeyCheckTimer?.invalidate()
-            hotkeyCheckTimer = nil
+            timer?.invalidate()
         } else {
-            DispatchQueue.main.sync {
-                hotkeyCheckTimer?.invalidate()
-                hotkeyCheckTimer = nil
+            DispatchQueue.main.async {
+                timer?.invalidate()
             }
         }
 
@@ -78,8 +80,8 @@ class GlobalHotkeyManager {
         let modifierValue = UserDefaults.standard.integer(forKey: "SearchShortcutModifiers")
         
         // Use defaults if not set
-        let finalKeyCode = keyCode == 0 ? 1 : keyCode // Default: S key (keyCode 1)
-        let finalModifiers = modifierValue == 0 ? [NSEvent.ModifierFlags.control, NSEvent.ModifierFlags.command] : NSEvent.ModifierFlags(rawValue: UInt(modifierValue))
+        let finalKeyCode = keyCode == 0 ? 14 : keyCode // Default: E key (keyCode 14)
+        let finalModifiers = modifierValue == 0 ? [NSEvent.ModifierFlags.option, NSEvent.ModifierFlags.command] : NSEvent.ModifierFlags(rawValue: UInt(modifierValue))
         
         // Set up global event monitor with custom shortcut
         globalEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { event in

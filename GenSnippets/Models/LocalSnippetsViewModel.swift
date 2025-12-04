@@ -90,6 +90,32 @@ class LocalSnippetsViewModel: ObservableObject {
         lastUpdated = Date()
         print("[LocalSnippetsViewModel] Deleted \(snippetIds.count) snippets")
     }
+
+    func moveSnippet(_ snippetId: String, toCategoryId: String?) {
+        if let existingSnippet = snippets.first(where: { $0.id == snippetId }) {
+            let updatedSnippet = Snippet(
+                _id: existingSnippet.id,
+                command: existingSnippet.command,
+                content: existingSnippet.content,
+                description: existingSnippet.description,
+                categoryId: toCategoryId,
+                userId: existingSnippet.userId,
+                isDeleted: existingSnippet.isDeleted,
+                createdAt: existingSnippet.createdAt,
+                updatedAt: Date().description
+            )
+            _ = localStorageService.updateSnippet(snippetId, updatedSnippet)
+        }
+    }
+
+    func moveMultipleSnippets(_ snippetIds: Set<String>, toCategoryId: String?) {
+        for snippetId in snippetIds {
+            moveSnippet(snippetId, toCategoryId: toCategoryId)
+        }
+        loadSnippets()
+        lastUpdated = Date()
+        print("[LocalSnippetsViewModel] Moved \(snippetIds.count) snippets to category: \(toCategoryId ?? "Uncategory")")
+    }
     
     func clearAllData() {
         localStorageService.clearAllData()
