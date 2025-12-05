@@ -278,6 +278,10 @@ struct SnippetDetailView: View {
                             .onTapGesture {
                                 focusedField = .content
                             }
+
+                        Text("Use {{field}} or {{field:default}} for dynamic fields that prompt for input")
+                            .font(DSTypography.caption)
+                            .foregroundColor(DSColors.textTertiary)
                     }
 
                     // Description Field

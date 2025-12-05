@@ -128,6 +128,10 @@ struct AddSnippetSheet: View {
                                 RoundedRectangle(cornerRadius: DSRadius.sm)
                                     .stroke(DSColors.border, lineWidth: 1)
                             )
+
+                        Text("Use {{field}} or {{field:default}} for dynamic fields that prompt for input")
+                            .font(DSTypography.caption)
+                            .foregroundColor(DSColors.textTertiary)
                     }
 
                     // Description Field
