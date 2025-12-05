@@ -246,60 +246,45 @@ struct ThreeColumnView: View {
     private var categoryListView: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header
-            HStack {
+            HStack(spacing: DSSpacing.sm) {
                 Text("Categories")
-                    .font(.headline)
-                    .foregroundColor(.primary)
-                
+                    .font(DSTypography.heading2)
+                    .foregroundColor(DSColors.textPrimary)
+
                 Spacer()
-                
+
                 // Shortcuts Guide Button
-                Button(action: {
+                DSIconButton(icon: "keyboard", size: DSIconSize.md) {
                     showShortcutsGuide = true
-                }) {
-                    Image(systemName: "keyboard")
-                        .font(.system(size: 16))
                 }
-                .buttonStyle(PlainButtonStyle())
                 .help("Keyboard Shortcuts")
-                
+
                 // Settings Button
-                Button(action: {
+                DSIconButton(icon: "gearshape", size: DSIconSize.md) {
                     showSettingsSheet = true
-                }) {
-                    Image(systemName: "gearshape")
-                        .font(.system(size: 16))
                 }
-                .buttonStyle(PlainButtonStyle())
-                .help("Settings (⌘,)")
-                
-                Button(action: {
+                .help("Settings")
+
+                DSIconButton(icon: "square.and.arrow.up.on.square", size: DSIconSize.md) {
                     showExportImportSheet = true
-                }) {
-                    Image(systemName: "square.and.arrow.up.on.square")
-                        .font(.system(size: 16))
                 }
-                .buttonStyle(PlainButtonStyle())
                 .help("Export/Import Data")
-                
-                Button(action: {
+
+                DSIconButton(icon: "plus.circle", size: DSIconSize.md) {
                     showAddCategorySheet = true
-                }) {
-                    Image(systemName: "plus.circle")
-                        .font(.system(size: 16))
                 }
-                .buttonStyle(PlainButtonStyle())
-                .help("Add Category (⌘⇧N)")
+                .help("Add Category")
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            
-            Divider()
-            
+            .padding(.horizontal, DSSpacing.lg)
+            .padding(.vertical, DSSpacing.md)
+
+            DSDivider()
+                .padding(.horizontal, DSSpacing.md)
+
             // Category List - optimized for smooth scrolling
             ScrollView {
                 let counts = snippetCountByCategory // Pre-compute once
-                LazyVStack(alignment: .leading, spacing: 2, pinnedViews: []) {
+                LazyVStack(alignment: .leading, spacing: DSSpacing.xxxs, pinnedViews: []) {
                     ForEach(categoryViewModel.categories) { category in
                         CategoryRowView(
                             category: category,
@@ -322,10 +307,11 @@ struct ThreeColumnView: View {
                         .id(category.id) // Stable identity for better reuse
                     }
                 }
-                .padding(.vertical, 8)
+                .padding(.horizontal, DSSpacing.sm)
+                .padding(.vertical, DSSpacing.sm)
             }
         }
-        .background(Color(NSColor.controlBackgroundColor))
+        .background(DSColors.controlBackground)
         .alert(isPresented: $showDeleteCategoryAlert) {
             Alert(
                 title: Text("Delete Category"),
@@ -350,37 +336,32 @@ struct ThreeColumnView: View {
     private var snippetListView: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header with Search
-            VStack(spacing: 12) {
-                HStack {
+            VStack(spacing: DSSpacing.md) {
+                HStack(spacing: DSSpacing.sm) {
                     Text("Snippets")
-                        .font(.headline)
-                    
+                        .font(DSTypography.heading2)
+                        .foregroundColor(DSColors.textPrimary)
+
                     Spacer()
-                    
+
                     // Insights button
-                    Button(action: {
+                    DSIconButton(icon: "chart.bar.xaxis", size: DSIconSize.md) {
                         showInsightsSheet = true
-                    }) {
-                        Image(systemName: "chart.bar.xaxis")
-                            .font(.system(size: 16))
                     }
-                    .buttonStyle(PlainButtonStyle())
                     .help("View Insights")
-                    
+
                     if isMultiSelectMode {
                         Button(action: {
                             if selectedSnippetIds.isEmpty {
-                                // Select all
                                 selectedSnippetIds = Set(filteredSnippets.map { $0.id })
                             } else {
-                                // Deselect all
                                 selectedSnippetIds.removeAll()
                             }
                         }) {
-                            Text(selectedSnippetIds.isEmpty ? "Select All" : "Deselect All")
-                                .font(.system(size: 12))
+                            Text(selectedSnippetIds.isEmpty ? "Select All" : "Deselect")
+                                .font(DSTypography.labelSmall)
                         }
-                        .buttonStyle(PlainButtonStyle())
+                        .buttonStyle(DSButtonStyle(.tertiary, size: .small))
 
                         Button(action: {
                             if !selectedSnippetIds.isEmpty {
@@ -388,10 +369,11 @@ struct ThreeColumnView: View {
                             }
                         }) {
                             Label("Move", systemImage: "folder")
-                                .font(.system(size: 12))
+                                .font(DSTypography.labelSmall)
                         }
-                        .buttonStyle(PlainButtonStyle())
+                        .buttonStyle(DSButtonStyle(.tertiary, size: .small))
                         .disabled(selectedSnippetIds.isEmpty)
+                        .opacity(selectedSnippetIds.isEmpty ? 0.5 : 1)
 
                         Button(action: {
                             if !selectedSnippetIds.isEmpty {
@@ -399,97 +381,109 @@ struct ThreeColumnView: View {
                             }
                         }) {
                             Label("Delete", systemImage: "trash")
-                                .font(.system(size: 12))
-                                .foregroundColor(.red)
+                                .font(DSTypography.labelSmall)
                         }
-                        .buttonStyle(PlainButtonStyle())
+                        .buttonStyle(DSButtonStyle(.destructive, size: .small))
                         .disabled(selectedSnippetIds.isEmpty)
+                        .opacity(selectedSnippetIds.isEmpty ? 0.5 : 1)
 
                         Button(action: {
                             isMultiSelectMode = false
                             selectedSnippetIds.removeAll()
                         }) {
                             Text("Cancel")
-                                .font(.system(size: 12))
+                                .font(DSTypography.labelSmall)
                         }
-                        .buttonStyle(PlainButtonStyle())
+                        .buttonStyle(DSButtonStyle(.ghost, size: .small))
                     } else {
-                        Button(action: {
+                        DSIconButton(icon: "checkmark.circle", size: DSIconSize.md) {
                             isMultiSelectMode = true
-                        }) {
-                            Image(systemName: "checkmark.circle")
-                                .font(.system(size: 16))
                         }
-                        .buttonStyle(PlainButtonStyle())
                         .help("Select Multiple")
-                        
-                        Button(action: {
+
+                        DSIconButton(icon: "plus.circle", size: DSIconSize.md) {
                             showAddSnippetSheet = true
-                        }) {
-                            Image(systemName: "plus.circle")
-                                .font(.system(size: 16))
                         }
-                        .buttonStyle(PlainButtonStyle())
-                        .help("Add Snippet (⌘N)")
+                        .help("Add Snippet")
                     }
                 }
-                
+
                 // Search Field
-                HStack {
+                HStack(spacing: DSSpacing.sm) {
                     Image(systemName: "magnifyingglass")
-                        .foregroundColor(.secondary)
-                    
+                        .font(.system(size: DSIconSize.sm))
+                        .foregroundColor(DSColors.textTertiary)
+
                     TextField("Search snippets...", text: $searchText)
+                        .font(DSTypography.body)
                         .textFieldStyle(PlainTextFieldStyle())
+
+                    if !searchText.isEmpty {
+                        Button(action: { searchText = "" }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: DSIconSize.sm))
+                                .foregroundColor(DSColors.textTertiary)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .transition(.opacity)
+                    }
                 }
-                .padding(8)
-                .background(Color(NSColor.textBackgroundColor))
-                .cornerRadius(6)
+                .padding(.horizontal, DSSpacing.md)
+                .padding(.vertical, DSSpacing.sm)
+                .background(
+                    RoundedRectangle(cornerRadius: DSRadius.sm)
+                        .fill(DSColors.textBackground)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: DSRadius.sm)
+                        .stroke(DSColors.borderSubtle, lineWidth: 1)
+                )
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.horizontal, DSSpacing.lg)
+            .padding(.vertical, DSSpacing.md)
             
-            Divider()
-            
+            DSDivider()
+                .padding(.horizontal, DSSpacing.md)
+
             // Snippet List
             if filteredSnippets.isEmpty {
-                VStack(spacing: 16) {
+                VStack(spacing: DSSpacing.lg) {
                     Spacer()
+
                     Image(systemName: searchText.isEmpty ? "doc.text.below.ecg" : "doc.text.magnifyingglass")
-                        .font(.system(size: 56))
-                        .foregroundColor(.secondary.opacity(0.5))
-                    
-                    VStack(spacing: 8) {
+                        .font(.system(size: DSIconSize.huge + 24))
+                        .foregroundColor(DSColors.textTertiary)
+
+                    VStack(spacing: DSSpacing.sm) {
                         Text(searchText.isEmpty ? "No snippets yet" : "No results found")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(.primary)
-                        
+                            .font(DSTypography.heading1)
+                            .foregroundColor(DSColors.textPrimary)
+
                         Text(searchText.isEmpty ? "Create your first snippet to get started" : "Try adjusting your search terms")
-                            .font(.system(size: 14))
-                            .foregroundColor(.secondary)
+                            .font(DSTypography.body)
+                            .foregroundColor(DSColors.textSecondary)
                             .multilineTextAlignment(.center)
-                            .padding(.horizontal, 20)
+                            .padding(.horizontal, DSSpacing.xl)
                     }
-                    
+
                     if searchText.isEmpty {
                         Button(action: {
                             showAddSnippetSheet = true
                         }) {
                             Label("Create Snippet", systemImage: "plus.circle.fill")
-                                .font(.system(size: 14, weight: .medium))
                         }
-                        .buttonStyle(ModernButtonStyle(isPrimary: true))
-                        .padding(.top, 8)
+                        .buttonStyle(DSButtonStyle(.primary))
+                        .padding(.top, DSSpacing.sm)
                     } else {
                         Button(action: {
                             searchText = ""
                         }) {
                             Label("Clear Search", systemImage: "xmark.circle")
-                                .font(.system(size: 14, weight: .medium))
                         }
-                        .buttonStyle(ModernButtonStyle(isPrimary: false))
-                        .padding(.top, 8)
+                        .buttonStyle(DSButtonStyle(.secondary))
+                        .padding(.top, DSSpacing.sm)
                     }
+
                     Spacer()
                 }
                 .frame(maxWidth: .infinity)
@@ -498,7 +492,7 @@ struct ThreeColumnView: View {
                 ScrollView {
                     let categoryNames = categoryNameById // Pre-compute once
                     let showCategoryBadge = categoryViewModel.selectedCategory?.id == "all-snippets"
-                    LazyVStack(alignment: .leading, spacing: 8, pinnedViews: []) {
+                    LazyVStack(alignment: .leading, spacing: DSSpacing.sm, pinnedViews: []) {
                         ForEach(filteredSnippets, id: \.id) { snippet in
                             let catName = getCategoryNameFast(for: snippet, using: categoryNames)
                             if isMultiSelectMode {
@@ -584,12 +578,12 @@ struct ThreeColumnView: View {
                             }
                         }
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
+                    .padding(.horizontal, DSSpacing.md)
+                    .padding(.vertical, DSSpacing.sm)
                 }
             }
         }
-        .background(Color(NSColor.windowBackgroundColor))
+        .background(DSColors.windowBackground)
     }
 
     // MARK: - Detail View
@@ -609,38 +603,37 @@ struct ThreeColumnView: View {
                 )
                 .id(snippet.id) // Force view to recreate when snippet changes
             } else {
-                VStack(spacing: 20) {
+                VStack(spacing: DSSpacing.xl) {
                     Spacer()
-                    
+
                     Image(systemName: "text.cursor")
                         .font(.system(size: 72))
-                        .foregroundColor(.secondary.opacity(0.3))
-                    
-                    VStack(spacing: 8) {
+                        .foregroundColor(DSColors.textTertiary.opacity(0.5))
+
+                    VStack(spacing: DSSpacing.sm) {
                         Text("No Snippet Selected")
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundColor(.primary)
-                        
+                            .font(DSTypography.displaySmall)
+                            .foregroundColor(DSColors.textPrimary)
+
                         Text("Select a snippet to view and edit its details")
-                            .font(.system(size: 14))
-                            .foregroundColor(.secondary)
+                            .font(DSTypography.body)
+                            .foregroundColor(DSColors.textSecondary)
                             .multilineTextAlignment(.center)
                     }
-                    
+
                     Button(action: {
                         showAddSnippetSheet = true
                     }) {
                         Label("New Snippet", systemImage: "plus")
-                            .font(.system(size: 14, weight: .medium))
                     }
-                    .buttonStyle(ModernButtonStyle(isPrimary: true))
-                    
+                    .buttonStyle(DSButtonStyle(.primary))
+
                     Spacer()
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .background(Color(NSColor.textBackgroundColor))
+        .background(DSColors.textBackground)
     }
     
     private func getSnippetCount(for category: Category) -> Int {
@@ -773,67 +766,83 @@ struct CategoryRowView: View {
     var onSelect: () -> Void
     var onEdit: (() -> Void)?
     var onDelete: (() -> Void)?
-    
+
     @State private var isHovering = false
-    
+
     var body: some View {
-        HStack {
+        HStack(spacing: DSSpacing.sm) {
             Image(systemName: category.id == "all-snippets" ? "tray.full" : "folder")
-                .font(.system(size: 14))
-                .foregroundColor(isSelected ? .white : .secondary)
-            
+                .font(.system(size: DSIconSize.sm))
+                .foregroundColor(isSelected ? .white : DSColors.textSecondary)
+
             Text(category.name)
-                .font(.system(size: 13))
-                .foregroundColor(isSelected ? .white : .primary)
-            
+                .font(DSTypography.body)
+                .foregroundColor(isSelected ? .white : DSColors.textPrimary)
+
             Spacer()
-            
+
             if isHovering && category.id != "uncategory" && category.id != "all-snippets" {
-                HStack(spacing: 4) {
+                HStack(spacing: DSSpacing.xxs) {
                     if let onEdit = onEdit {
                         Button(action: onEdit) {
                             Image(systemName: "pencil")
-                                .font(.system(size: 12))
+                                .font(.system(size: DSIconSize.xs))
                         }
                         .buttonStyle(PlainButtonStyle())
-                        .foregroundColor(isSelected ? .white : .secondary)
+                        .foregroundColor(isSelected ? .white : DSColors.textSecondary)
                     }
-                    
+
                     if let onDelete = onDelete {
                         Button(action: onDelete) {
                             Image(systemName: "trash")
-                                .font(.system(size: 12))
+                                .font(.system(size: DSIconSize.xs))
                         }
                         .buttonStyle(PlainButtonStyle())
-                        .foregroundColor(isSelected ? .white : .secondary)
+                        .foregroundColor(isSelected ? .white : DSColors.error)
                     }
                 }
+                .transition(.opacity.combined(with: .scale(scale: 0.9)))
             } else {
                 Text("\(snippetCount)")
-                    .font(.caption)
-                    .foregroundColor(isSelected ? .white.opacity(0.8) : .secondary)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
+                    .font(DSTypography.captionMedium)
+                    .foregroundColor(isSelected ? .white.opacity(0.9) : DSColors.textSecondary)
+                    .padding(.horizontal, DSSpacing.xs)
+                    .padding(.vertical, DSSpacing.xxxs)
                     .background(
                         Capsule()
-                            .fill(isSelected ? Color.white.opacity(0.2) : Color.secondary.opacity(0.1))
+                            .fill(isSelected ? Color.white.opacity(0.2) : DSColors.surfaceSecondary)
                     )
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
+        .padding(.horizontal, DSSpacing.md)
+        .padding(.vertical, DSSpacing.xs)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(isSelected ? Color.accentColor : Color.clear)
+            RoundedRectangle(cornerRadius: DSRadius.sm)
+                .fill(backgroundColor)
         )
-        .contentShape(Rectangle()) // Make entire row clickable, not just text
+        .overlay(
+            RoundedRectangle(cornerRadius: DSRadius.sm)
+                .stroke(isSelected ? Color.clear : (isHovering ? DSColors.borderSubtle : Color.clear), lineWidth: 1)
+        )
+        .contentShape(Rectangle())
         .onHover { hovering in
-            isHovering = hovering
+            withAnimation(DSAnimation.easeOut) {
+                isHovering = hovering
+            }
         }
         .onTapGesture {
             onSelect()
         }
+    }
+
+    private var backgroundColor: Color {
+        if isSelected {
+            return DSColors.accent
+        } else if isHovering {
+            return DSColors.hoverBackground
+        }
+        return Color.clear
     }
 }
 
@@ -849,26 +858,26 @@ struct UsageStatsView: View {
 
     var body: some View {
         if let usage = usage, usage.usageCount > 0 {
-            HStack(spacing: 8) {
-                HStack(spacing: 4) {
+            HStack(spacing: DSSpacing.sm) {
+                HStack(spacing: DSSpacing.xxxs) {
                     Image(systemName: "chart.bar.fill")
-                        .font(.system(size: 10))
+                        .font(.system(size: DSIconSize.xxs))
                     Text("\(usage.usageCount)")
-                        .font(.system(size: 11))
+                        .font(DSTypography.caption)
                 }
-                .foregroundColor(isSelected ? .white.opacity(0.8) : .blue.opacity(0.8))
+                .foregroundColor(isSelected ? .white.opacity(0.85) : DSColors.info.opacity(0.9))
 
-                Text("\u{2022}") // Unicode bullet
-                    .font(.system(size: 10))
-                    .foregroundColor(isSelected ? .white.opacity(0.5) : .secondary.opacity(0.5))
+                Circle()
+                    .fill(isSelected ? Color.white.opacity(0.4) : DSColors.textTertiary)
+                    .frame(width: 3, height: 3)
 
-                HStack(spacing: 4) {
+                HStack(spacing: DSSpacing.xxxs) {
                     Image(systemName: "clock")
-                        .font(.system(size: 10))
+                        .font(.system(size: DSIconSize.xxs))
                     Text(usage.formattedLastUsed)
-                        .font(.system(size: 11))
+                        .font(DSTypography.caption)
                 }
-                .foregroundColor(isSelected ? .white.opacity(0.8) : .secondary.opacity(0.8))
+                .foregroundColor(isSelected ? .white.opacity(0.75) : DSColors.textTertiary)
             }
         }
     }
@@ -882,74 +891,95 @@ struct SnippetRowView: View {
     let showCategory: Bool
     let onSelect: () -> Void
     var onDelete: (() -> Void)?
-    
+
     @State private var isHovering = false
-    
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: DSSpacing.xxs) {
             HStack {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: DSSpacing.xxxs) {
                     Text(snippet.command)
-                        .font(.system(.body, design: .monospaced))
-                        .fontWeight(.medium)
-                        .foregroundColor(isSelected ? .white : .primary)
+                        .font(DSTypography.code)
+                        .foregroundColor(isSelected ? .white : DSColors.textPrimary)
                         .lineLimit(1)
-                    
+
                     // Usage stats - simplified for performance
                     UsageStatsView(snippetId: snippet.id, isSelected: isSelected)
                 }
-                
+
                 Spacer()
-                
+
                 // Show delete button on hover or category badge
                 if isHovering, let onDelete = onDelete {
                     Button(action: onDelete) {
                         Image(systemName: "trash")
-                            .font(.system(size: 12))
-                            .foregroundColor(isSelected ? .white.opacity(0.9) : .red.opacity(0.7))
+                            .font(.system(size: DSIconSize.xs))
+                            .foregroundColor(isSelected ? .white.opacity(0.9) : DSColors.error.opacity(0.8))
                     }
                     .buttonStyle(PlainButtonStyle())
                     .help("Delete snippet")
+                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
                 } else if showCategory, let categoryName = categoryName {
                     Text(categoryName)
-                        .font(.caption)
-                        .foregroundColor(isSelected ? .white.opacity(0.7) : .secondary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
+                        .font(DSTypography.captionMedium)
+                        .foregroundColor(isSelected ? .white.opacity(0.8) : DSColors.textSecondary)
+                        .padding(.horizontal, DSSpacing.xs)
+                        .padding(.vertical, DSSpacing.xxxs)
                         .background(
                             Capsule()
-                                .fill(isSelected ? Color.white.opacity(0.2) : Color.secondary.opacity(0.1))
+                                .fill(isSelected ? Color.white.opacity(0.2) : DSColors.surfaceSecondary)
                         )
                 }
             }
-            
+
             if let description = snippet.description, !description.isEmpty {
                 Text(description)
-                    .font(.caption)
-                    .foregroundColor(isSelected ? .white.opacity(0.8) : .secondary)
+                    .font(DSTypography.caption)
+                    .foregroundColor(isSelected ? .white.opacity(0.8) : DSColors.textSecondary)
                     .lineLimit(2)
             } else {
                 Text(snippet.content)
-                    .font(.caption)
-                    .foregroundColor(isSelected ? .white.opacity(0.8) : .secondary)
+                    .font(DSTypography.caption)
+                    .foregroundColor(isSelected ? .white.opacity(0.8) : DSColors.textTertiary)
                     .lineLimit(2)
             }
         }
-        .padding(10)
+        .padding(DSSpacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(isSelected ? Color.accentColor : Color(NSColor.controlBackgroundColor))
+            RoundedRectangle(cornerRadius: DSRadius.md)
+                .fill(backgroundColor)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(isSelected ? Color.clear : Color.secondary.opacity(0.1), lineWidth: 1)
+            RoundedRectangle(cornerRadius: DSRadius.md)
+                .stroke(borderColor, lineWidth: 1)
         )
+        .dsShadow(isSelected ? DSShadow.sm : (isHovering ? DSShadow.xs : DSShadow.none))
         .onTapGesture {
             onSelect()
         }
         .onHover { hovering in
-            isHovering = hovering
+            withAnimation(DSAnimation.easeOut) {
+                isHovering = hovering
+            }
         }
+    }
+
+    private var backgroundColor: Color {
+        if isSelected {
+            return DSColors.accent
+        } else if isHovering {
+            return DSColors.surface
+        }
+        return DSColors.surface
+    }
+
+    private var borderColor: Color {
+        if isSelected {
+            return Color.clear
+        } else if isHovering {
+            return DSColors.border
+        }
+        return DSColors.borderSubtle
     }
 }

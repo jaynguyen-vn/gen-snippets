@@ -5,7 +5,7 @@ struct AddSnippetSheet: View {
     @ObservedObject var snippetsViewModel: LocalSnippetsViewModel
     let categoryId: String?
     @Environment(\.presentationMode) var presentationMode
-    
+
     @State private var command = ""
     @State private var content = ""
     @State private var description = ""
@@ -13,7 +13,7 @@ struct AddSnippetSheet: View {
     @State private var errorMessage = ""
     @State private var showPlaceholderMenu = false
     @State private var shouldFocusCommand = true
-    
+
     private let placeholders = [
         PlaceholderItem(symbol: "{cursor}", name: "Cursor Position", description: "Place cursor here after expansion"),
         PlaceholderItem(symbol: "{time}", name: "Current Time", description: "Insert current time"),
@@ -23,179 +23,209 @@ struct AddSnippetSheet: View {
         PlaceholderItem(symbol: "{clipboard}", name: "Clipboard", description: "Paste from clipboard"),
         PlaceholderItem(symbol: "{random-number}", name: "Random Number", description: "Generate random number")
     ]
-    
+
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 0) {
             // Header
             HStack {
                 Text("Add Snippet")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                
+                    .font(DSTypography.displaySmall)
+                    .foregroundColor(DSColors.textPrimary)
+
                 Spacer()
+
+                DSCloseButton {
+                    presentationMode.wrappedValue.dismiss()
+                }
             }
-            
+            .padding(.horizontal, DSSpacing.xxl)
+            .padding(.vertical, DSSpacing.xl)
+
+            DSDivider()
+                .padding(.horizontal, DSSpacing.lg)
+
             // Form Fields
-            VStack(alignment: .leading, spacing: 16) {
-                // Command Field
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Text("Command")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-                        
-                        Text("*")
-                            .font(.headline)
-                            .foregroundColor(.red)
-                    }
-                    
-                    FocusableTextField(
-                        "Type the trigger text...",
-                        text: $command,
-                        shouldFocus: $shouldFocusCommand
-                    )
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .font(.system(.body, design: .monospaced))
-                    .onChange(of: command) { _ in
-                        errorMessage = ""
-                    }
-                }
-                
-                // Content Field
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Text("Content")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-                        
-                        Text("*")
-                            .font(.headline)
-                            .foregroundColor(.red)
-                        
-                        Spacer()
-                        
-                        // Character count
-                        Text("\(content.count) characters")
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary.opacity(0.8))
-                        
-                        // Insert placeholder button
-                        Button(action: {
-                            showPlaceholderMenu.toggle()
-                        }) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "curlybraces")
-                                    .font(.system(size: 11, weight: .medium))
-                                Text("Insert placeholder")
-                                    .font(.system(size: 11, weight: .medium))
-                            }
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(Color.accentColor.opacity(0.1))
-                            .foregroundColor(.accentColor)
-                            .cornerRadius(4)
+            ScrollView {
+                VStack(alignment: .leading, spacing: DSSpacing.xl) {
+                    // Command Field
+                    VStack(alignment: .leading, spacing: DSSpacing.sm) {
+                        HStack {
+                            Text("Command")
+                                .font(DSTypography.label)
+                                .foregroundColor(DSColors.textSecondary)
+
+                            Text("*")
+                                .font(DSTypography.label)
+                                .foregroundColor(DSColors.error)
                         }
-                        .buttonStyle(PlainButtonStyle())
-                        .help("Insert Placeholder")
-                        .popover(isPresented: $showPlaceholderMenu) {
-                            PlaceholderMenuView(placeholders: placeholders) { placeholder in
-                                insertPlaceholder(placeholder.symbol)
-                                showPlaceholderMenu = false
-                            }
-                        }
-                    }
-                    
-                    TextEditor(text: $content)
-                        .font(.system(.body, design: .monospaced))
-                        .frame(minHeight: 150)
-                        .padding(8)
-                        .background(Color(NSColor.textBackgroundColor))
-                        .cornerRadius(6)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 6)
-                                .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+
+                        FocusableTextField(
+                            "Type the trigger text...",
+                            text: $command,
+                            shouldFocus: $shouldFocusCommand
                         )
+                        .font(DSTypography.code)
+                        .onChange(of: command) { _ in
+                            errorMessage = ""
+                        }
+
+                        Text("This text will trigger the snippet replacement")
+                            .font(DSTypography.caption)
+                            .foregroundColor(DSColors.textTertiary)
+                    }
+
+                    // Content Field
+                    VStack(alignment: .leading, spacing: DSSpacing.sm) {
+                        HStack {
+                            Text("Content")
+                                .font(DSTypography.label)
+                                .foregroundColor(DSColors.textSecondary)
+
+                            Text("*")
+                                .font(DSTypography.label)
+                                .foregroundColor(DSColors.error)
+
+                            Spacer()
+
+                            // Character count
+                            Text("\(content.count) characters")
+                                .font(DSTypography.caption)
+                                .foregroundColor(DSColors.textTertiary)
+
+                            // Insert placeholder button
+                            Button(action: {
+                                showPlaceholderMenu.toggle()
+                            }) {
+                                HStack(spacing: DSSpacing.xxs) {
+                                    Image(systemName: "curlybraces")
+                                        .font(.system(size: DSIconSize.xs, weight: .medium))
+                                    Text("Insert placeholder")
+                                        .font(DSTypography.captionMedium)
+                                }
+                                .padding(.horizontal, DSSpacing.sm)
+                                .padding(.vertical, DSSpacing.xxs)
+                                .background(DSColors.accent.opacity(0.12))
+                                .foregroundColor(DSColors.accent)
+                                .cornerRadius(DSRadius.xs)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            .help("Insert Placeholder")
+                            .popover(isPresented: $showPlaceholderMenu) {
+                                PlaceholderMenuView(placeholders: placeholders) { placeholder in
+                                    insertPlaceholder(placeholder.symbol)
+                                    showPlaceholderMenu = false
+                                }
+                            }
+                        }
+
+                        TextEditor(text: $content)
+                            .font(DSTypography.code)
+                            .frame(minHeight: 150)
+                            .padding(DSSpacing.sm)
+                            .background(DSColors.textBackground)
+                            .cornerRadius(DSRadius.sm)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: DSRadius.sm)
+                                    .stroke(DSColors.border, lineWidth: 1)
+                            )
+                    }
+
+                    // Description Field
+                    VStack(alignment: .leading, spacing: DSSpacing.sm) {
+                        Text("Description (Optional)")
+                            .font(DSTypography.label)
+                            .foregroundColor(DSColors.textSecondary)
+
+                        TextField("Add a description...", text: $description)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                            .font(DSTypography.body)
+                    }
+
+                    if !errorMessage.isEmpty {
+                        HStack(spacing: DSSpacing.sm) {
+                            Image(systemName: "exclamationmark.circle.fill")
+                                .font(.system(size: DSIconSize.sm))
+                            Text(errorMessage)
+                                .font(DSTypography.caption)
+                        }
+                        .foregroundColor(DSColors.error)
+                        .padding(DSSpacing.sm)
+                        .background(DSColors.errorBackground)
+                        .cornerRadius(DSRadius.sm)
+                    }
                 }
-                
-                // Description Field
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Description (Optional)")
-                        .font(.headline)
-                        .foregroundColor(.secondary)
-                    
-                    TextField("Add a description...", text: $description)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                }
-                
-                if !errorMessage.isEmpty {
-                    Text(errorMessage)
-                        .font(.caption)
-                        .foregroundColor(.red)
-                }
+                .padding(.horizontal, DSSpacing.xxl)
+                .padding(.vertical, DSSpacing.lg)
             }
-            
+
             // Action Buttons
-            HStack {
+            HStack(spacing: DSSpacing.md) {
                 Button("Cancel") {
                     presentationMode.wrappedValue.dismiss()
                 }
-                .buttonStyle(ModernButtonStyle(isPrimary: false))
+                .buttonStyle(DSButtonStyle(.secondary))
                 .keyboardShortcut(.escape)
                 .disabled(isCreating)
-                
+
                 Spacer()
-                
+
                 Button(action: {
                     createSnippet()
                 }) {
-                    if isCreating {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle())
-                            .scaleEffect(0.8)
-                    } else {
-                        Text("Add")
+                    HStack(spacing: DSSpacing.sm) {
+                        if isCreating {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle())
+                                .scaleEffect(0.8)
+                        }
+                        Text(isCreating ? "Adding..." : "Add Snippet")
                     }
+                    .frame(minWidth: 100)
                 }
-                .buttonStyle(ModernButtonStyle())
+                .buttonStyle(DSButtonStyle(.primary))
                 .keyboardShortcut(.return)
                 .disabled(command.isEmpty || content.isEmpty || isCreating)
+                .opacity((command.isEmpty || content.isEmpty || isCreating) ? 0.6 : 1)
             }
+            .padding(.horizontal, DSSpacing.xxl)
+            .padding(.vertical, DSSpacing.lg)
+            .background(DSColors.surfaceSecondary)
         }
-        .padding(24)
-        .frame(width: 500, height: 500)
+        .frame(width: 520, height: 520)
+        .background(DSColors.windowBackground)
     }
-    
+
     private func insertPlaceholder(_ placeholder: String) {
         content += placeholder
     }
-    
+
     private func createSnippet() {
         let trimmedCommand = command.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedContent = content.trimmingCharacters(in: .whitespacesAndNewlines)
-        
+
         if trimmedCommand.isEmpty {
             errorMessage = "Command cannot be empty"
             return
         }
-        
+
         if trimmedContent.isEmpty {
             errorMessage = "Content cannot be empty"
             return
         }
-        
+
         isCreating = true
         errorMessage = ""
-        
+
         snippetsViewModel.createSnippet(
             command: trimmedCommand,
             content: trimmedContent,
             description: description.isEmpty ? nil : description,
             categoryId: categoryId
         )
-        
+
         presentationMode.wrappedValue.dismiss()
     }
-    
+
     @State private var cancellables = Set<AnyCancellable>()
 }
 
@@ -204,13 +234,13 @@ struct FocusableTextField: NSViewRepresentable {
     let placeholder: String
     @Binding var text: String
     @Binding var shouldFocus: Bool
-    
+
     init(_ placeholder: String, text: Binding<String>, shouldFocus: Binding<Bool>) {
         self.placeholder = placeholder
         self._text = text
         self._shouldFocus = shouldFocus
     }
-    
+
     func makeNSView(context: Context) -> NSTextField {
         let textField = NSTextField()
         textField.placeholderString = placeholder
@@ -218,20 +248,20 @@ struct FocusableTextField: NSViewRepresentable {
         textField.delegate = context.coordinator
         textField.bezelStyle = .roundedBezel
         textField.font = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
-        
+
         if shouldFocus {
             DispatchQueue.main.async {
                 textField.window?.makeFirstResponder(textField)
                 shouldFocus = false
             }
         }
-        
+
         return textField
     }
-    
+
     func updateNSView(_ nsView: NSTextField, context: Context) {
         nsView.stringValue = text
-        
+
         if shouldFocus {
             DispatchQueue.main.async {
                 nsView.window?.makeFirstResponder(nsView)
@@ -239,18 +269,18 @@ struct FocusableTextField: NSViewRepresentable {
             }
         }
     }
-    
+
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
     }
-    
+
     class Coordinator: NSObject, NSTextFieldDelegate {
         var parent: FocusableTextField
-        
+
         init(_ parent: FocusableTextField) {
             self.parent = parent
         }
-        
+
         func controlTextDidChange(_ obj: Notification) {
             if let textField = obj.object as? NSTextField {
                 parent.text = textField.stringValue

@@ -1,37 +1,40 @@
 import SwiftUI
 
+// Legacy ModernButtonStyle - kept for backwards compatibility
+// New code should use DSButtonStyle from DesignSystem.swift
 struct ModernButtonStyle: ButtonStyle {
     var isPrimary: Bool = true
     var isDestructive: Bool = false
-    
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
+            .font(DSTypography.label)
+            .padding(.horizontal, DSSpacing.lg)
+            .padding(.vertical, DSSpacing.sm)
             .background(
-                RoundedRectangle(cornerRadius: 6)
+                RoundedRectangle(cornerRadius: DSRadius.sm)
                     .fill(backgroundColor(isPressed: configuration.isPressed))
             )
             .foregroundColor(foregroundColor)
-            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
-            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
+            .animation(DSAnimation.springQuick, value: configuration.isPressed)
     }
-    
+
     private func backgroundColor(isPressed: Bool) -> Color {
         if isDestructive {
-            return isPressed ? Color.red.opacity(0.8) : Color.red
+            return isPressed ? DSColors.error.opacity(0.85) : DSColors.error
         } else if isPrimary {
-            return isPressed ? Color.accentColor.opacity(0.8) : Color.accentColor
+            return isPressed ? DSColors.accentPressed : DSColors.accent
         } else {
-            return isPressed ? Color.secondary.opacity(0.2) : Color.secondary.opacity(0.1)
+            return isPressed ? DSColors.hoverBackground : DSColors.surfaceSecondary
         }
     }
-    
+
     private var foregroundColor: Color {
         if isDestructive || isPrimary {
             return .white
         } else {
-            return .primary
+            return DSColors.textPrimary
         }
     }
 }

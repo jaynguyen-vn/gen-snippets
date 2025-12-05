@@ -2,74 +2,99 @@ import SwiftUI
 
 struct StatusBarView: View {
     let shortcuts = [
-        ("⌥⌘E", "Search"),
-        ("⌘N", "New Snippet"),
-        ("⌘⇧N", "New Category"),
-        ("⌘,", "Settings"),
-        ("⌘S", "Save"),
-        ("⌘D", "Duplicate"),
-        ("⌘⌫", "Delete")
+        (["Option", "Cmd", "E"], "Search"),
+        (["Cmd", "N"], "New"),
+        (["Cmd", "Shift", "N"], "Category"),
+        (["Cmd", ","], "Settings"),
+        (["Cmd", "S"], "Save")
     ]
-    
+
     var body: some View {
         HStack(spacing: 0) {
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 0) {
-                    ForEach(shortcuts, id: \.0) { shortcut in
-                        HStack(spacing: 4) {
-                            Text(shortcut.0)
-                                .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                                .foregroundColor(.primary.opacity(0.9))
-                                .padding(.horizontal, 5)
-                                .padding(.vertical, 2)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 3)
-                                        .fill(Color.accentColor.opacity(0.1))
-                                )
-                            
-                            Text(shortcut.1)
-                                .font(.system(size: 10))
-                                .foregroundColor(.secondary)
-                        }
-                        .padding(.horizontal, 6)
-                        
-                        if shortcut.0 != shortcuts.last?.0 {
-                            Divider()
-                                .frame(height: 14)
-                                .opacity(0.2)
+                HStack(spacing: DSSpacing.sm) {
+                    ForEach(shortcuts, id: \.1) { shortcut in
+                        StatusBarShortcut(keys: shortcut.0, label: shortcut.1)
+
+                        if shortcut.1 != shortcuts.last?.1 {
+                            Circle()
+                                .fill(DSColors.borderSubtle)
+                                .frame(width: 3, height: 3)
                         }
                     }
                 }
+                .padding(.horizontal, DSSpacing.md)
             }
-            
+
             Spacer()
-            
-            HStack(spacing: 4) {
-                Text("GenSnippets made by")
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary.opacity(0.6))
-                
+
+            HStack(spacing: DSSpacing.xxs) {
+                Text("GenSnippets by")
+                    .font(DSTypography.caption)
+                    .foregroundColor(DSColors.textTertiary)
+
                 Button(action: {
                     if let url = URL(string: "https://www.facebook.com/iductruong") {
                         NSWorkspace.shared.open(url)
                     }
                 }) {
                     Text("Jay")
-                        .font(.system(size: 11))
-                        .foregroundColor(.blue.opacity(0.8))
-                        .underline()
+                        .font(DSTypography.captionMedium)
+                        .foregroundColor(DSColors.accent)
                 }
                 .buttonStyle(PlainButtonStyle())
+                .onHover { hovering in
+                    if hovering {
+                        NSCursor.pointingHand.push()
+                    } else {
+                        NSCursor.pop()
+                    }
+                }
             }
-            .padding(.trailing, 12)
+            .padding(.trailing, DSSpacing.md)
         }
-        .frame(height: 26)
-        .background(Color(NSColor.controlBackgroundColor).opacity(0.95))
+        .frame(height: 28)
+        .background(DSColors.surfaceSecondary.opacity(0.8))
         .overlay(
-            Rectangle()
-                .frame(height: 0.5)
-                .foregroundColor(Color.secondary.opacity(0.15)),
+            DSDivider(),
             alignment: .top
         )
+    }
+}
+
+struct StatusBarShortcut: View {
+    let keys: [String]
+    let label: String
+
+    private func keySymbol(_ key: String) -> String {
+        switch key.lowercased() {
+        case "cmd", "command": return "\u{2318}"
+        case "option", "alt": return "\u{2325}"
+        case "shift": return "\u{21E7}"
+        case "control", "ctrl": return "\u{2303}"
+        default: return key
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: DSSpacing.xxs) {
+            HStack(spacing: 1) {
+                ForEach(keys, id: \.self) { key in
+                    Text(keySymbol(key))
+                        .font(.system(size: 9, weight: .medium, design: .rounded))
+                }
+            }
+            .foregroundColor(DSColors.textPrimary.opacity(0.8))
+            .padding(.horizontal, DSSpacing.xxs + 2)
+            .padding(.vertical, 2)
+            .background(
+                RoundedRectangle(cornerRadius: DSRadius.xxs)
+                    .fill(DSColors.accent.opacity(0.1))
+            )
+
+            Text(label)
+                .font(.system(size: 10))
+                .foregroundColor(DSColors.textSecondary)
+        }
     }
 }

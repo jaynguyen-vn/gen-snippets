@@ -5,29 +5,24 @@ struct InsightsView: View {
     @StateObject private var snippetsViewModel = LocalSnippetsViewModel()
     @State private var selectedTab = 0
     @Environment(\.presentationMode) var presentationMode
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // Header
             HStack {
                 Text("Snippet Insights")
-                    .font(.title2)
-                    .fontWeight(.bold)
-                
+                    .font(DSTypography.displaySmall)
+                    .foregroundColor(DSColors.textPrimary)
+
                 Spacer()
-                
-                Button(action: {
+
+                DSCloseButton {
                     presentationMode.wrappedValue.dismiss()
-                }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 20))
-                        .foregroundColor(.secondary)
                 }
-                .buttonStyle(PlainButtonStyle())
-                .focusable(false)
             }
-            .padding(20)
-            
+            .padding(.horizontal, DSSpacing.xxl)
+            .padding(.vertical, DSSpacing.xl)
+
             // Tab Selection
             Picker("", selection: $selectedTab) {
                 Text("Most Used").tag(0)
@@ -36,11 +31,12 @@ struct InsightsView: View {
                 Text("Statistics").tag(3)
             }
             .pickerStyle(SegmentedPickerStyle())
-            .padding(.horizontal, 20)
-            .padding(.bottom, 20)
-            
-            Divider()
-            
+            .padding(.horizontal, DSSpacing.xxl)
+            .padding(.bottom, DSSpacing.lg)
+
+            DSDivider()
+                .padding(.horizontal, DSSpacing.lg)
+
             // Content
             ScrollView {
                 switch selectedTab {
@@ -57,18 +53,18 @@ struct InsightsView: View {
                 }
             }
         }
-        .frame(minWidth: 600, minHeight: 500)
-        .background(Color(NSColor.windowBackgroundColor))
+        .frame(minWidth: 640, minHeight: 520)
+        .background(DSColors.windowBackground)
         .onAppear {
             snippetsViewModel.fetchSnippets()
         }
     }
-    
+
     // MARK: - Most Used View
     private var mostUsedView: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: DSSpacing.lg) {
             let mostUsed = usageTracker.getMostUsedSnippets(limit: 20)
-            
+
             if mostUsed.isEmpty {
                 emptyStateView(
                     icon: "chart.bar.xaxis",
@@ -78,53 +74,27 @@ struct InsightsView: View {
             } else {
                 ForEach(mostUsed, id: \.snippetCommand) { item in
                     if let snippet = snippetsViewModel.snippets.first(where: { $0.command == item.snippetCommand }) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(snippet.command)
-                                    .font(.system(.body, design: .monospaced))
-                                    .fontWeight(.medium)
-                                
-                                if let description = snippet.description {
-                                    Text(description)
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                        .lineLimit(1)
-                                }
-                            }
-                            
-                            Spacer()
-                            
-                            VStack(alignment: .trailing, spacing: 4) {
-                                HStack {
-                                    Image(systemName: "chart.bar.fill")
-                                        .font(.system(size: 14))
-                                        .foregroundColor(.blue)
-                                    Text("\(item.usage.usageCount) uses")
-                                        .font(.system(size: 14, weight: .semibold))
-                                        .foregroundColor(.blue)
-                                }
-                                
-                                Text("Last: \(item.usage.formattedLastUsed)")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        .padding(12)
-                        .background(Color(NSColor.controlBackgroundColor))
-                        .cornerRadius(8)
+                        InsightRowView(
+                            command: snippet.command,
+                            description: snippet.description,
+                            primaryIcon: "chart.bar.fill",
+                            primaryText: "\(item.usage.usageCount) uses",
+                            primaryColor: DSColors.info,
+                            secondaryText: "Last: \(item.usage.formattedLastUsed)"
+                        )
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
+                .padding(.horizontal, DSSpacing.xxl)
+                .padding(.vertical, DSSpacing.md)
             }
         }
     }
-    
+
     // MARK: - Recently Used View
     private var recentlyUsedView: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: DSSpacing.lg) {
             let recentlyUsed = usageTracker.getRecentlyUsedSnippets(limit: 20)
-            
+
             if recentlyUsed.isEmpty {
                 emptyStateView(
                     icon: "clock",
@@ -134,56 +104,30 @@ struct InsightsView: View {
             } else {
                 ForEach(recentlyUsed, id: \.snippetCommand) { item in
                     if let snippet = snippetsViewModel.snippets.first(where: { $0.command == item.snippetCommand }) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(snippet.command)
-                                    .font(.system(.body, design: .monospaced))
-                                    .fontWeight(.medium)
-                                
-                                if let description = snippet.description {
-                                    Text(description)
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                        .lineLimit(1)
-                                }
-                            }
-                            
-                            Spacer()
-                            
-                            VStack(alignment: .trailing, spacing: 4) {
-                                HStack {
-                                    Image(systemName: "clock.fill")
-                                        .font(.system(size: 14))
-                                        .foregroundColor(.orange)
-                                    Text(item.usage.formattedLastUsed)
-                                        .font(.system(size: 14, weight: .semibold))
-                                        .foregroundColor(.orange)
-                                }
-                                
-                                Text("\(item.usage.usageCount) total uses")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        .padding(12)
-                        .background(Color(NSColor.controlBackgroundColor))
-                        .cornerRadius(8)
+                        InsightRowView(
+                            command: snippet.command,
+                            description: snippet.description,
+                            primaryIcon: "clock.fill",
+                            primaryText: item.usage.formattedLastUsed,
+                            primaryColor: DSColors.warning,
+                            secondaryText: "\(item.usage.usageCount) total uses"
+                        )
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
+                .padding(.horizontal, DSSpacing.xxl)
+                .padding(.vertical, DSSpacing.md)
             }
         }
     }
-    
+
     // MARK: - Never Used View
     private var neverUsedView: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: DSSpacing.lg) {
             let allSnippets = snippetsViewModel.snippets
             let neverUsed = allSnippets.filter { snippet in
                 usageTracker.getUsageCount(for: snippet.command) == 0
             }
-            
+
             if neverUsed.isEmpty {
                 emptyStateView(
                     icon: "star.fill",
@@ -192,49 +136,53 @@ struct InsightsView: View {
                 )
             } else {
                 Text("\(neverUsed.count) unused snippet\(neverUsed.count > 1 ? "s" : "")")
-                    .font(.headline)
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal, 20)
-                    .padding(.top, 12)
-                
+                    .font(DSTypography.label)
+                    .foregroundColor(DSColors.textSecondary)
+                    .padding(.horizontal, DSSpacing.xxl)
+                    .padding(.top, DSSpacing.md)
+
                 ForEach(neverUsed) { snippet in
                     HStack {
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: .leading, spacing: DSSpacing.xxs) {
                             Text(snippet.command)
-                                .font(.system(.body, design: .monospaced))
-                                .fontWeight(.medium)
-                            
+                                .font(DSTypography.code)
+                                .foregroundColor(DSColors.textPrimary)
+
                             if let description = snippet.description {
                                 Text(description)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .font(DSTypography.caption)
+                                    .foregroundColor(DSColors.textSecondary)
                                     .lineLimit(1)
                             }
                         }
-                        
+
                         Spacer()
-                        
+
                         Text("Never used")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.secondary.opacity(0.1))
-                            .cornerRadius(4)
+                            .font(DSTypography.captionMedium)
+                            .foregroundColor(DSColors.textTertiary)
+                            .padding(.horizontal, DSSpacing.sm)
+                            .padding(.vertical, DSSpacing.xxs)
+                            .background(DSColors.surfaceSecondary)
+                            .cornerRadius(DSRadius.xs)
                     }
-                    .padding(12)
-                    .background(Color(NSColor.controlBackgroundColor))
-                    .cornerRadius(8)
+                    .padding(DSSpacing.md)
+                    .background(DSColors.surface)
+                    .cornerRadius(DSRadius.md)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DSRadius.md)
+                            .stroke(DSColors.borderSubtle, lineWidth: 1)
+                    )
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 12)
+                .padding(.horizontal, DSSpacing.xxl)
+                .padding(.bottom, DSSpacing.md)
             }
         }
     }
-    
+
     // MARK: - Statistics View
     private var statisticsView: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: DSSpacing.xl) {
             let allSnippets = snippetsViewModel.snippets
             let usedSnippets = allSnippets.filter { snippet in
                 usageTracker.getUsageCount(for: snippet.command) > 0
@@ -242,140 +190,202 @@ struct InsightsView: View {
             let totalUsage = allSnippets.reduce(0) { sum, snippet in
                 sum + usageTracker.getUsageCount(for: snippet.command)
             }
-            
+
             // Overview Cards
-            HStack(spacing: 16) {
+            HStack(spacing: DSSpacing.lg) {
                 StatCard(
                     title: "Total Snippets",
                     value: "\(allSnippets.count)",
                     icon: "doc.text",
-                    color: .blue
+                    color: DSColors.info
                 )
-                
+
                 StatCard(
                     title: "Total Usage",
                     value: "\(totalUsage)",
                     icon: "chart.bar.fill",
-                    color: .green
+                    color: DSColors.success
                 )
-                
+
                 StatCard(
                     title: "Used Snippets",
                     value: "\(usedSnippets.count)/\(allSnippets.count)",
                     icon: "checkmark.circle.fill",
-                    color: .orange
+                    color: DSColors.warning
                 )
-                
+
                 StatCard(
                     title: "Usage Rate",
                     value: allSnippets.isEmpty ? "0%" : "\(Int(Double(usedSnippets.count) / Double(allSnippets.count) * 100))%",
                     icon: "percent",
-                    color: .purple
+                    color: Color.purple
                 )
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
-            
-            Divider()
-                .padding(.horizontal, 20)
-            
+            .padding(.horizontal, DSSpacing.xxl)
+            .padding(.top, DSSpacing.xl)
+
+            DSDivider()
+                .padding(.horizontal, DSSpacing.lg)
+
             // Top Performers
             if !usageTracker.getMostUsedSnippets(limit: 5).isEmpty {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: DSSpacing.md) {
                     Text("Top Performers")
-                        .font(.headline)
-                        .padding(.horizontal, 20)
-                    
+                        .font(DSTypography.heading2)
+                        .foregroundColor(DSColors.textPrimary)
+                        .padding(.horizontal, DSSpacing.xxl)
+
                     ForEach(usageTracker.getMostUsedSnippets(limit: 5), id: \.snippetCommand) { item in
                         if let snippet = snippetsViewModel.snippets.first(where: { $0.command == item.snippetCommand }) {
-                            HStack {
+                            HStack(spacing: DSSpacing.md) {
                                 Text(snippet.command)
-                                    .font(.system(.body, design: .monospaced))
-                                
+                                    .font(DSTypography.code)
+                                    .foregroundColor(DSColors.textPrimary)
+
                                 Spacer()
-                                
+
                                 // Usage bar
                                 GeometryReader { geometry in
                                     ZStack(alignment: .leading) {
-                                        RoundedRectangle(cornerRadius: 4)
-                                            .fill(Color.secondary.opacity(0.1))
-                                        
-                                        RoundedRectangle(cornerRadius: 4)
-                                            .fill(Color.blue)
+                                        RoundedRectangle(cornerRadius: DSRadius.xs)
+                                            .fill(DSColors.surfaceSecondary)
+
+                                        RoundedRectangle(cornerRadius: DSRadius.xs)
+                                            .fill(DSColors.accent)
                                             .frame(width: geometry.size.width * min(Double(item.usage.usageCount) / Double(totalUsage), 1.0))
                                     }
                                 }
                                 .frame(width: 100, height: 20)
-                                
+
                                 Text("\(item.usage.usageCount)")
-                                    .font(.system(size: 14, weight: .semibold))
+                                    .font(DSTypography.label)
+                                    .foregroundColor(DSColors.textPrimary)
                                     .frame(width: 40, alignment: .trailing)
                             }
-                            .padding(.horizontal, 20)
+                            .padding(.horizontal, DSSpacing.xxl)
                         }
                     }
                 }
             }
-            
+
             Spacer()
         }
     }
-    
+
     private func emptyStateView(icon: String, title: String, message: String) -> some View {
-        VStack(spacing: 12) {
+        VStack(spacing: DSSpacing.md) {
             Spacer()
-            
+
             Image(systemName: icon)
-                .font(.system(size: 48))
-                .foregroundColor(.secondary.opacity(0.5))
-            
+                .font(.system(size: DSIconSize.huge + 16))
+                .foregroundColor(DSColors.textTertiary)
+
             Text(title)
-                .font(.headline)
-                .foregroundColor(.primary)
-            
+                .font(DSTypography.heading2)
+                .foregroundColor(DSColors.textPrimary)
+
             Text(message)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+                .font(DSTypography.body)
+                .foregroundColor(DSColors.textSecondary)
                 .multilineTextAlignment(.center)
-            
+
             Spacer()
         }
         .frame(maxWidth: .infinity)
-        .padding(40)
+        .padding(DSSpacing.huge)
     }
 }
 
+// MARK: - Insight Row View
+struct InsightRowView: View {
+    let command: String
+    let description: String?
+    let primaryIcon: String
+    let primaryText: String
+    let primaryColor: Color
+    let secondaryText: String
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: DSSpacing.xxs) {
+                Text(command)
+                    .font(DSTypography.code)
+                    .foregroundColor(DSColors.textPrimary)
+
+                if let description = description {
+                    Text(description)
+                        .font(DSTypography.caption)
+                        .foregroundColor(DSColors.textSecondary)
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: DSSpacing.xxs) {
+                HStack(spacing: DSSpacing.xxs) {
+                    Image(systemName: primaryIcon)
+                        .font(.system(size: DSIconSize.sm))
+                        .foregroundColor(primaryColor)
+                    Text(primaryText)
+                        .font(DSTypography.label)
+                        .foregroundColor(primaryColor)
+                }
+
+                Text(secondaryText)
+                    .font(DSTypography.caption)
+                    .foregroundColor(DSColors.textSecondary)
+            }
+        }
+        .padding(DSSpacing.md)
+        .background(DSColors.surface)
+        .cornerRadius(DSRadius.md)
+        .overlay(
+            RoundedRectangle(cornerRadius: DSRadius.md)
+                .stroke(DSColors.borderSubtle, lineWidth: 1)
+        )
+    }
+}
+
+// MARK: - Stat Card
 struct StatCard: View {
     let title: String
     let value: String
     let icon: String
     let color: Color
-    
+
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: DSSpacing.sm) {
             HStack {
-                Image(systemName: icon)
-                    .font(.system(size: 20))
-                    .foregroundColor(color)
+                ZStack {
+                    Circle()
+                        .fill(color.opacity(0.12))
+                        .frame(width: 36, height: 36)
+
+                    Image(systemName: icon)
+                        .font(.system(size: DSIconSize.md))
+                        .foregroundColor(color)
+                }
                 Spacer()
             }
-            
+
             Text(value)
-                .font(.system(size: 24, weight: .bold))
-                .foregroundColor(.primary)
+                .font(DSTypography.displayMedium)
+                .foregroundColor(DSColors.textPrimary)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            
+
             Text(title)
-                .font(.caption)
-                .foregroundColor(.secondary)
+                .font(DSTypography.caption)
+                .foregroundColor(DSColors.textSecondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(16)
-        .background(Color(NSColor.controlBackgroundColor))
-        .cornerRadius(12)
+        .padding(DSSpacing.lg)
+        .background(DSColors.surface)
+        .cornerRadius(DSRadius.lg)
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: DSRadius.lg)
                 .stroke(color.opacity(0.2), lineWidth: 1)
         )
+        .dsShadow(DSShadow.xs)
     }
 }

@@ -18,52 +18,31 @@ struct ModernSettingsView: View {
             ZStack {
                 HStack {
                     Text("Settings")
-                        .font(.system(size: 20, weight: .semibold, design: .rounded))
-                        .foregroundColor(.primary)
-                    
+                        .font(DSTypography.displaySmall)
+                        .foregroundColor(DSColors.textPrimary)
+
                     Spacer()
-                    
-                    Button(action: {
+
+                    DSCloseButton {
                         presentationMode.wrappedValue.dismiss()
-                    }) {
-                        ZStack {
-                            Circle()
-                                .fill(Color.primary.opacity(0.06))
-                                .frame(width: 28, height: 28)
-                            
-                            Image(systemName: "xmark")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    .onHover { isHovered in
-                        if isHovered {
-                            NSCursor.pointingHand.push()
-                        } else {
-                            NSCursor.pop()
-                        }
                     }
                 }
-                .padding(.horizontal, 24)
-                .padding(.vertical, 20)
+                .padding(.horizontal, DSSpacing.xxl)
+                .padding(.vertical, DSSpacing.xl)
             }
-            .background(Color(NSColor.windowBackgroundColor))
-            
-            Divider()
-                .opacity(0.5)
-            
+            .background(DSColors.windowBackground)
+
+            DSDivider()
+                .padding(.horizontal, DSSpacing.lg)
+
             // Content
             ScrollView {
-                VStack(alignment: .leading, spacing: 32) {
+                VStack(alignment: .leading, spacing: DSSpacing.xxxl) {
                     // General Section
-                    VStack(alignment: .leading, spacing: 20) {
-                        Text("General")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(.secondary)
-                            .textCase(.uppercase)
+                    VStack(alignment: .leading, spacing: DSSpacing.xl) {
+                        DSSectionHeader(title: "General")
                         
-                        VStack(spacing: 16) {
+                        VStack(spacing: DSSpacing.lg) {
                             // Start at Login
                             SettingRow(
                                 icon: "power.circle",
@@ -71,15 +50,14 @@ struct ModernSettingsView: View {
                                 description: "Launch app when you start your Mac"
                             ) {
                                 Toggle("", isOn: $startAtLogin)
-                                    .toggleStyle(MinimalToggleStyle())
+                                    .toggleStyle(DSToggleStyle())
                                     .onChange(of: startAtLogin) { value in
                                         toggleLaunchAtLogin(value)
                                     }
                             }
-                            
-                            Divider()
-                                .opacity(0.3)
-                            
+
+                            DSDivider()
+
                             // Status Bar Icon
                             SettingRow(
                                 icon: "menubar.rectangle",
@@ -87,7 +65,7 @@ struct ModernSettingsView: View {
                                 description: "Show icon in menu bar"
                             ) {
                                 Toggle("", isOn: $showStatusBarIcon)
-                                    .toggleStyle(MinimalToggleStyle())
+                                    .toggleStyle(DSToggleStyle())
                                     .onChange(of: showStatusBarIcon) { value in
                                         UserDefaults.standard.set(value, forKey: "ShowStatusBarIcon")
                                         NotificationCenter.default.post(
@@ -99,37 +77,34 @@ struct ModernSettingsView: View {
                             }
                         }
                     }
-                    
+
                     // Shortcuts Section
-                    VStack(alignment: .leading, spacing: 20) {
-                        Text("Shortcuts")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(.secondary)
-                            .textCase(.uppercase)
+                    VStack(alignment: .leading, spacing: DSSpacing.xl) {
+                        DSSectionHeader(title: "Shortcuts")
                         
-                        VStack(spacing: 16) {
+                        VStack(spacing: DSSpacing.lg) {
                             SettingRow(
                                 icon: "command.square",
                                 title: "Search Snippets",
                                 description: "Global shortcut to open search"
                             ) {
-                                HStack(spacing: 8) {
+                                HStack(spacing: DSSpacing.sm) {
                                     ShortcutRecorderView(
                                         keyCode: $tempKeyCode,
                                         modifierFlags: $tempModifiers
                                     )
                                     .frame(width: 120, height: 28)
                                     .background(
-                                        RoundedRectangle(cornerRadius: 6)
-                                            .fill(Color.primary.opacity(0.05))
+                                        RoundedRectangle(cornerRadius: DSRadius.sm)
+                                            .fill(DSColors.surfaceSecondary)
                                     )
                                     .overlay(
-                                        RoundedRectangle(cornerRadius: 6)
-                                            .stroke(hasUnsavedShortcut ? Color.orange.opacity(0.5) : Color.clear, lineWidth: 1)
+                                        RoundedRectangle(cornerRadius: DSRadius.sm)
+                                            .stroke(hasUnsavedShortcut ? DSColors.warning.opacity(0.5) : Color.clear, lineWidth: 1)
                                     )
                                     .onChange(of: tempKeyCode) { _ in checkShortcutChanged() }
                                     .onChange(of: tempModifiers) { _ in checkShortcutChanged() }
-                                    
+
                                     if hasUnsavedShortcut {
                                         Button("Save") {
                                             searchShortcutKeyCode = tempKeyCode
@@ -137,16 +112,16 @@ struct ModernSettingsView: View {
                                             saveShortcut()
                                             hasUnsavedShortcut = false
                                         }
-                                        .buttonStyle(MinimalButtonStyle(isProminent: true))
-                                        
+                                        .buttonStyle(DSButtonStyle(.primary, size: .small))
+
                                         Button("Cancel") {
                                             tempKeyCode = searchShortcutKeyCode
                                             tempModifiers = searchShortcutModifiers
                                             hasUnsavedShortcut = false
                                         }
-                                        .buttonStyle(MinimalButtonStyle())
+                                        .buttonStyle(DSButtonStyle(.tertiary, size: .small))
                                     }
-                                    
+
                                     Button("Reset") {
                                         tempKeyCode = 0
                                         tempModifiers = []
@@ -159,7 +134,7 @@ struct ModernSettingsView: View {
                                             hasUnsavedShortcut = false
                                         }
                                     }
-                                    .buttonStyle(MinimalButtonStyle())
+                                    .buttonStyle(DSButtonStyle(.tertiary, size: .small))
                                     .opacity(hasUnsavedShortcut ? 0.5 : 1)
                                     .disabled(hasUnsavedShortcut)
                                 }
@@ -167,11 +142,11 @@ struct ModernSettingsView: View {
                         }
                     }
                 }
-                .padding(24)
+                .padding(DSSpacing.xxl)
             }
         }
-        .frame(width: 480, height: 380)
-        .background(Color(NSColor.windowBackgroundColor))
+        .frame(width: 500, height: 400)
+        .background(DSColors.windowBackground)
         .onAppear {
             checkLaunchAtLogin()
             // Initialize temp variables with current or default values
@@ -226,42 +201,41 @@ struct SettingRow<Content: View>: View {
     let title: String
     let description: String
     let content: () -> Content
-    
+
     var body: some View {
-        HStack(alignment: .center, spacing: 16) {
+        HStack(alignment: .center, spacing: DSSpacing.lg) {
             // Icon
             ZStack {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.primary.opacity(0.06))
-                    .frame(width: 36, height: 36)
-                
+                RoundedRectangle(cornerRadius: DSRadius.md)
+                    .fill(DSColors.surfaceSecondary)
+                    .frame(width: 40, height: 40)
+
                 Image(systemName: icon)
-                    .font(.system(size: 16))
-                    .foregroundColor(.primary.opacity(0.8))
+                    .font(.system(size: DSIconSize.md))
+                    .foregroundColor(DSColors.textPrimary.opacity(0.85))
             }
-            
+
             // Text
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: DSSpacing.xxxs) {
                 Text(title)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.primary)
-                
+                    .font(DSTypography.label)
+                    .foregroundColor(DSColors.textPrimary)
+
                 Text(description)
-                    .font(.system(size: 12))
-                    .foregroundColor(.secondary)
-                    .opacity(0.8)
+                    .font(DSTypography.caption)
+                    .foregroundColor(DSColors.textSecondary)
             }
-            
+
             Spacer()
-            
+
             // Control
             content()
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, DSSpacing.xxs)
     }
 }
 
-// Minimal Toggle Style
+// Legacy MinimalToggleStyle - kept for compatibility but should migrate to DSToggleStyle
 struct MinimalToggleStyle: ToggleStyle {
     func makeBody(configuration: Configuration) -> some View {
         Button(action: {
@@ -269,36 +243,36 @@ struct MinimalToggleStyle: ToggleStyle {
         }) {
             ZStack {
                 Capsule()
-                    .fill(configuration.isOn ? Color.accentColor : Color.primary.opacity(0.15))
+                    .fill(configuration.isOn ? DSColors.accent : DSColors.hoverBackground)
                     .frame(width: 42, height: 24)
-                
+
                 Circle()
                     .fill(Color.white)
                     .frame(width: 20, height: 20)
-                    .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+                    .shadow(color: DSShadow.xs.color, radius: DSShadow.xs.radius, x: 0, y: DSShadow.xs.y)
                     .offset(x: configuration.isOn ? 9 : -9)
             }
         }
         .buttonStyle(PlainButtonStyle())
-        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: configuration.isOn)
+        .animation(DSAnimation.springQuick, value: configuration.isOn)
     }
 }
 
-// Minimal Button Style
+// Legacy MinimalButtonStyle - kept for compatibility but should migrate to DSButtonStyle
 struct MinimalButtonStyle: ButtonStyle {
     var isProminent: Bool = false
-    
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 12, weight: .medium))
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
+            .font(DSTypography.labelSmall)
+            .padding(.horizontal, DSSpacing.md)
+            .padding(.vertical, DSSpacing.xs)
             .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(isProminent ? Color.accentColor : Color.primary.opacity(configuration.isPressed ? 0.08 : 0.06))
+                RoundedRectangle(cornerRadius: DSRadius.sm)
+                    .fill(isProminent ? DSColors.accent : (configuration.isPressed ? DSColors.hoverBackground : DSColors.surfaceSecondary))
             )
-            .foregroundColor(isProminent ? .white : .primary)
-            .scaleEffect(configuration.isPressed ? 0.96 : 1)
-            .animation(.spring(response: 0.2, dampingFraction: 0.8), value: configuration.isPressed)
+            .foregroundColor(isProminent ? .white : DSColors.textPrimary)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .animation(DSAnimation.springQuick, value: configuration.isPressed)
     }
 }

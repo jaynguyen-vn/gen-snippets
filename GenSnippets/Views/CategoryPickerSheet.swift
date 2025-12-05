@@ -17,94 +17,113 @@ struct CategoryPickerSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 0) {
             // Header
             HStack {
                 Text(snippetCount == 1 ? "Move Snippet" : "Move \(snippetCount) Snippets")
-                    .font(.title2)
-                    .fontWeight(.semibold)
+                    .font(DSTypography.displaySmall)
+                    .foregroundColor(DSColors.textPrimary)
 
                 Spacer()
-            }
 
-            // Search field
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Search")
-                    .font(.headline)
-                    .foregroundColor(.secondary)
-
-                HStack {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(.secondary)
-
-                    TextField("Search categories...", text: $searchText)
-                        .textFieldStyle(PlainTextFieldStyle())
-
-                    if !searchText.isEmpty {
-                        Button(action: { searchText = "" }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.secondary)
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                    }
+                DSCloseButton {
+                    presentationMode.wrappedValue.dismiss()
                 }
-                .padding(8)
-                .background(Color(NSColor.textBackgroundColor))
-                .cornerRadius(6)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
-                )
             }
+            .padding(.horizontal, DSSpacing.xxl)
+            .padding(.vertical, DSSpacing.xl)
 
-            // Category list
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Select Category")
-                    .font(.headline)
-                    .foregroundColor(.secondary)
+            DSDivider()
+                .padding(.horizontal, DSSpacing.lg)
 
-                if filteredCategories.isEmpty {
-                    VStack(spacing: 12) {
-                        Spacer()
-                        Image(systemName: "folder.badge.questionmark")
-                            .font(.system(size: 36))
-                            .foregroundColor(.secondary.opacity(0.4))
+            // Content
+            VStack(alignment: .leading, spacing: DSSpacing.lg) {
+                // Search field
+                VStack(alignment: .leading, spacing: DSSpacing.sm) {
+                    Text("Search")
+                        .font(DSTypography.label)
+                        .foregroundColor(DSColors.textSecondary)
 
-                        Text("No categories found")
-                            .font(.system(size: 13))
-                            .foregroundColor(.secondary)
-                        Spacer()
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    ScrollView {
-                        LazyVStack(spacing: 2) {
-                            ForEach(filteredCategories) { category in
-                                CategoryPickerRow(
-                                    category: category,
-                                    isSelected: selectedCategoryId == category.id,
-                                    onSelect: {
-                                        selectedCategoryId = category.id
-                                    }
-                                )
+                    HStack(spacing: DSSpacing.sm) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: DSIconSize.sm))
+                            .foregroundColor(DSColors.textTertiary)
+
+                        TextField("Search categories...", text: $searchText)
+                            .font(DSTypography.body)
+                            .textFieldStyle(PlainTextFieldStyle())
+
+                        if !searchText.isEmpty {
+                            Button(action: { searchText = "" }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: DSIconSize.sm))
+                                    .foregroundColor(DSColors.textTertiary)
                             }
+                            .buttonStyle(PlainButtonStyle())
                         }
                     }
-                    .background(Color(NSColor.textBackgroundColor))
-                    .cornerRadius(6)
+                    .padding(.horizontal, DSSpacing.md)
+                    .padding(.vertical, DSSpacing.sm)
+                    .background(DSColors.textBackground)
+                    .cornerRadius(DSRadius.sm)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 6)
-                            .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+                        RoundedRectangle(cornerRadius: DSRadius.sm)
+                            .stroke(DSColors.borderSubtle, lineWidth: 1)
                     )
                 }
+
+                // Category list
+                VStack(alignment: .leading, spacing: DSSpacing.sm) {
+                    Text("Select Category")
+                        .font(DSTypography.label)
+                        .foregroundColor(DSColors.textSecondary)
+
+                    if filteredCategories.isEmpty {
+                        VStack(spacing: DSSpacing.md) {
+                            Spacer()
+                            Image(systemName: "folder.badge.questionmark")
+                                .font(.system(size: DSIconSize.huge))
+                                .foregroundColor(DSColors.textTertiary)
+
+                            Text("No categories found")
+                                .font(DSTypography.body)
+                                .foregroundColor(DSColors.textSecondary)
+                            Spacer()
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        ScrollView {
+                            LazyVStack(spacing: DSSpacing.xxxs) {
+                                ForEach(filteredCategories) { category in
+                                    CategoryPickerRow(
+                                        category: category,
+                                        isSelected: selectedCategoryId == category.id,
+                                        onSelect: {
+                                            selectedCategoryId = category.id
+                                        }
+                                    )
+                                }
+                            }
+                            .padding(DSSpacing.xxs)
+                        }
+                        .background(DSColors.textBackground)
+                        .cornerRadius(DSRadius.sm)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DSRadius.sm)
+                                .stroke(DSColors.borderSubtle, lineWidth: 1)
+                        )
+                    }
+                }
             }
+            .padding(.horizontal, DSSpacing.xxl)
+            .padding(.vertical, DSSpacing.lg)
 
             // Buttons
-            HStack {
+            HStack(spacing: DSSpacing.md) {
                 Button("Cancel") {
                     presentationMode.wrappedValue.dismiss()
                 }
-                .buttonStyle(ModernButtonStyle(isPrimary: false))
+                .buttonStyle(DSButtonStyle(.secondary))
                 .keyboardShortcut(.escape)
 
                 Spacer()
@@ -116,13 +135,17 @@ struct CategoryPickerSheet: View {
                         presentationMode.wrappedValue.dismiss()
                     }
                 }
-                .buttonStyle(ModernButtonStyle())
+                .buttonStyle(DSButtonStyle(.primary))
                 .keyboardShortcut(.return)
                 .disabled(selectedCategoryId == nil)
+                .opacity(selectedCategoryId == nil ? 0.6 : 1)
             }
+            .padding(.horizontal, DSSpacing.xxl)
+            .padding(.vertical, DSSpacing.lg)
+            .background(DSColors.surfaceSecondary)
         }
-        .padding(24)
-        .frame(width: 400, height: 450)
+        .frame(width: 420, height: 480)
+        .background(DSColors.windowBackground)
     }
 }
 
@@ -131,31 +154,50 @@ struct CategoryPickerRow: View {
     let isSelected: Bool
     let onSelect: () -> Void
 
+    @State private var isHovered = false
+
     var body: some View {
         Button(action: onSelect) {
-            HStack(spacing: 10) {
+            HStack(spacing: DSSpacing.md) {
                 Image(systemName: "folder")
-                    .font(.system(size: 14))
-                    .foregroundColor(isSelected ? .white : .accentColor)
+                    .font(.system(size: DSIconSize.sm))
+                    .foregroundColor(isSelected ? .white : DSColors.accent)
 
                 Text(category.name)
-                    .font(.system(size: 13))
-                    .foregroundColor(isSelected ? .white : .primary)
+                    .font(DSTypography.body)
+                    .foregroundColor(isSelected ? .white : DSColors.textPrimary)
 
                 Spacer()
 
                 if isSelected {
                     Image(systemName: "checkmark")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.system(size: DSIconSize.xs, weight: .semibold))
                         .foregroundColor(.white)
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.horizontal, DSSpacing.md)
+            .padding(.vertical, DSSpacing.sm)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(isSelected ? Color.accentColor : Color.clear)
+            .background(
+                RoundedRectangle(cornerRadius: DSRadius.sm)
+                    .fill(backgroundColor)
+            )
             .contentShape(Rectangle())
         }
         .buttonStyle(PlainButtonStyle())
+        .onHover { hovering in
+            withAnimation(DSAnimation.easeOut) {
+                isHovered = hovering
+            }
+        }
+    }
+
+    private var backgroundColor: Color {
+        if isSelected {
+            return DSColors.accent
+        } else if isHovered {
+            return DSColors.hoverBackground
+        }
+        return Color.clear
     }
 }

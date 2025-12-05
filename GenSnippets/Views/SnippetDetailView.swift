@@ -54,72 +54,71 @@ struct SnippetDetailView: View {
     
     var body: some View {
         GeometryReader { geometry in
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: DSSpacing.xl) {
                 // Header
                 HStack {
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: DSSpacing.xxs) {
                         Text("Edit Snippet")
-                            .font(.title2)
-                            .fontWeight(.semibold)
-                        
-                        HStack(spacing: 12) {
+                            .font(DSTypography.displaySmall)
+                            .foregroundColor(DSColors.textPrimary)
+
+                        HStack(spacing: DSSpacing.md) {
                             if let categoryName = categoryName {
-                                HStack(spacing: 4) {
+                                HStack(spacing: DSSpacing.xxs) {
                                     Image(systemName: "folder")
-                                        .font(.system(size: 12))
+                                        .font(.system(size: DSIconSize.xs))
                                     Text(categoryName)
-                                        .font(.caption)
+                                        .font(DSTypography.caption)
                                 }
-                                .foregroundColor(.secondary)
+                                .foregroundColor(DSColors.textSecondary)
                             }
-                            
+
                             // Usage Statistics
                             if let usage = usageTracker.getUsage(for: snippet.id), usage.usageCount > 0 {
-                                HStack(spacing: 4) {
+                                HStack(spacing: DSSpacing.xxs) {
                                     Image(systemName: "chart.bar.fill")
-                                        .font(.system(size: 12))
+                                        .font(.system(size: DSIconSize.xs))
                                     Text("Used \(usage.usageCount) time\(usage.usageCount > 1 ? "s" : "")")
-                                        .font(.caption)
+                                        .font(DSTypography.caption)
                                 }
-                                .foregroundColor(.blue.opacity(0.8))
-                                
-                                HStack(spacing: 4) {
+                                .foregroundColor(DSColors.info.opacity(0.9))
+
+                                HStack(spacing: DSSpacing.xxs) {
                                     Image(systemName: "clock")
-                                        .font(.system(size: 12))
+                                        .font(.system(size: DSIconSize.xs))
                                     Text(usage.formattedLastUsed)
-                                        .font(.caption)
+                                        .font(DSTypography.caption)
                                 }
-                                .foregroundColor(.secondary)
+                                .foregroundColor(DSColors.textSecondary)
                             } else {
-                                HStack(spacing: 4) {
+                                HStack(spacing: DSSpacing.xxs) {
                                     Image(systemName: "chart.bar")
-                                        .font(.system(size: 12))
+                                        .font(.system(size: DSIconSize.xs))
                                     Text("Not used yet")
-                                        .font(.caption)
+                                        .font(DSTypography.caption)
                                 }
-                                .foregroundColor(.secondary.opacity(0.6))
+                                .foregroundColor(DSColors.textTertiary)
                             }
                         }
                     }
-                    
+
                     Spacer()
-                    
+
                     // Responsive Action Buttons
                     if geometry.size.width > 500 {
                         // Full layout for wide screens
-                        HStack(spacing: 12) {
+                        HStack(spacing: DSSpacing.md) {
                             Button(action: {
                                 showDeleteAlert = true
                             }) {
                                 Label("Delete", systemImage: "trash")
-                                    .font(.system(size: 12))
                             }
-                            .buttonStyle(ModernButtonStyle(isDestructive: true))
-                            
+                            .buttonStyle(DSButtonStyle(.destructive, size: .medium))
+
                             Button(action: {
                                 saveSnippet()
                             }) {
-                                HStack(spacing: 6) {
+                                HStack(spacing: DSSpacing.xs) {
                                     if isSaving {
                                         ProgressView()
                                             .progressViewStyle(CircularProgressViewStyle())
@@ -130,23 +129,24 @@ struct SnippetDetailView: View {
                                 }
                                 .frame(minWidth: 80)
                             }
-                            .buttonStyle(ModernButtonStyle(isPrimary: true))
+                            .buttonStyle(DSButtonStyle(.primary, size: .medium))
                             .disabled(!hasChanges || isSaving || command.isEmpty || content.isEmpty)
+                            .opacity((!hasChanges || isSaving || command.isEmpty || content.isEmpty) ? 0.6 : 1)
                             .keyboardShortcut("s", modifiers: .command)
-                            .help("Save changes (⌘S)")
+                            .help("Save changes")
                         }
                     } else {
                         // Compact layout for narrow screens
-                        HStack(spacing: 8) {
+                        HStack(spacing: DSSpacing.sm) {
                             Button(action: {
                                 showDeleteAlert = true
                             }) {
                                 Image(systemName: "trash")
-                                    .font(.system(size: 14))
+                                    .font(.system(size: DSIconSize.sm))
                             }
-                            .buttonStyle(ModernButtonStyle(isDestructive: true))
+                            .buttonStyle(DSButtonStyle(.destructive, size: .small))
                             .help("Delete Snippet")
-                            
+
                             Button(action: {
                                 saveSnippet()
                             }) {
@@ -157,37 +157,37 @@ struct SnippetDetailView: View {
                                         .frame(width: 14, height: 14)
                                 } else {
                                     Text("Save")
-                                        .font(.system(size: 12))
                                 }
                             }
-                            .buttonStyle(ModernButtonStyle(isPrimary: true))
+                            .buttonStyle(DSButtonStyle(.primary, size: .small))
                             .disabled(!hasChanges || isSaving || command.isEmpty || content.isEmpty)
+                            .opacity((!hasChanges || isSaving || command.isEmpty || content.isEmpty) ? 0.6 : 1)
                             .keyboardShortcut("s", modifiers: .command)
-                            .help("Save changes (⌘S)")
+                            .help("Save changes")
                         }
                     }
                 }
-                .padding(.horizontal, 24)
-                .padding(.top, 20)
-            
-            Divider()
-                .padding(.horizontal, 24)
+                .padding(.horizontal, DSSpacing.xxl)
+                .padding(.top, DSSpacing.xl)
+
+            DSDivider()
+                .padding(.horizontal, DSSpacing.lg)
             
             // Form Fields
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: DSSpacing.xl) {
                     // Command Field
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: DSSpacing.sm) {
                         HStack {
                             Text("Command")
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(.secondary)
-                            
+                                .font(DSTypography.label)
+                                .foregroundColor(DSColors.textSecondary)
+
                             Text("*")
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(.red)
+                                .font(DSTypography.label)
+                                .foregroundColor(DSColors.error)
                         }
-                        
+
                         HStack {
                             CustomTextField(
                                 placeholder: "Type the trigger text...",
@@ -195,62 +195,62 @@ struct SnippetDetailView: View {
                                 identifier: "commandField",
                                 onFocus: { focusedField = .command }
                             )
-                            .font(.system(.body, design: .monospaced))
+                            .font(DSTypography.code)
                             .onChange(of: command) { _ in
                                 checkForChanges()
                             }
-                            
+
                             if !command.isEmpty {
                                 Button(action: {
                                     command = ""
                                 }) {
                                     Image(systemName: "xmark.circle.fill")
-                                        .font(.system(size: 14))
-                                        .foregroundColor(.secondary.opacity(0.5))
+                                        .font(.system(size: DSIconSize.sm))
+                                        .foregroundColor(DSColors.textTertiary)
                                 }
                                 .buttonStyle(PlainButtonStyle())
                             }
                         }
-                        
+
                         Text("This text will trigger the snippet replacement")
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary.opacity(0.7))
+                            .font(DSTypography.caption)
+                            .foregroundColor(DSColors.textTertiary)
                     }
-                    
+
                     // Content Field
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: DSSpacing.sm) {
                         HStack {
                             Text("Content")
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(.secondary)
-                            
+                                .font(DSTypography.label)
+                                .foregroundColor(DSColors.textSecondary)
+
                             Text("*")
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(.red)
-                            
+                                .font(DSTypography.label)
+                                .foregroundColor(DSColors.error)
+
                             Spacer()
-                            
+
                             // Character count
                             Text("\(content.count) characters")
-                                .font(.system(size: 11))
-                                .foregroundColor(.secondary.opacity(0.8))
-                            
+                                .font(DSTypography.caption)
+                                .foregroundColor(DSColors.textTertiary)
+
                             // Insert placeholder button
                             Button(action: {
                                 saveCursorPosition()
                                 showPlaceholderMenu.toggle()
                             }) {
-                                HStack(spacing: 4) {
+                                HStack(spacing: DSSpacing.xxs) {
                                     Image(systemName: "curlybraces")
-                                        .font(.system(size: 11, weight: .medium))
+                                        .font(.system(size: DSIconSize.xs, weight: .medium))
                                     Text("Insert placeholder")
-                                        .font(.system(size: 11, weight: .medium))
+                                        .font(DSTypography.captionMedium)
                                 }
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 3)
-                                .background(Color.accentColor.opacity(0.1))
-                                .foregroundColor(.accentColor)
-                                .cornerRadius(4)
+                                .padding(.horizontal, DSSpacing.sm)
+                                .padding(.vertical, DSSpacing.xxs)
+                                .background(DSColors.accent.opacity(0.12))
+                                .foregroundColor(DSColors.accent)
+                                .cornerRadius(DSRadius.xs)
                             }
                             .buttonStyle(PlainButtonStyle())
                             .help("Insert Placeholder")
@@ -261,16 +261,16 @@ struct SnippetDetailView: View {
                                 }
                             }
                         }
-                        
+
                         TextEditor(text: $content)
-                            .font(.system(.body, design: .monospaced))
+                            .font(DSTypography.code)
                             .frame(minHeight: 200, maxHeight: 400)
-                            .padding(8)
-                            .background(Color(NSColor.textBackgroundColor))
-                            .cornerRadius(6)
+                            .padding(DSSpacing.sm)
+                            .background(DSColors.textBackground)
+                            .cornerRadius(DSRadius.sm)
                             .overlay(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+                                RoundedRectangle(cornerRadius: DSRadius.sm)
+                                    .stroke(DSColors.border, lineWidth: 1)
                             )
                             .onChange(of: content) { _ in
                                 checkForChanges()
@@ -279,13 +279,13 @@ struct SnippetDetailView: View {
                                 focusedField = .content
                             }
                     }
-                    
+
                     // Description Field
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: DSSpacing.sm) {
                         Text("Description (Optional)")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(.secondary)
-                        
+                            .font(DSTypography.label)
+                            .foregroundColor(DSColors.textSecondary)
+
                         CustomTextField(
                             placeholder: "Add a description...",
                             text: $description,
@@ -297,7 +297,7 @@ struct SnippetDetailView: View {
                         }
                     }
                 }
-                .padding(.horizontal, 24)
+                .padding(.horizontal, DSSpacing.xxl)
             }
             
             }
@@ -544,45 +544,54 @@ struct PlaceholderItem: Identifiable {
 struct PlaceholderMenuView: View {
     let placeholders: [PlaceholderItem]
     let onSelect: (PlaceholderItem) -> Void
-    
+
+    @State private var hoveredId: UUID?
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text("Insert Placeholder")
-                .font(.headline)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-            
-            Divider()
-            
+                .font(DSTypography.heading2)
+                .foregroundColor(DSColors.textPrimary)
+                .padding(.horizontal, DSSpacing.lg)
+                .padding(.vertical, DSSpacing.md)
+
+            DSDivider()
+
             ForEach(placeholders) { placeholder in
                 Button(action: {
                     onSelect(placeholder)
                 }) {
-                    HStack(spacing: 12) {
+                    HStack(spacing: DSSpacing.md) {
                         Text(placeholder.symbol)
-                            .font(.system(.body, design: .monospaced))
-                            .foregroundColor(.accentColor)
+                            .font(DSTypography.code)
+                            .foregroundColor(DSColors.accent)
                             .frame(width: 120, alignment: .leading)
-                        
-                        VStack(alignment: .leading, spacing: 2) {
+
+                        VStack(alignment: .leading, spacing: DSSpacing.xxxs) {
                             Text(placeholder.name)
-                                .font(.body)
-                                .foregroundColor(.primary)
-                            
+                                .font(DSTypography.body)
+                                .foregroundColor(DSColors.textPrimary)
+
                             Text(placeholder.description)
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                                .font(DSTypography.caption)
+                                .foregroundColor(DSColors.textSecondary)
                         }
-                        
+
                         Spacer()
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
+                    .padding(.horizontal, DSSpacing.lg)
+                    .padding(.vertical, DSSpacing.sm)
+                    .background(
+                        RoundedRectangle(cornerRadius: DSRadius.sm)
+                            .fill(hoveredId == placeholder.id ? DSColors.hoverBackground : Color.clear)
+                    )
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(PlainButtonStyle())
-                .background(Color.clear)
                 .onHover { isHovering in
+                    withAnimation(DSAnimation.easeOut) {
+                        hoveredId = isHovering ? placeholder.id : nil
+                    }
                     if isHovering {
                         NSCursor.pointingHand.push()
                     } else {
@@ -590,9 +599,11 @@ struct PlaceholderMenuView: View {
                     }
                 }
             }
+            .padding(.horizontal, DSSpacing.xxs)
+            .padding(.vertical, DSSpacing.xxs)
         }
-        .frame(width: 400)
-        .background(Color(NSColor.controlBackgroundColor))
+        .frame(width: 420)
+        .background(DSColors.controlBackground)
     }
 }
 
