@@ -14,14 +14,32 @@ struct AddSnippetSheet: View {
     @State private var showPlaceholderMenu = false
     @State private var shouldFocusCommand = true
 
-    private let placeholders = [
-        PlaceholderItem(symbol: "{cursor}", name: "Cursor Position", description: "Place cursor here after expansion"),
-        PlaceholderItem(symbol: "{time}", name: "Current Time", description: "Insert current time"),
-        PlaceholderItem(symbol: "{timestamp}", name: "Unix Timestamp", description: "Insert Unix timestamp"),
-        PlaceholderItem(symbol: "{dd/mm}", name: "Short Date", description: "Current date (DD/MM)"),
-        PlaceholderItem(symbol: "{dd/mm/yyyy}", name: "Full Date", description: "Current date (DD/MM/YYYY)"),
-        PlaceholderItem(symbol: "{clipboard}", name: "Clipboard", description: "Paste from clipboard"),
-        PlaceholderItem(symbol: "{random-number}", name: "Random Number", description: "Generate random number")
+    private let placeholderSections = [
+        PlaceholderSection(title: "CURSOR", icon: "I", items: [
+            PlaceholderItem(symbol: "{cursor}", name: "Cursor Position", description: "Place cursor here after expansion")
+        ]),
+        PlaceholderSection(title: "TIME", icon: "", items: [
+            PlaceholderItem(symbol: "{time}", name: "Time (HH:mm:ss)", description: "Current time with seconds"),
+            PlaceholderItem(symbol: "{time:short}", name: "Time (HH:mm)", description: "Current time without seconds")
+        ]),
+        PlaceholderSection(title: "DATE", icon: "", items: [
+            PlaceholderItem(symbol: "{dd/mm}", name: "Date (DD/MM)", description: "Short date format"),
+            PlaceholderItem(symbol: "{dd/mm/yyyy}", name: "Date (DD/MM/YYYY)", description: "Full date format"),
+            PlaceholderItem(symbol: "{yyyy-mm-dd}", name: "Date (ISO)", description: "ISO date format"),
+            PlaceholderItem(symbol: "{mm/dd/yyyy}", name: "Date (US)", description: "US date format"),
+            PlaceholderItem(symbol: "{datetime}", name: "Date & Time", description: "Full date and time"),
+            PlaceholderItem(symbol: "{date-iso}", name: "ISO 8601", description: "Full ISO timestamp"),
+            PlaceholderItem(symbol: "{weekday}", name: "Weekday", description: "Day name (Monday, Tuesday...)"),
+            PlaceholderItem(symbol: "{month}", name: "Month", description: "Month name (January, February...)")
+        ]),
+        PlaceholderSection(title: "UTILITY", icon: "", items: [
+            PlaceholderItem(symbol: "{clipboard}", name: "Clipboard", description: "Paste from clipboard"),
+            PlaceholderItem(symbol: "{upper}", name: "Uppercase", description: "Clipboard in UPPERCASE"),
+            PlaceholderItem(symbol: "{lower}", name: "Lowercase", description: "Clipboard in lowercase"),
+            PlaceholderItem(symbol: "{uuid}", name: "UUID", description: "Unique identifier"),
+            PlaceholderItem(symbol: "{timestamp}", name: "Unix Timestamp", description: "Unix timestamp in seconds"),
+            PlaceholderItem(symbol: "{random:1-100}", name: "Random Number", description: "Random with custom range (e.g. {random:1-1000})")
+        ])
     ]
 
     var body: some View {
@@ -111,7 +129,7 @@ struct AddSnippetSheet: View {
                             .buttonStyle(PlainButtonStyle())
                             .help("Insert Placeholder")
                             .popover(isPresented: $showPlaceholderMenu) {
-                                PlaceholderMenuView(placeholders: placeholders) { placeholder in
+                                PlaceholderMenuView(sections: placeholderSections) { placeholder in
                                     insertPlaceholder(placeholder.symbol)
                                     showPlaceholderMenu = false
                                 }

@@ -42,14 +42,32 @@ struct SnippetDetailView: View {
         self._description = State(initialValue: snippet.description ?? "")
     }
     
-    private let placeholders = [
-        PlaceholderItem(symbol: "{cursor}", name: "Cursor Position", description: "Place cursor here after expansion"),
-        PlaceholderItem(symbol: "{time}", name: "Current Time", description: "Insert current time"),
-        PlaceholderItem(symbol: "{timestamp}", name: "Unix Timestamp", description: "Insert Unix timestamp"),
-        PlaceholderItem(symbol: "{dd/mm}", name: "Short Date", description: "Current date (DD/MM)"),
-        PlaceholderItem(symbol: "{dd/mm/yyyy}", name: "Full Date", description: "Current date (DD/MM/YYYY)"),
-        PlaceholderItem(symbol: "{clipboard}", name: "Clipboard", description: "Paste from clipboard"),
-        PlaceholderItem(symbol: "{random-number}", name: "Random Number", description: "Generate random number")
+    private let placeholderSections = [
+        PlaceholderSection(title: "CURSOR", icon: "I", items: [
+            PlaceholderItem(symbol: "{cursor}", name: "Cursor Position", description: "Place cursor here after expansion")
+        ]),
+        PlaceholderSection(title: "TIME", icon: "", items: [
+            PlaceholderItem(symbol: "{time}", name: "Time (HH:mm:ss)", description: "Current time with seconds"),
+            PlaceholderItem(symbol: "{time:short}", name: "Time (HH:mm)", description: "Current time without seconds")
+        ]),
+        PlaceholderSection(title: "DATE", icon: "", items: [
+            PlaceholderItem(symbol: "{dd/mm}", name: "Date (DD/MM)", description: "Short date format"),
+            PlaceholderItem(symbol: "{dd/mm/yyyy}", name: "Date (DD/MM/YYYY)", description: "Full date format"),
+            PlaceholderItem(symbol: "{yyyy-mm-dd}", name: "Date (ISO)", description: "ISO date format"),
+            PlaceholderItem(symbol: "{mm/dd/yyyy}", name: "Date (US)", description: "US date format"),
+            PlaceholderItem(symbol: "{datetime}", name: "Date & Time", description: "Full date and time"),
+            PlaceholderItem(symbol: "{date-iso}", name: "ISO 8601", description: "Full ISO timestamp"),
+            PlaceholderItem(symbol: "{weekday}", name: "Weekday", description: "Day name (Monday, Tuesday...)"),
+            PlaceholderItem(symbol: "{month}", name: "Month", description: "Month name (January, February...)")
+        ]),
+        PlaceholderSection(title: "UTILITY", icon: "", items: [
+            PlaceholderItem(symbol: "{clipboard}", name: "Clipboard", description: "Paste from clipboard"),
+            PlaceholderItem(symbol: "{upper}", name: "Uppercase", description: "Clipboard in UPPERCASE"),
+            PlaceholderItem(symbol: "{lower}", name: "Lowercase", description: "Clipboard in lowercase"),
+            PlaceholderItem(symbol: "{uuid}", name: "UUID", description: "Unique identifier"),
+            PlaceholderItem(symbol: "{timestamp}", name: "Unix Timestamp", description: "Unix timestamp in seconds"),
+            PlaceholderItem(symbol: "{random:1-100}", name: "Random Number", description: "Random with custom range (e.g. {random:1-1000})")
+        ])
     ]
     
     var body: some View {
@@ -255,7 +273,7 @@ struct SnippetDetailView: View {
                             .buttonStyle(PlainButtonStyle())
                             .help("Insert Placeholder")
                             .popover(isPresented: $showPlaceholderMenu) {
-                                PlaceholderMenuView(placeholders: placeholders) { placeholder in
+                                PlaceholderMenuView(sections: placeholderSections) { placeholder in
                                     insertPlaceholderAtSavedPosition(placeholder.symbol)
                                     showPlaceholderMenu = false
                                 }
@@ -544,9 +562,16 @@ struct PlaceholderItem: Identifiable {
     let description: String
 }
 
+struct PlaceholderSection: Identifiable {
+    let id = UUID()
+    let title: String
+    let icon: String
+    let items: [PlaceholderItem]
+}
+
 // MARK: - Placeholder Menu View
 struct PlaceholderMenuView: View {
-    let placeholders: [PlaceholderItem]
+    let sections: [PlaceholderSection]
     let onSelect: (PlaceholderItem) -> Void
 
     @State private var hoveredId: UUID?
@@ -561,50 +586,70 @@ struct PlaceholderMenuView: View {
 
             DSDivider()
 
-            ForEach(placeholders) { placeholder in
-                Button(action: {
-                    onSelect(placeholder)
-                }) {
-                    HStack(spacing: DSSpacing.md) {
-                        Text(placeholder.symbol)
-                            .font(DSTypography.code)
-                            .foregroundColor(DSColors.accent)
-                            .frame(width: 120, alignment: .leading)
-
-                        VStack(alignment: .leading, spacing: DSSpacing.xxxs) {
-                            Text(placeholder.name)
-                                .font(DSTypography.body)
-                                .foregroundColor(DSColors.textPrimary)
-
-                            Text(placeholder.description)
-                                .font(DSTypography.caption)
+            ScrollView {
+                VStack(alignment: .leading, spacing: DSSpacing.xs) {
+                    ForEach(sections) { section in
+                        // Section Header
+                        HStack(spacing: DSSpacing.xs) {
+                            Text(section.icon)
+                                .font(.system(size: 12))
+                            Text(section.title)
+                                .font(DSTypography.captionMedium)
                                 .foregroundColor(DSColors.textSecondary)
                         }
+                        .padding(.horizontal, DSSpacing.lg)
+                        .padding(.top, DSSpacing.sm)
+                        .padding(.bottom, DSSpacing.xxs)
 
-                        Spacer()
+                        // Section Items
+                        ForEach(section.items) { placeholder in
+                            Button(action: {
+                                onSelect(placeholder)
+                            }) {
+                                HStack(spacing: DSSpacing.md) {
+                                    Text(placeholder.symbol)
+                                        .font(DSTypography.code)
+                                        .foregroundColor(DSColors.accent)
+                                        .frame(width: 120, alignment: .leading)
+
+                                    VStack(alignment: .leading, spacing: DSSpacing.xxxs) {
+                                        Text(placeholder.name)
+                                            .font(DSTypography.body)
+                                            .foregroundColor(DSColors.textPrimary)
+
+                                        Text(placeholder.description)
+                                            .font(DSTypography.caption)
+                                            .foregroundColor(DSColors.textSecondary)
+                                    }
+
+                                    Spacer()
+                                }
+                                .padding(.horizontal, DSSpacing.lg)
+                                .padding(.vertical, DSSpacing.sm)
+                                .background(
+                                    RoundedRectangle(cornerRadius: DSRadius.sm)
+                                        .fill(hoveredId == placeholder.id ? DSColors.hoverBackground : Color.clear)
+                                )
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            .onHover { isHovering in
+                                withAnimation(DSAnimation.easeOut) {
+                                    hoveredId = isHovering ? placeholder.id : nil
+                                }
+                                if isHovering {
+                                    NSCursor.pointingHand.push()
+                                } else {
+                                    NSCursor.pop()
+                                }
+                            }
+                        }
+                        .padding(.horizontal, DSSpacing.xxs)
                     }
-                    .padding(.horizontal, DSSpacing.lg)
-                    .padding(.vertical, DSSpacing.sm)
-                    .background(
-                        RoundedRectangle(cornerRadius: DSRadius.sm)
-                            .fill(hoveredId == placeholder.id ? DSColors.hoverBackground : Color.clear)
-                    )
-                    .contentShape(Rectangle())
                 }
-                .buttonStyle(PlainButtonStyle())
-                .onHover { isHovering in
-                    withAnimation(DSAnimation.easeOut) {
-                        hoveredId = isHovering ? placeholder.id : nil
-                    }
-                    if isHovering {
-                        NSCursor.pointingHand.push()
-                    } else {
-                        NSCursor.pop()
-                    }
-                }
+                .padding(.vertical, DSSpacing.xxs)
             }
-            .padding(.horizontal, DSSpacing.xxs)
-            .padding(.vertical, DSSpacing.xxs)
+            .frame(maxHeight: 400)
         }
         .frame(width: 420)
         .background(DSColors.controlBackground)

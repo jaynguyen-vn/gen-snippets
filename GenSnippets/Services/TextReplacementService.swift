@@ -81,6 +81,41 @@ class TextReplacementService {
         formatter.dateFormat = "HH:mm:ss"
         return formatter
     }()
+    private static let timeFormatterShort: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
+    private static let dateFormatterISO: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+    private static let dateFormatterUS: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MM/dd/yyyy"
+        return formatter
+    }()
+    private static let weekdayFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE"
+        return formatter
+    }()
+    private static let monthFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMMM"
+        return formatter
+    }()
+    private static let dateTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "dd/MM/yyyy HH:mm"
+        return formatter
+    }()
+    private static let iso8601Formatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        return formatter
+    }()
     
     private var cancellables = Set<AnyCancellable>()
     private var isMonitoring = false
@@ -971,24 +1006,54 @@ class TextReplacementService {
     
     // Helper function to process individual keywords
     private func processKeyword(_ keyword: String) -> String {
-        switch keyword.lowercased() {
+        let lowercased = keyword.lowercased()
+
+        // Handle random with custom range: {random:min-max}
+        if lowercased.hasPrefix("random:") {
+            let rangeStr = String(lowercased.dropFirst(7)) // Remove "random:"
+            let parts = rangeStr.split(separator: "-")
+            if parts.count == 2,
+               let min = Int(parts[0]),
+               let max = Int(parts[1]),
+               min < max {
+                return "\(Int.random(in: min...max))"
+            }
+            return "\(Int.random(in: 1...100))" // Default range
+        }
+
+        switch lowercased {
         case "clipboard":
             return NSPasteboard.general.string(forType: .string) ?? ""
         case "random-number":
             return "\(Int.random(in: 1...1000))"
         case "dd/mm":
-            // Use cached formatter for performance
             return TextReplacementService.dateFormatterDDMM.string(from: Date())
         case "dd/mm/yyyy":
-            // Use cached formatter for performance
             return TextReplacementService.dateFormatterDDMMYYYY.string(from: Date())
         case "time":
-            // Use cached formatter for performance
             return TextReplacementService.timeFormatter.string(from: Date())
+        case "time:short":
+            return TextReplacementService.timeFormatterShort.string(from: Date())
+        case "yyyy-mm-dd":
+            return TextReplacementService.dateFormatterISO.string(from: Date())
+        case "mm/dd/yyyy":
+            return TextReplacementService.dateFormatterUS.string(from: Date())
+        case "weekday":
+            return TextReplacementService.weekdayFormatter.string(from: Date())
+        case "month":
+            return TextReplacementService.monthFormatter.string(from: Date())
+        case "datetime":
+            return TextReplacementService.dateTimeFormatter.string(from: Date())
+        case "date-iso":
+            return TextReplacementService.iso8601Formatter.string(from: Date())
         case "uuid":
             return UUID().uuidString
         case "timestamp":
             return "\(Int(Date().timeIntervalSince1970))"
+        case "upper":
+            return (NSPasteboard.general.string(forType: .string) ?? "").uppercased()
+        case "lower":
+            return (NSPasteboard.general.string(forType: .string) ?? "").lowercased()
         default:
             return "{\(keyword)}"
         }

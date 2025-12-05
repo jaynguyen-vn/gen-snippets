@@ -8,8 +8,7 @@ class AccessibilityPermissionManager {
     private let logger = OSLog(subsystem: "Jay8448.Gen-Snippets", category: "Accessibility")
     private var retryTimer: Timer?
     private var retryCount = 0
-    private let maxRetries = 5
-    private var hasTriedAutomaticPermission = false
+    private let maxRetries = 30  // Check for 60 seconds (30 * 2s)
     private var permissionGrantedDuringSession = false
     
     // MARK: - Public Interface
@@ -18,13 +17,20 @@ class AccessibilityPermissionManager {
     /// - Returns: true if permissions are granted, false otherwise
     @discardableResult
     func requestAccessibilityPermissions() -> Bool {
+        // First check without prompt
         let result = AXIsProcessTrusted()
         NSLog("🔐 AccessibilityPermissionManager: Checking permissions - \(result)")
-        
+
         if !result {
-            tryAutomaticPermission()
+            // Request with prompt - this will show system dialog AND add app to Accessibility list
+            let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+            let promptResult = AXIsProcessTrustedWithOptions(options)
+            NSLog("🔐 AccessibilityPermissionManager: Requested with prompt - \(promptResult)")
+
+            // Start monitoring for permission changes
+            startRetryTimer()
         }
-        
+
         return result
     }
     
@@ -51,36 +57,37 @@ class AccessibilityPermissionManager {
         let alert = NSAlert()
         alert.messageText = "Accessibility Permission Required"
         alert.informativeText = """
-        GenSnippets needs accessibility access to function properly.
+        GenSnippets needs accessibility access to monitor keyboard input and expand snippets.
 
         How to enable:
-        1. Click 'Open System Settings'
-        2. Select 'Privacy & Security' from the sidebar
-        3. Scroll down and click 'Accessibility'
-        4. Click the '+' button below the app list.
-        5. Navigate to the Applications folder.
-        6. Find and select 'GenSnippets', then click Open.
-        7. Enable the permission by checking the box next to 'GenSnippets'.
-        8. Restart GenSnippets:
-        - Quit the app completely.
-        - Open GenSnippets again.
-        
-        Once restarted, GenSnippets will automatically detect the granted permission.
+        1. Click 'Open System Settings' below
+        2. Click the '+' button at the bottom of the list
+        3. Navigate to Applications folder
+        4. Select 'GenSnippets' and click Open
+        5. Toggle the switch ON
+
+        GenSnippets will automatically detect when permission is granted.
         """
         alert.alertStyle = .warning
-        
+
         alert.addButton(withTitle: "Open System Settings")
         alert.addButton(withTitle: "Later")
-        
+
         let response = alert.runModal()
         NSLog("🔐 AccessibilityPermissionManager: Alert response - \(response)")
-        
+
         isShowingAlert = false
-        
+
         if response == .alertFirstButtonReturn {
             openAccessibilityPreferences()
+            // Also reveal app in Finder to make it easier to drag/find
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                if let appURL = Bundle.main.bundleURL.deletingLastPathComponent() as URL? {
+                    NSWorkspace.shared.selectFile(Bundle.main.bundlePath, inFileViewerRootedAtPath: appURL.path)
+                }
+            }
         }
-        
+
         return true
     }
     
@@ -120,118 +127,6 @@ class AccessibilityPermissionManager {
         NSLog("=== 🔐 End Debug Information ===")
     }
     
-    private func tryAutomaticPermission() {
-        guard !hasTriedAutomaticPermission else { return }
-        hasTriedAutomaticPermission = true
-        
-        NSLog("🔐 AccessibilityPermissionManager: Attempting automatic permission...")
-        
-        // First, try to launch System Events
-        launchSystemEvents()
-        
-        // Wait longer for System Events to launch
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
-            guard let self = self else { return }
-            
-            let script = """
-            try
-                -- First make sure System Events is running and ready
-                tell application "System Events"
-                    launch
-                    delay 1
-                    set frontmost to true
-                    delay 1
-                end tell
-                
-                -- Then try to navigate System Settings
-                tell application "System Settings"
-                    activate
-                    delay 1
-                    
-                    tell application "System Events"
-                        tell process "System Settings"
-                            -- Wait for the window to appear
-                            repeat until exists window 1
-                                delay 0.5
-                            end repeat
-                            
-                            -- Click Privacy & Security
-                            try
-                                click menu item "Privacy & Security" of menu "View" of menu bar 1
-                                delay 1
-                                
-                                -- Wait for the main window content
-                                repeat until exists group 1 of window 1
-                                    delay 0.5
-                                end repeat
-                                
-                                tell window 1
-                                    tell group 1
-                                        -- Find and click Accessibility in the sidebar
-                                        tell scroll area 1
-                                            tell table 1
-                                                repeat with i from 1 to count rows
-                                                    if name of row i contains "Accessibility" then
-                                                        select row i
-                                                        exit repeat
-                                                    end if
-                                                end repeat
-                                            end tell
-                                        end tell
-                                        
-                                        delay 1
-                                        
-                                        -- Try to find and click our app's checkbox
-                                        tell scroll area 2
-                                            tell table 1
-                                                repeat with aRow in rows
-                                                    if name of aRow contains "GenSnippets" then
-                                                        if exists checkbox 1 of aRow then
-                                                            if value of checkbox 1 of aRow is 0 then
-                                                                click checkbox 1 of aRow
-                                                                NSLog("🔐 Found and clicked checkbox for GenSnippets")
-                                                            end if
-                                                        end if
-                                                        exit repeat
-                                                    end if
-                                                end repeat
-                                            end tell
-                                        end tell
-                                    end tell
-                                end tell
-                                
-                                return "Successfully navigated and attempted to enable accessibility"
-                            on error errMsg
-                                NSLog("🔐 Navigation error: " & errMsg)
-                                return "Navigation error: " & errMsg
-                            end try
-                        end tell
-                    end tell
-                end tell
-            on error systemErr
-                NSLog("🔐 System Events error: " & systemErr)
-                return "System Events error: " & systemErr
-            end try
-            """
-            
-            NSLog("🔐 AccessibilityPermissionManager: Executing automation script...")
-            if let scriptObject = NSAppleScript(source: script) {
-                var error: NSDictionary?
-                let result = scriptObject.executeAndReturnError(&error)
-                NSLog("🔐 AccessibilityPermissionManager: Script result - \(result.stringValue ?? "no result")")
-                
-                if let error = error {
-                    NSLog("🔐 AppleScript error details:")
-                    error.forEach { key, value in
-                        NSLog("🔐 \(key): \(value)")
-                    }
-                    // If automatic method fails, start the retry timer and show alert
-                    self.startRetryTimer()
-                    self.showAccessibilityPermissionAlert()
-                }
-            }
-        }
-    }
     
     private func startRetryTimer() {
         NSLog("🔐 AccessibilityPermissionManager: Starting retry timer")
@@ -299,33 +194,10 @@ class AccessibilityPermissionManager {
     }
     
     private func openAccessibilityPreferences() {
-        NSLog("🔐 AccessibilityPermissionManager: Opening System Settings")
-        if #available(macOS 13.0, *) {
-            if let url = URL(string: "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension") {
-                NSWorkspace.shared.open(url)
-            }
-        } else {
-            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-                NSWorkspace.shared.open(url)
-            }
-        }
-    }
-    
-    private func launchSystemEvents() {
-        if #available(macOS 11.0, *) {
-            if let systemEventsURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.SystemEvents") {
-                let config = NSWorkspace.OpenConfiguration()
-                NSWorkspace.shared.openApplication(at: systemEventsURL, configuration: config) { running, error in
-                    if let error = error {
-                        NSLog("🔐 Error launching System Events: \(error)")
-                    }
-                }
-            }
-        } else {
-            NSWorkspace.shared.launchApplication(withBundleIdentifier: "com.apple.SystemEvents", 
-                                               options: [], 
-                                               additionalEventParamDescriptor: nil, 
-                                               launchIdentifier: nil)
+        NSLog("🔐 AccessibilityPermissionManager: Opening System Settings -> Accessibility")
+        // Open directly to Privacy & Security > Accessibility
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            NSWorkspace.shared.open(url)
         }
     }
     

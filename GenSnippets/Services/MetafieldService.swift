@@ -91,7 +91,7 @@ class MetafieldInputPanel: NSPanel, NSTextFieldDelegate {
 
     init() {
         super.init(
-            contentRect: NSRect(x: 0, y: 0, width: 350, height: 300),
+            contentRect: NSRect(x: 0, y: 0, width: 500, height: 300),
             styleMask: [.titled, .closable, .utilityWindow],
             backing: .buffered,
             defer: false
@@ -132,12 +132,13 @@ class MetafieldInputPanel: NSPanel, NSTextFieldDelegate {
     }
 
     private func setupUI() {
-        let contentView = NSView(frame: NSRect(x: 0, y: 0, width: 350, height: 300))
+        let panelWidth: CGFloat = 500
+        let contentView = NSView(frame: NSRect(x: 0, y: 0, width: panelWidth, height: 300))
 
         let padding: CGFloat = 16
         let fieldHeight: CGFloat = 24
-        let labelWidth: CGFloat = 80
-        let fieldWidth: CGFloat = 230
+        let labelWidth: CGFloat = 100
+        let fieldWidth: CGFloat = panelWidth - padding * 2 - labelWidth - 8
         let spacing: CGFloat = 12
 
         var yOffset: CGFloat = padding
@@ -151,7 +152,7 @@ class MetafieldInputPanel: NSPanel, NSTextFieldDelegate {
 
         insertButton = NSButton(title: "Insert", target: self, action: #selector(insertClicked))
         insertButton.bezelStyle = .rounded
-        insertButton.frame = NSRect(x: 350 - padding - 80, y: yOffset, width: 80, height: 28)
+        insertButton.frame = NSRect(x: panelWidth - padding - 80, y: yOffset, width: 80, height: 28)
         insertButton.keyEquivalent = "\r"
         if #available(macOS 11.0, *) {
             insertButton.hasDestructiveAction = false
@@ -162,25 +163,48 @@ class MetafieldInputPanel: NSPanel, NSTextFieldDelegate {
         yOffset += 40
 
         // Separator
-        let separator = NSBox(frame: NSRect(x: padding, y: yOffset, width: 350 - padding * 2, height: 1))
+        let separator = NSBox(frame: NSRect(x: padding, y: yOffset, width: panelWidth - padding * 2, height: 1))
         separator.boxType = .separator
         contentView.addSubview(separator)
         yOffset += 12
 
         // Preview text view with scroll (BEFORE label, since we build bottom-up)
-        let scrollView = NSScrollView(frame: NSRect(x: padding, y: yOffset, width: 350 - padding * 2, height: 80))
+        // Calculate preview height based on content
+        let previewText = snippet?.content ?? ""
+        let previewFont = NSFont.systemFont(ofSize: 12)
+        let textInset: CGFloat = 6
+        let availableWidth = panelWidth - padding * 2 - textInset * 2 - 10 // Account for scroll bar
+
+        // Calculate text height
+        let textStorage = NSTextStorage(string: previewText)
+        textStorage.addAttribute(.font, value: previewFont, range: NSRange(location: 0, length: textStorage.length))
+        let textContainer = NSTextContainer(containerSize: NSSize(width: availableWidth, height: CGFloat.greatestFiniteMagnitude))
+        let layoutManager = NSLayoutManager()
+        layoutManager.addTextContainer(textContainer)
+        textStorage.addLayoutManager(layoutManager)
+        layoutManager.ensureLayout(for: textContainer)
+        let textHeight = layoutManager.usedRect(for: textContainer).height
+
+        // Set preview height with min/max constraints
+        let minPreviewHeight: CGFloat = 60
+        let maxPreviewHeight: CGFloat = 500
+        let calculatedHeight = textHeight + textInset * 2 + 4 // Add padding
+        let previewHeight = min(max(calculatedHeight, minPreviewHeight), maxPreviewHeight)
+
+        let scrollView = NSScrollView(frame: NSRect(x: padding, y: yOffset, width: panelWidth - padding * 2, height: previewHeight))
         scrollView.hasVerticalScroller = true
         scrollView.borderType = .bezelBorder
+        scrollView.autohidesScrollers = true
 
         previewTextView = NSTextView(frame: scrollView.bounds)
         previewTextView.isEditable = false
         previewTextView.isSelectable = true
-        previewTextView.font = NSFont.systemFont(ofSize: 12)
-        previewTextView.textContainerInset = NSSize(width: 6, height: 6)
+        previewTextView.font = previewFont
+        previewTextView.textContainerInset = NSSize(width: textInset, height: textInset)
         previewTextView.backgroundColor = NSColor.controlBackgroundColor
         scrollView.documentView = previewTextView
         contentView.addSubview(scrollView)
-        yOffset += 84
+        yOffset += previewHeight + 4
 
         // Preview label (above the box)
         let previewLabel = NSTextField(labelWithString: "Preview:")
@@ -191,7 +215,7 @@ class MetafieldInputPanel: NSPanel, NSTextFieldDelegate {
         yOffset += 24
 
         // Separator
-        let separator2 = NSBox(frame: NSRect(x: padding, y: yOffset, width: 350 - padding * 2, height: 1))
+        let separator2 = NSBox(frame: NSRect(x: padding, y: yOffset, width: panelWidth - padding * 2, height: 1))
         separator2.boxType = .separator
         contentView.addSubview(separator2)
         yOffset += 16
@@ -221,8 +245,8 @@ class MetafieldInputPanel: NSPanel, NSTextFieldDelegate {
 
         // Adjust window size
         let totalHeight = yOffset
-        contentView.frame = NSRect(x: 0, y: 0, width: 350, height: totalHeight)
-        self.setContentSize(NSSize(width: 350, height: totalHeight))
+        contentView.frame = NSRect(x: 0, y: 0, width: panelWidth, height: totalHeight)
+        self.setContentSize(NSSize(width: panelWidth, height: totalHeight))
         self.contentView = contentView
 
         // Focus first text field
