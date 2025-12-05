@@ -222,17 +222,17 @@ struct DSIconSize {
 struct DSLayout {
 
     // MARK: Sidebar
-    static let sidebarMinWidth: CGFloat = 180
-    static let sidebarIdealWidth: CGFloat = 220
-    static let sidebarMaxWidth: CGFloat = 300
+    static let sidebarMinWidth: CGFloat = 160
+    static let sidebarIdealWidth: CGFloat = 200
+    static let sidebarMaxWidth: CGFloat = 280
 
     // MARK: Snippet List
-    static let snippetListMinWidth: CGFloat = 250
-    static let snippetListIdealWidth: CGFloat = 300
-    static let snippetListMaxWidth: CGFloat = 400
+    static let snippetListMinWidth: CGFloat = 220
+    static let snippetListIdealWidth: CGFloat = 280
+    static let snippetListMaxWidth: CGFloat = 380
 
     // MARK: Detail View
-    static let detailMinWidth: CGFloat = 400
+    static let detailMinWidth: CGFloat = 350
 
     // MARK: Modal Sizes
     static let sheetWidth: CGFloat = 480
@@ -616,22 +616,25 @@ struct DSEmptyState: View {
 /// Close button for sheets
 struct DSCloseButton: View {
     let action: () -> Void
+    @State private var isHovered = false
 
     var body: some View {
-        Button(action: action) {
-            ZStack {
-                Circle()
-                    .fill(DSColors.hoverBackground)
-                    .frame(width: 28, height: 28)
+        ZStack {
+            Circle()
+                .fill(isHovered ? DSColors.hoverBackground.opacity(1.5) : DSColors.hoverBackground)
+                .frame(width: 28, height: 28)
 
-                Image(systemName: "xmark")
-                    .font(.system(size: DSIconSize.xs, weight: .medium))
-                    .foregroundColor(DSColors.textSecondary)
-            }
+            Image(systemName: "xmark")
+                .font(.system(size: DSIconSize.xs, weight: .medium))
+                .foregroundColor(DSColors.textSecondary)
         }
-        .buttonStyle(PlainButtonStyle())
-        .onHover { isHovered in
-            if isHovered {
+        .contentShape(Circle())
+        .onTapGesture {
+            action()
+        }
+        .onHover { hovering in
+            isHovered = hovering
+            if hovering {
                 NSCursor.pointingHand.push()
             } else {
                 NSCursor.pop()
@@ -662,25 +665,26 @@ struct DSIconButton: View {
     @State private var isHovered = false
 
     var body: some View {
-        Button(action: action) {
-            Image(systemName: icon)
-                .font(.system(size: size, weight: .medium))
-                .foregroundColor(isDestructive ? DSColors.error : DSColors.textSecondary)
-                .frame(width: 32, height: 32)
-                .background(
-                    RoundedRectangle(cornerRadius: DSRadius.sm)
-                        .fill(isHovered ? DSColors.hoverBackground : Color.clear)
-                )
-        }
-        .buttonStyle(PlainButtonStyle())
-        .onHover { hovering in
-            isHovered = hovering
-            if hovering {
-                NSCursor.pointingHand.push()
-            } else {
-                NSCursor.pop()
+        Image(systemName: icon)
+            .font(.system(size: size, weight: .medium))
+            .foregroundColor(isDestructive ? DSColors.error : DSColors.textSecondary)
+            .frame(width: 28, height: 28)
+            .background(
+                RoundedRectangle(cornerRadius: DSRadius.sm)
+                    .fill(isHovered ? DSColors.hoverBackground : Color.clear)
+            )
+            .contentShape(Rectangle())
+            .onTapGesture {
+                action()
             }
-        }
+            .onHover { hovering in
+                isHovered = hovering
+                if hovering {
+                    NSCursor.pointingHand.push()
+                } else {
+                    NSCursor.pop()
+                }
+            }
     }
 }
 

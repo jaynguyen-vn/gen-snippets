@@ -7,6 +7,7 @@ struct ThreeColumnView: View {
     
     @State private var selectedSnippet: Snippet?
     @State private var searchText = ""
+    @State private var categorySearchText = ""
     @State private var showAddCategorySheet = false
     @State private var showDeleteCategoryAlert = false
     @State private var categoryToEdit: Category?
@@ -88,22 +89,36 @@ struct ThreeColumnView: View {
         }
         return names
     }
-    
+
+    // Filtered categories based on search
+    private var filteredCategories: [Category] {
+        if categorySearchText.isEmpty {
+            return categoryViewModel.categories
+        }
+        return categoryViewModel.categories.filter { category in
+            // Always show "All" and "Uncategory"
+            if category.id == "all-snippets" || category.id == "uncategory" {
+                return true
+            }
+            return category.name.localizedCaseInsensitiveContains(categorySearchText)
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             ZStack {
                 HSplitView {
                     // Category Sidebar
                     categoryListView
-                        .frame(minWidth: 180, idealWidth: sidebarWidth, maxWidth: 300)
-                    
+                        .frame(minWidth: 160, idealWidth: sidebarWidth, maxWidth: 280)
+
                     // Snippet List
                     snippetListView
-                        .frame(minWidth: 250, idealWidth: snippetListWidth, maxWidth: 400)
-                    
+                        .frame(minWidth: 220, idealWidth: snippetListWidth, maxWidth: 380)
+
                     // Detail View
                     detailView
-                        .frame(minWidth: 400)
+                        .frame(minWidth: 350)
                 }
             }
             
@@ -245,38 +260,65 @@ struct ThreeColumnView: View {
     // MARK: - Category List View
     private var categoryListView: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Header
-            HStack(spacing: DSSpacing.sm) {
-                Text("Categories")
-                    .font(DSTypography.heading2)
-                    .foregroundColor(DSColors.textPrimary)
+            // Header - responsive layout
+            VStack(alignment: .leading, spacing: DSSpacing.sm) {
+                HStack(spacing: DSSpacing.xs) {
+                    Text("Categories")
+                        .font(DSTypography.heading2)
+                        .foregroundColor(DSColors.textPrimary)
+                        .lineLimit(1)
 
-                Spacer()
+                    Spacer(minLength: DSSpacing.xs)
 
-                // Shortcuts Guide Button
-                DSIconButton(icon: "keyboard", size: DSIconSize.md) {
-                    showShortcutsGuide = true
+                    // Settings Button
+                    DSIconButton(icon: "gearshape", size: DSIconSize.sm) {
+                        showSettingsSheet = true
+                    }
+                    .help("Settings")
+
+                    DSIconButton(icon: "square.and.arrow.up.on.square", size: DSIconSize.sm) {
+                        showExportImportSheet = true
+                    }
+                    .help("Export/Import Data")
+
+                    DSIconButton(icon: "plus.circle", size: DSIconSize.sm) {
+                        showAddCategorySheet = true
+                    }
+                    .help("Add Category")
                 }
-                .help("Keyboard Shortcuts")
 
-                // Settings Button
-                DSIconButton(icon: "gearshape", size: DSIconSize.md) {
-                    showSettingsSheet = true
-                }
-                .help("Settings")
+                // Category Search Field
+                HStack(spacing: DSSpacing.xs) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: DSIconSize.xs))
+                        .foregroundColor(DSColors.textTertiary)
 
-                DSIconButton(icon: "square.and.arrow.up.on.square", size: DSIconSize.md) {
-                    showExportImportSheet = true
-                }
-                .help("Export/Import Data")
+                    TextField("Search...", text: $categorySearchText)
+                        .font(DSTypography.bodySmall)
+                        .textFieldStyle(PlainTextFieldStyle())
 
-                DSIconButton(icon: "plus.circle", size: DSIconSize.md) {
-                    showAddCategorySheet = true
+                    if !categorySearchText.isEmpty {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: DSIconSize.xs))
+                            .foregroundColor(DSColors.textTertiary)
+                            .onTapGesture {
+                                categorySearchText = ""
+                            }
+                    }
                 }
-                .help("Add Category")
+                .padding(.horizontal, DSSpacing.sm)
+                .padding(.vertical, DSSpacing.xs)
+                .background(
+                    RoundedRectangle(cornerRadius: DSRadius.sm)
+                        .fill(DSColors.textBackground)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: DSRadius.sm)
+                        .stroke(DSColors.borderSubtle, lineWidth: 1)
+                )
             }
-            .padding(.horizontal, DSSpacing.lg)
-            .padding(.vertical, DSSpacing.md)
+            .padding(.horizontal, DSSpacing.md)
+            .padding(.vertical, DSSpacing.sm)
 
             DSDivider()
                 .padding(.horizontal, DSSpacing.md)
@@ -285,7 +327,7 @@ struct ThreeColumnView: View {
             ScrollView {
                 let counts = snippetCountByCategory // Pre-compute once
                 LazyVStack(alignment: .leading, spacing: DSSpacing.xxxs, pinnedViews: []) {
-                    ForEach(categoryViewModel.categories) { category in
+                    ForEach(filteredCategories) { category in
                         CategoryRowView(
                             category: category,
                             isSelected: categoryViewModel.selectedCategory?.id == category.id,
@@ -336,72 +378,60 @@ struct ThreeColumnView: View {
     private var snippetListView: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header with Search
-            VStack(spacing: DSSpacing.md) {
-                HStack(spacing: DSSpacing.sm) {
+            VStack(spacing: DSSpacing.sm) {
+                HStack(spacing: DSSpacing.xs) {
                     Text("Snippets")
                         .font(DSTypography.heading2)
                         .foregroundColor(DSColors.textPrimary)
+                        .lineLimit(1)
 
-                    Spacer()
-
-                    // Insights button
-                    DSIconButton(icon: "chart.bar.xaxis", size: DSIconSize.md) {
-                        showInsightsSheet = true
-                    }
-                    .help("View Insights")
+                    Spacer(minLength: DSSpacing.xs)
 
                     if isMultiSelectMode {
-                        Button(action: {
+                        // Multi-select toolbar - hide insights for better UX
+                        DSIconButton(icon: selectedSnippetIds.isEmpty ? "checkmark.square" : "square", size: DSIconSize.sm) {
                             if selectedSnippetIds.isEmpty {
                                 selectedSnippetIds = Set(filteredSnippets.map { $0.id })
                             } else {
                                 selectedSnippetIds.removeAll()
                             }
-                        }) {
-                            Text(selectedSnippetIds.isEmpty ? "Select All" : "Deselect")
-                                .font(DSTypography.labelSmall)
                         }
-                        .buttonStyle(DSButtonStyle(.tertiary, size: .small))
+                        .help(selectedSnippetIds.isEmpty ? "Select All" : "Deselect All")
 
-                        Button(action: {
+                        DSIconButton(icon: "folder", size: DSIconSize.sm) {
                             if !selectedSnippetIds.isEmpty {
                                 showMoveSheet = true
                             }
-                        }) {
-                            Label("Move", systemImage: "folder")
-                                .font(DSTypography.labelSmall)
                         }
-                        .buttonStyle(DSButtonStyle(.tertiary, size: .small))
-                        .disabled(selectedSnippetIds.isEmpty)
+                        .help("Move to Category")
                         .opacity(selectedSnippetIds.isEmpty ? 0.5 : 1)
 
-                        Button(action: {
+                        DSIconButton(icon: "trash", size: DSIconSize.sm, isDestructive: true) {
                             if !selectedSnippetIds.isEmpty {
                                 showDeleteMultipleAlert = true
                             }
-                        }) {
-                            Label("Delete", systemImage: "trash")
-                                .font(DSTypography.labelSmall)
                         }
-                        .buttonStyle(DSButtonStyle(.destructive, size: .small))
-                        .disabled(selectedSnippetIds.isEmpty)
+                        .help("Delete Selected (\(selectedSnippetIds.count))")
                         .opacity(selectedSnippetIds.isEmpty ? 0.5 : 1)
 
-                        Button(action: {
+                        DSIconButton(icon: "xmark", size: DSIconSize.sm) {
                             isMultiSelectMode = false
                             selectedSnippetIds.removeAll()
-                        }) {
-                            Text("Cancel")
-                                .font(DSTypography.labelSmall)
                         }
-                        .buttonStyle(DSButtonStyle(.ghost, size: .small))
+                        .help("Cancel")
                     } else {
-                        DSIconButton(icon: "checkmark.circle", size: DSIconSize.md) {
+                        // Normal mode - show insights
+                        DSIconButton(icon: "chart.bar.xaxis", size: DSIconSize.sm) {
+                            showInsightsSheet = true
+                        }
+                        .help("View Insights")
+
+                        DSIconButton(icon: "checkmark.circle", size: DSIconSize.sm) {
                             isMultiSelectMode = true
                         }
                         .help("Select Multiple")
 
-                        DSIconButton(icon: "plus.circle", size: DSIconSize.md) {
+                        DSIconButton(icon: "plus.circle", size: DSIconSize.sm) {
                             showAddSnippetSheet = true
                         }
                         .help("Add Snippet")
@@ -414,7 +444,7 @@ struct ThreeColumnView: View {
                         .font(.system(size: DSIconSize.sm))
                         .foregroundColor(DSColors.textTertiary)
 
-                    TextField("Search snippets...", text: $searchText)
+                    TextField("Search...", text: $searchText)
                         .font(DSTypography.body)
                         .textFieldStyle(PlainTextFieldStyle())
 
@@ -428,8 +458,8 @@ struct ThreeColumnView: View {
                         .transition(.opacity)
                     }
                 }
-                .padding(.horizontal, DSSpacing.md)
-                .padding(.vertical, DSSpacing.sm)
+                .padding(.horizontal, DSSpacing.sm)
+                .padding(.vertical, DSSpacing.xs)
                 .background(
                     RoundedRectangle(cornerRadius: DSRadius.sm)
                         .fill(DSColors.textBackground)
@@ -439,8 +469,8 @@ struct ThreeColumnView: View {
                         .stroke(DSColors.borderSubtle, lineWidth: 1)
                 )
             }
-            .padding(.horizontal, DSSpacing.lg)
-            .padding(.vertical, DSSpacing.md)
+            .padding(.horizontal, DSSpacing.md)
+            .padding(.vertical, DSSpacing.sm)
             
             DSDivider()
                 .padding(.horizontal, DSSpacing.md)

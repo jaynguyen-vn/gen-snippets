@@ -5,7 +5,7 @@ struct ContentView: View {
     
     var body: some View {
         ThreeColumnView()
-            .frame(minWidth: 900, minHeight: 600)
+            .frame(minWidth: 780, minHeight: 550)
         // Replace modern alert with custom alert sheet for macOS 11.5 compatibility
         .sheet(isPresented: $isQuitting) {
             VStack(spacing: 20) {
