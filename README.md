@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Platform-macOS%2011.5%2B-blue" alt="macOS 11.5+">
   <img src="https://img.shields.io/badge/Swift-5.5%2B-orange" alt="Swift 5.5+">
   <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT License">
-  <img src="https://img.shields.io/badge/Version-2.1.9-purple" alt="Version 2.1.9">
+  <img src="https://img.shields.io/badge/Version-2.4.0-purple" alt="Version 2.4.0">
 </div>
 
 ## Overview
@@ -52,6 +52,11 @@ GenSnippets is a lightweight macOS application for system-wide text expansion. I
   - `{dd/mm/yyyy}` - Full date format
   - `{time}` - Current time (HH:mm:ss)
   - `{uuid}` - Unique identifier
+- **Metafields (Dynamic Fields)** - Custom placeholders that prompt for input:
+  - `{{field}}` - Prompts for a value before insertion
+  - `{{field:default}}` - Prompts with a pre-filled default value
+  - Live preview shows the result as you type
+  - Perfect for templates with variable content
 - **Batch Operations** - Efficient batch saving and loading for large snippet collections
 
 ## Installation
@@ -132,10 +137,18 @@ Categories help you organize related snippets:
 
 ### Dynamic Content
 - Command: `!timestamp` → "Log entry {timestamp}" (inserts Unix timestamp)
-- Command: `!template` → "Dear {cursor}," (positions cursor after insertion)  
+- Command: `!template` → "Dear {cursor}," (positions cursor after insertion)
 - Command: `!paste` → "{clipboard}" (inserts current clipboard content)
 - Command: `!log` → "[{time}] {uuid}: " (inserts time and unique ID)
 - Command: `!today` → "Date: {dd/mm/yyyy}" (inserts today's date)
+
+### Metafields (Dynamic Input)
+- Command: `!hello` → "Hello {{name}}, welcome to {{company}}!"
+  - Prompts for "name" and "company" values before insertion
+- Command: `!email` → "Hi {{name:John}}, ..."
+  - Prompts with "John" as the default value for "name"
+- Command: `!meeting` → "Meeting with {{client}} on {{date}} at {{time:10:00 AM}}"
+  - Mix of required and default-value fields
 
 ## Configuration
 
@@ -165,6 +178,7 @@ Local data is stored in:
 ### Key Components
 
 - **TextReplacementService** (~1,195 lines): Core engine with embedded TrieNode class for O(m) text matching
+- **MetafieldService**: Handles dynamic field parsing, input dialog, and value substitution
 - **BrowserCompatibleTextInsertion**: Special handling for web browsers with timing adjustments
 - **CategoryViewModel**: Manages category state with alphabetical sorting
 - **SnippetsViewModel**: Handles snippet CRUD operations with batch saving
