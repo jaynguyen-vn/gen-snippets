@@ -34,7 +34,7 @@ class LocalSnippetsViewModel: ObservableObject {
         print("[LocalSnippetsViewModel] Loaded \(snippets.count) snippets")
     }
     
-    func createSnippet(command: String, content: String, description: String?, categoryId: String?) {
+    func createSnippet(command: String, content: String, description: String?, categoryId: String?, contentType: RichContentType? = nil, richContentData: String? = nil, richContentMimeType: String? = nil, richContentItems: [RichContentItem]? = nil) {
         let newSnippet = Snippet(
             _id: localStorageService.generateId(),
             command: command,
@@ -44,16 +44,21 @@ class LocalSnippetsViewModel: ObservableObject {
             userId: nil,
             isDeleted: false,
             createdAt: Date().description,
-            updatedAt: Date().description
+            updatedAt: Date().description,
+            contentType: contentType,
+            richContentData: richContentData,
+            richContentMimeType: richContentMimeType,
+            richContentItems: richContentItems
         )
-        
+
         _ = localStorageService.createSnippet(newSnippet)
         loadSnippets()
         lastUpdated = Date()
-        print("[LocalSnippetsViewModel] Created snippet: \(command)")
+        let itemCount = richContentItems?.count ?? (richContentData != nil ? 1 : 0)
+        print("[LocalSnippetsViewModel] Created snippet: \(command) (type: \(contentType?.displayName ?? "plainText"), items: \(itemCount))")
     }
-    
-    func updateSnippet(_ snippetId: String, command: String, content: String, description: String?, categoryId: String?) {
+
+    func updateSnippet(_ snippetId: String, command: String, content: String, description: String?, categoryId: String?, contentType: RichContentType? = nil, richContentData: String? = nil, richContentMimeType: String? = nil, richContentItems: [RichContentItem]? = nil) {
         if let existingSnippet = snippets.first(where: { $0.id == snippetId }) {
             let updatedSnippet = Snippet(
                 _id: existingSnippet.id,
@@ -64,13 +69,18 @@ class LocalSnippetsViewModel: ObservableObject {
                 userId: existingSnippet.userId,
                 isDeleted: existingSnippet.isDeleted,
                 createdAt: existingSnippet.createdAt,
-                updatedAt: Date().description
+                updatedAt: Date().description,
+                contentType: contentType,
+                richContentData: richContentData,
+                richContentMimeType: richContentMimeType,
+                richContentItems: richContentItems
             )
-            
+
             _ = localStorageService.updateSnippet(snippetId, updatedSnippet)
             loadSnippets()
             lastUpdated = Date()
-            print("[LocalSnippetsViewModel] Updated snippet: \(command)")
+            let itemCount = richContentItems?.count ?? (richContentData != nil ? 1 : 0)
+            print("[LocalSnippetsViewModel] Updated snippet: \(command) (type: \(contentType?.displayName ?? "plainText"), items: \(itemCount))")
         }
     }
     

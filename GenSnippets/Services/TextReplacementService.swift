@@ -636,7 +636,16 @@ class TextReplacementService {
                 } else {
                     // No metafields, insert directly
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                        self.insertText(snippet.content)
+                        // Check if this is a rich content snippet
+                        if snippet.actualContentType != .plainText {
+                            let previousClipboard = NSPasteboard.general.string(forType: .string)
+                            RichContentService.shared.insertRichContent(for: snippet, previousClipboard: previousClipboard)
+                            #if DEBUG
+                            print("[TextReplacementService] 🖼️ Inserted rich content (\(snippet.actualContentType.displayName)) for: \(snippet.command)")
+                            #endif
+                        } else {
+                            self.insertText(snippet.content)
+                        }
                         UsageTracker.shared.recordUsage(for: snippet.command)
                         #if DEBUG
                         print("[TextReplacementService] 📊 Recorded usage for snippet: \(snippet.command)")
@@ -1247,16 +1256,24 @@ class TextReplacementService {
     // Direct snippet insertion for SearchView selection
     func insertSnippetDirectly(_ snippet: Snippet) {
         print("[TextReplacementService] 🎯 Inserting snippet directly: \(snippet.command)")
-        
-        // Process the snippet content with placeholder handling
-        let processedContent = processSnippetWithPlaceholders(snippet.content)
 
         // Track usage (by command, not ID)
         UsageTracker.shared.recordUsage(for: snippet.command)
         print("[TextReplacementService] 📊 Recorded usage for snippet: \(snippet.command)")
-        
-        // Insert the processed text
-        insertText(processedContent)
+
+        // Check if this is a rich content snippet
+        if snippet.actualContentType != .plainText {
+            let previousClipboard = NSPasteboard.general.string(forType: .string)
+            RichContentService.shared.insertRichContent(for: snippet, previousClipboard: previousClipboard)
+            #if DEBUG
+            print("[TextReplacementService] 🖼️ Inserted rich content (\(snippet.actualContentType.displayName)) for: \(snippet.command)")
+            #endif
+        } else {
+            // Process the snippet content with placeholder handling
+            let processedContent = processSnippetWithPlaceholders(snippet.content)
+            // Insert the processed text
+            insertText(processedContent)
+        }
     }
     
     // Process snippet content with interactive placeholder handling

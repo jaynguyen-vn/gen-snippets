@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import UniformTypeIdentifiers
 
 struct SnippetDetailView: View {
     let snippet: Snippet
@@ -21,25 +22,42 @@ struct SnippetDetailView: View {
     @State private var focusedField: FocusedField = .none
     @State private var savedCursorPosition: NSRange?
     @State private var savedFieldIdentifier: String?
-    
+
+    // Rich content editing states (multi-file)
+    @State private var selectedContentType: RichContentType
+    @State private var richContentItems: [RichContentItem]
+    @State private var urlString: String
+
     enum FocusedField {
         case none
         case command
         case content
         case description
     }
-    
+
     init(snippet: Snippet, snippetsViewModel: LocalSnippetsViewModel, categoryName: String? = nil, onUpdate: @escaping (Snippet) -> Void, onDelete: @escaping () -> Void) {
         self.snippet = snippet
         self.snippetsViewModel = snippetsViewModel
         self.categoryName = categoryName
         self.onUpdate = onUpdate
         self.onDelete = onDelete
-        
+
         // Initialize state with snippet values
         self._command = State(initialValue: snippet.command)
         self._content = State(initialValue: snippet.content)
         self._description = State(initialValue: snippet.description ?? "")
+
+        // Initialize rich content states (multi-file)
+        self._selectedContentType = State(initialValue: snippet.actualContentType)
+        self._richContentItems = State(initialValue: snippet.allRichContentItems)
+
+        // For URL, extract from items or legacy data
+        if snippet.actualContentType == .url {
+            let urlData = snippet.allRichContentItems.first?.data ?? snippet.richContentData ?? snippet.content
+            self._urlString = State(initialValue: urlData)
+        } else {
+            self._urlString = State(initialValue: "")
+        }
     }
     
     private let placeholderSections = [
@@ -116,6 +134,21 @@ struct SnippetDetailView: View {
                                         .font(DSTypography.caption)
                                 }
                                 .foregroundColor(DSColors.textTertiary)
+                            }
+
+                            // Content Type Badge (for non-plainText)
+                            if snippet.actualContentType != .plainText {
+                                HStack(spacing: DSSpacing.xxs) {
+                                    Image(systemName: snippet.actualContentType.systemImage)
+                                        .font(.system(size: DSIconSize.xs))
+                                    Text(snippet.actualContentType.displayName)
+                                        .font(DSTypography.caption)
+                                }
+                                .padding(.horizontal, DSSpacing.sm)
+                                .padding(.vertical, DSSpacing.xxs)
+                                .background(DSColors.accent.opacity(0.15))
+                                .foregroundColor(DSColors.accent)
+                                .cornerRadius(DSRadius.xs)
                             }
                         }
                     }
@@ -235,6 +268,29 @@ struct SnippetDetailView: View {
                             .foregroundColor(DSColors.textTertiary)
                     }
 
+                    // Content Type Picker
+                    VStack(alignment: .leading, spacing: DSSpacing.sm) {
+                        Text("Content Type")
+                            .font(DSTypography.label)
+                            .foregroundColor(DSColors.textSecondary)
+
+                        HStack(spacing: DSSpacing.sm) {
+                            ForEach(RichContentType.allCases, id: \.self) { type in
+                                ContentTypeButton(
+                                    type: type,
+                                    isSelected: selectedContentType == type
+                                ) {
+                                    if selectedContentType != type {
+                                        selectedContentType = type
+                                        hasChanges = true
+                                        // Reset editing states when changing type
+                                        richContentItems = []
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     // Content Field
                     VStack(alignment: .leading, spacing: DSSpacing.sm) {
                         HStack {
@@ -248,58 +304,74 @@ struct SnippetDetailView: View {
 
                             Spacer()
 
-                            // Character count
-                            Text("\(content.count) characters")
-                                .font(DSTypography.caption)
-                                .foregroundColor(DSColors.textTertiary)
+                            // Only show for plain text
+                            if selectedContentType == .plainText {
+                                // Character count
+                                Text("\(content.count) characters")
+                                    .font(DSTypography.caption)
+                                    .foregroundColor(DSColors.textTertiary)
 
-                            // Insert placeholder button
-                            Button(action: {
-                                saveCursorPosition()
-                                showPlaceholderMenu.toggle()
-                            }) {
-                                HStack(spacing: DSSpacing.xxs) {
-                                    Image(systemName: "curlybraces")
-                                        .font(.system(size: DSIconSize.xs, weight: .medium))
-                                    Text("Insert placeholder")
-                                        .font(DSTypography.captionMedium)
+                                // Insert placeholder button
+                                Button(action: {
+                                    saveCursorPosition()
+                                    showPlaceholderMenu.toggle()
+                                }) {
+                                    HStack(spacing: DSSpacing.xxs) {
+                                        Image(systemName: "curlybraces")
+                                            .font(.system(size: DSIconSize.xs, weight: .medium))
+                                        Text("Insert placeholder")
+                                            .font(DSTypography.captionMedium)
+                                    }
+                                    .padding(.horizontal, DSSpacing.sm)
+                                    .padding(.vertical, DSSpacing.xxs)
+                                    .background(DSColors.accent.opacity(0.12))
+                                    .foregroundColor(DSColors.accent)
+                                    .cornerRadius(DSRadius.xs)
                                 }
-                                .padding(.horizontal, DSSpacing.sm)
-                                .padding(.vertical, DSSpacing.xxs)
-                                .background(DSColors.accent.opacity(0.12))
-                                .foregroundColor(DSColors.accent)
-                                .cornerRadius(DSRadius.xs)
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                            .help("Insert Placeholder")
-                            .popover(isPresented: $showPlaceholderMenu) {
-                                PlaceholderMenuView(sections: placeholderSections) { placeholder in
-                                    insertPlaceholderAtSavedPosition(placeholder.symbol)
-                                    showPlaceholderMenu = false
+                                .buttonStyle(PlainButtonStyle())
+                                .help("Insert Placeholder")
+                                .popover(isPresented: $showPlaceholderMenu) {
+                                    PlaceholderMenuView(sections: placeholderSections) { placeholder in
+                                        insertPlaceholderAtSavedPosition(placeholder.symbol)
+                                        showPlaceholderMenu = false
+                                    }
                                 }
                             }
                         }
 
-                        TextEditor(text: $content)
-                            .font(DSTypography.code)
-                            .frame(minHeight: 200, maxHeight: 400)
-                            .padding(DSSpacing.sm)
-                            .background(DSColors.textBackground)
-                            .cornerRadius(DSRadius.sm)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: DSRadius.sm)
-                                    .stroke(DSColors.border, lineWidth: 1)
-                            )
-                            .onChange(of: content) { _ in
-                                checkForChanges()
-                            }
-                            .onTapGesture {
-                                focusedField = .content
-                            }
+                        // Content view based on selected type
+                        switch selectedContentType {
+                        case .plainText:
+                            TextEditor(text: $content)
+                                .font(DSTypography.code)
+                                .frame(minHeight: 200, maxHeight: 400)
+                                .padding(DSSpacing.sm)
+                                .background(DSColors.textBackground)
+                                .cornerRadius(DSRadius.sm)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: DSRadius.sm)
+                                        .stroke(DSColors.border, lineWidth: 1)
+                                )
+                                .onChange(of: content) { _ in
+                                    checkForChanges()
+                                }
+                                .onTapGesture {
+                                    focusedField = .content
+                                }
 
-                        Text("Use {{field}} or {{field:default}} for dynamic fields that prompt for input")
-                            .font(DSTypography.caption)
-                            .foregroundColor(DSColors.textTertiary)
+                            Text("Use {{field}} or {{field:default}} for dynamic fields that prompt for input")
+                                .font(DSTypography.caption)
+                                .foregroundColor(DSColors.textTertiary)
+
+                        case .image:
+                            richContentImageView
+
+                        case .url:
+                            editableURLView
+
+                        case .file:
+                            editableFileView
+                        }
                     }
 
                     // Description Field
@@ -510,31 +582,67 @@ struct SnippetDetailView: View {
     
     private func saveSnippet() {
         isSaving = true
-        
+
+        // Handle rich content based on selected type
+        var finalContent = content
+        var finalItems: [RichContentItem]? = nil
+        let finalContentType: RichContentType? = selectedContentType == .plainText ? nil : selectedContentType
+
+        switch selectedContentType {
+        case .plainText:
+            finalContent = content
+
+        case .image:
+            if !richContentItems.isEmpty {
+                finalItems = richContentItems
+                let count = richContentItems.count
+                finalContent = count == 1 ? "[Image]" : "[\(count) Images]"
+            }
+
+        case .url:
+            finalItems = [RichContentService.shared.createURLItem(urlString: urlString)]
+            finalContent = urlString
+
+        case .file:
+            if !richContentItems.isEmpty {
+                finalItems = richContentItems
+                let count = richContentItems.count
+                if count == 1, let name = richContentItems.first?.fileName {
+                    finalContent = "[File: \(name)]"
+                } else {
+                    finalContent = "[\(count) Files]"
+                }
+            }
+        }
+
         snippetsViewModel.updateSnippet(
             snippet.id,
             command: command,
-            content: content,
+            content: finalContent,
             description: description.isEmpty ? nil : description,
-            categoryId: snippet.categoryId
+            categoryId: snippet.categoryId,
+            contentType: finalContentType,
+            richContentItems: finalItems
         )
-        
+
         let updatedSnippet = Snippet(
             _id: snippet.id,
             command: command,
-            content: content,
+            content: finalContent,
             description: description.isEmpty ? nil : description,
             categoryId: snippet.categoryId,
             userId: snippet.userId,
             isDeleted: snippet.isDeleted,
             createdAt: snippet.createdAt,
-            updatedAt: Date().description
+            updatedAt: Date().description,
+            contentType: finalContentType,
+            richContentItems: finalItems
         )
-        
+
         onUpdate(updatedSnippet)
         hasChanges = false
         isSaving = false
-        
+
         // Show success toast
         currentToast = Toast(type: .success, message: "Snippet saved successfully", duration: 2.0)
     }
@@ -552,6 +660,425 @@ struct SnippetDetailView: View {
     }
     
     @State private var cancellables = Set<AnyCancellable>()
+
+    // MARK: - Rich Content Views (Multi-file)
+    @State private var hasImageInClipboard = false
+
+    @ViewBuilder
+    private var richContentImageView: some View {
+        VStack(spacing: DSSpacing.md) {
+            // Show existing images
+            if !richContentItems.isEmpty {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 120))], spacing: DSSpacing.md) {
+                    ForEach(Array(richContentItems.enumerated()), id: \.element.id) { index, item in
+                        if let image = RichContentService.shared.loadImage(from: item.data) {
+                            VStack(spacing: 0) {
+                                ZStack(alignment: .topTrailing) {
+                                    Image(nsImage: image)
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                        .frame(width: 100, height: 80)
+                                        .clipped()
+                                        .cornerRadius(DSRadius.sm)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: DSRadius.sm)
+                                                .stroke(DSColors.border, lineWidth: 1)
+                                        )
+
+                                    Button(action: {
+                                        print("[SnippetDetailView] Removing item at index \(index): \(item.id)")
+                                        withAnimation(.easeOut(duration: 0.2)) {
+                                            if index < richContentItems.count {
+                                                richContentItems.remove(at: index)
+                                                hasChanges = true
+                                            }
+                                        }
+                                    }) {
+                                        ZStack {
+                                            Circle()
+                                                .fill(Color.red)
+                                                .frame(width: 22, height: 22)
+                                                .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
+                                            Image(systemName: "xmark")
+                                                .font(.system(size: 10, weight: .bold))
+                                                .foregroundColor(.white)
+                                        }
+                                        .contentShape(Circle())
+                                    }
+                                    .buttonStyle(BorderlessButtonStyle())
+                                    .padding(4)
+                                }
+                                .frame(width: 108, height: 88)
+                            }
+                        }
+                    }
+                }
+                .frame(maxHeight: 220)
+            }
+
+            // Add more buttons
+            HStack(spacing: DSSpacing.md) {
+                Button(action: { pasteImageFromClipboard() }) {
+                    Label("Paste", systemImage: "doc.on.clipboard")
+                }
+                .buttonStyle(DSButtonStyle(hasImageInClipboard ? .primary : .secondary, size: .small))
+
+                Button(action: { selectImageFromFile() }) {
+                    Label("Add Image", systemImage: "photo.badge.plus")
+                }
+                .buttonStyle(DSButtonStyle(.secondary, size: .small))
+
+                if !richContentItems.isEmpty {
+                    Button(action: {
+                        richContentItems.removeAll()
+                        hasChanges = true
+                    }) {
+                        Label("Clear All", systemImage: "trash")
+                    }
+                    .buttonStyle(DSButtonStyle(.destructive, size: .small))
+                }
+            }
+
+            if richContentItems.isEmpty {
+                // Empty state - clickable to paste
+                Button(action: { pasteImageFromClipboard() }) {
+                    VStack(spacing: DSSpacing.sm) {
+                        Image(systemName: hasImageInClipboard ? "doc.on.clipboard.fill" : "photo.on.rectangle.angled")
+                            .font(.system(size: 32))
+                            .foregroundColor(hasImageInClipboard ? DSColors.accent : DSColors.textTertiary)
+                        Text(hasImageInClipboard ? "Click to paste from clipboard" : "No images - paste or add from file")
+                            .font(DSTypography.body)
+                            .foregroundColor(hasImageInClipboard ? DSColors.accent : DSColors.textSecondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 80)
+                    .background(hasImageInClipboard ? DSColors.accent.opacity(0.1) : DSColors.textBackground)
+                    .cornerRadius(DSRadius.sm)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DSRadius.sm)
+                            .stroke(hasImageInClipboard ? DSColors.accent : DSColors.border, lineWidth: hasImageInClipboard ? 2 : 1)
+                    )
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+
+            Text("\(richContentItems.count) image(s) - All images will be pasted when triggered")
+                .font(DSTypography.caption)
+                .foregroundColor(DSColors.textTertiary)
+        }
+        .onAppear { startClipboardMonitoring() }
+        .onDisappear { stopClipboardMonitoring() }
+    }
+
+    @State private var clipboardTimer: Timer?
+
+    private func startClipboardMonitoring() {
+        checkClipboardForImage()
+        clipboardTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
+            DispatchQueue.main.async {
+                checkClipboardForImage()
+            }
+        }
+    }
+
+    private func stopClipboardMonitoring() {
+        clipboardTimer?.invalidate()
+        clipboardTimer = nil
+    }
+
+    private func removeItem(_ item: RichContentItem) {
+        richContentItems.removeAll { $0.id == item.id }
+        hasChanges = true
+    }
+
+    private func checkClipboardForImage() {
+        let pasteboard = NSPasteboard.general
+        // Check for various image types including screenshots
+        let hasImage = pasteboard.canReadObject(forClasses: [NSImage.self], options: nil)
+        let hasTIFF = pasteboard.data(forType: .tiff) != nil
+        let hasPNG = pasteboard.data(forType: .png) != nil
+        let hasFileURL = pasteboard.canReadObject(forClasses: [NSURL.self], options: [.urlReadingContentsConformToTypes: [UTType.image.identifier]])
+
+        hasImageInClipboard = hasImage || hasTIFF || hasPNG || hasFileURL
+    }
+
+    private func pasteImageFromClipboard() {
+        let pasteboard = NSPasteboard.general
+        var pastedImage: NSImage? = nil
+
+        // Method 1: Direct NSImage read
+        if let images = pasteboard.readObjects(forClasses: [NSImage.self], options: nil) as? [NSImage],
+           let image = images.first {
+            pastedImage = image
+        }
+
+        // Method 2: Try PNG data (screenshots often use this)
+        if pastedImage == nil, let pngData = pasteboard.data(forType: .png) {
+            pastedImage = NSImage(data: pngData)
+        }
+
+        // Method 3: Try TIFF data
+        if pastedImage == nil, let tiffData = pasteboard.data(forType: .tiff) {
+            pastedImage = NSImage(data: tiffData)
+        }
+
+        // Method 4: Try file URL (for copied image files)
+        if pastedImage == nil,
+           let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingContentsConformToTypes: [UTType.image.identifier]]) as? [URL],
+           let url = urls.first {
+            pastedImage = NSImage(contentsOf: url)
+        }
+
+        // Process the image
+        if let image = pastedImage {
+            if let item = RichContentService.shared.createImageItem(from: image, fileName: "Pasted Image") {
+                richContentItems.append(item)
+                hasChanges = true
+            }
+        }
+    }
+
+    private func selectImageFromFile() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.allowedContentTypes = [.image, .png, .jpeg, .gif, .webP, .heic, .tiff]
+        panel.message = "Select image file(s)"
+        panel.prompt = "Add"
+
+        if panel.runModal() == .OK {
+            for url in panel.urls {
+                if let image = NSImage(contentsOf: url) {
+                    if let item = RichContentService.shared.createImageItem(from: image, fileName: url.lastPathComponent) {
+                        richContentItems.append(item)
+                    }
+                }
+            }
+            hasChanges = true
+        }
+    }
+
+    @ViewBuilder
+    private var richContentURLView: some View {
+        VStack(alignment: .leading, spacing: DSSpacing.sm) {
+            HStack(spacing: DSSpacing.md) {
+                Image(systemName: "link")
+                    .font(.system(size: 24))
+                    .foregroundColor(DSColors.accent)
+
+                Text(snippet.richContentData ?? content)
+                    .font(DSTypography.code)
+                    .foregroundColor(DSColors.accent)
+                    .lineLimit(2)
+
+                Spacer()
+
+                if let urlString = snippet.richContentData ?? content.nilIfEmpty,
+                   let url = URL(string: urlString) {
+                    Button("Open") {
+                        NSWorkspace.shared.open(url)
+                    }
+                    .buttonStyle(DSButtonStyle(.secondary, size: .small))
+                }
+            }
+            .padding(DSSpacing.md)
+            .background(DSColors.textBackground)
+            .cornerRadius(DSRadius.sm)
+            .overlay(
+                RoundedRectangle(cornerRadius: DSRadius.sm)
+                    .stroke(DSColors.border, lineWidth: 1)
+            )
+
+            Text("This URL will be pasted as a link when the command is triggered")
+                .font(DSTypography.caption)
+                .foregroundColor(DSColors.textTertiary)
+        }
+    }
+
+    @ViewBuilder
+    private var richContentFileView: some View {
+        VStack(alignment: .leading, spacing: DSSpacing.sm) {
+            HStack(spacing: DSSpacing.md) {
+                Image(systemName: "doc.fill")
+                    .font(.system(size: 32))
+                    .foregroundColor(DSColors.accent)
+
+                VStack(alignment: .leading, spacing: DSSpacing.xxs) {
+                    if let path = snippet.richContentData {
+                        let url = URL(fileURLWithPath: path)
+                        Text(url.lastPathComponent)
+                            .font(DSTypography.label)
+                            .foregroundColor(DSColors.textPrimary)
+                        Text(url.deletingLastPathComponent().path)
+                            .font(DSTypography.caption)
+                            .foregroundColor(DSColors.textTertiary)
+                            .lineLimit(1)
+                    } else {
+                        Text("File not available")
+                            .font(DSTypography.body)
+                            .foregroundColor(DSColors.textTertiary)
+                    }
+                }
+
+                Spacer()
+
+                if let path = snippet.richContentData {
+                    Button("Reveal") {
+                        NSWorkspace.shared.selectFile(path, inFileViewerRootedAtPath: "")
+                    }
+                    .buttonStyle(DSButtonStyle(.secondary, size: .small))
+                }
+            }
+            .padding(DSSpacing.md)
+            .background(DSColors.textBackground)
+            .cornerRadius(DSRadius.sm)
+            .overlay(
+                RoundedRectangle(cornerRadius: DSRadius.sm)
+                    .stroke(DSColors.border, lineWidth: 1)
+            )
+
+            Text("This file will be pasted when the command is triggered")
+                .font(DSTypography.caption)
+                .foregroundColor(DSColors.textTertiary)
+        }
+    }
+
+    // MARK: - Editable Rich Content Views
+
+    @ViewBuilder
+    private var editableURLView: some View {
+        VStack(alignment: .leading, spacing: DSSpacing.sm) {
+            HStack {
+                Image(systemName: "link")
+                    .font(.system(size: 16))
+                    .foregroundColor(DSColors.accent)
+
+                TextField("https://example.com", text: $urlString)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .font(DSTypography.code)
+                    .onChange(of: urlString) { _ in
+                        hasChanges = true
+                    }
+
+                if let url = URL(string: urlString), !urlString.isEmpty {
+                    Button("Open") {
+                        NSWorkspace.shared.open(url)
+                    }
+                    .buttonStyle(DSButtonStyle(.secondary, size: .small))
+                }
+            }
+
+            Text("Enter a URL to paste as a clickable link")
+                .font(DSTypography.caption)
+                .foregroundColor(DSColors.textTertiary)
+        }
+    }
+
+    @ViewBuilder
+    private var editableFileView: some View {
+        VStack(alignment: .leading, spacing: DSSpacing.sm) {
+            // Show existing files
+            if !richContentItems.isEmpty {
+                VStack(spacing: DSSpacing.xs) {
+                    ForEach(richContentItems) { item in
+                        HStack(spacing: DSSpacing.md) {
+                            Image(systemName: "doc.fill")
+                                .font(.system(size: 20))
+                                .foregroundColor(DSColors.accent)
+
+                            Text(item.fileName ?? "File")
+                                .font(DSTypography.label)
+                                .foregroundColor(DSColors.textPrimary)
+                                .lineLimit(1)
+
+                            Spacer()
+
+                            Button(action: { removeItem(item) }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 16))
+                                    .foregroundColor(DSColors.textTertiary)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                        .padding(DSSpacing.sm)
+                        .background(DSColors.textBackground)
+                        .cornerRadius(DSRadius.xs)
+                    }
+                }
+                .frame(maxHeight: 150)
+            }
+
+            // Add more buttons
+            HStack(spacing: DSSpacing.md) {
+                Button(action: { selectNewFile() }) {
+                    Label("Add File(s)", systemImage: "doc.badge.plus")
+                }
+                .buttonStyle(DSButtonStyle(.secondary, size: .small))
+
+                if !richContentItems.isEmpty {
+                    Button(action: {
+                        richContentItems.removeAll()
+                        hasChanges = true
+                    }) {
+                        Label("Clear All", systemImage: "trash")
+                    }
+                    .buttonStyle(DSButtonStyle(.destructive, size: .small))
+                }
+            }
+
+            if richContentItems.isEmpty {
+                Button(action: { selectNewFile() }) {
+                    VStack(spacing: DSSpacing.sm) {
+                        Image(systemName: "doc.badge.plus")
+                            .font(.system(size: 32))
+                            .foregroundColor(DSColors.accent)
+                        Text("Click to select file(s)")
+                            .font(DSTypography.body)
+                            .foregroundColor(DSColors.textSecondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 100)
+                    .background(DSColors.textBackground)
+                    .cornerRadius(DSRadius.sm)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DSRadius.sm)
+                            .stroke(DSColors.border, style: StrokeStyle(lineWidth: 1, dash: [5]))
+                    )
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+
+            Text("\(richContentItems.count) file(s) - All files will be pasted when triggered")
+                .font(DSTypography.caption)
+                .foregroundColor(DSColors.textTertiary)
+        }
+    }
+
+    private func selectNewFile() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.message = "Select file(s)"
+        panel.prompt = "Add"
+
+        if panel.runModal() == .OK {
+            let snippetId = snippet.id
+            for url in panel.urls {
+                if let item = RichContentService.shared.createFileItem(from: url, for: snippetId) {
+                    richContentItems.append(item)
+                }
+            }
+            hasChanges = true
+        }
+    }
+}
+
+private extension String {
+    var nilIfEmpty: String? {
+        isEmpty ? nil : self
+    }
 }
 
 // MARK: - Placeholder Item
