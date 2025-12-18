@@ -55,6 +55,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // Track if app is running in background (menu bar only) mode
     private(set) var isRunningInBackground = false
 
+    // Weak reference to main window for reliable restoration after background mode
+    private weak var mainWindow: NSWindow?
+
     @Published private(set) var startAtLogin: Bool = false
 
     private let loginItemIdentifier = "com.gensnippets.launcher"
@@ -224,17 +227,73 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         isRunningInBackground = false
         NSApplication.shared.setActivationPolicy(.regular)
 
-        // Restore main window
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            // Find and show the main window
+        // Restore main window with fallback logic
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+            // Try to find and show existing main window
+            var foundWindow = false
             for window in NSApplication.shared.windows {
                 if !(window is NSPanel) && window.className != "NSStatusBarWindow" {
                     window.makeKeyAndOrderFront(nil)
                     NSApplication.shared.activate(ignoringOtherApps: true)
+                    self?.mainWindow = window
+                    foundWindow = true
+                    NSLog("GenSnippets: Main window restored successfully")
                     break
                 }
             }
+
+            // Fallback: If no window found (may have been deallocated after long background), create new one
+            if !foundWindow {
+                NSLog("GenSnippets: No main window found, requesting new window creation")
+                self?.createAndShowMainWindow()
+            }
         }
+    }
+
+    /// Creates a new main window when the existing one has been deallocated after prolonged background operation
+    private func createAndShowMainWindow() {
+        // First try: Use NSApp action to trigger SwiftUI's new window mechanism
+        if NSApp.sendAction(Selector(("newWindowForTab:")), to: nil, from: nil) {
+            NSLog("GenSnippets: Triggered new window via sendAction")
+        }
+
+        // Give SwiftUI time to create the window, then activate it
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+            for window in NSApplication.shared.windows {
+                if !(window is NSPanel) && window.className != "NSStatusBarWindow" {
+                    window.makeKeyAndOrderFront(nil)
+                    NSApplication.shared.activate(ignoringOtherApps: true)
+                    self?.mainWindow = window
+                    NSLog("GenSnippets: Main window activated after creation")
+                    return
+                }
+            }
+
+            // Fallback: Create window manually if SwiftUI didn't create one
+            NSLog("GenSnippets: Creating window manually as fallback")
+            self?.createWindowManually()
+        }
+    }
+
+    /// Manual window creation fallback for when SwiftUI WindowGroup doesn't respond
+    private func createWindowManually() {
+        let contentView = ContentView()
+        let hostingController = NSHostingController(rootView: contentView)
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 1100, height: 700),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.contentViewController = hostingController
+        window.title = "GenSnippets"
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+        NSApplication.shared.activate(ignoringOtherApps: true)
+        mainWindow = window
+
+        NSLog("GenSnippets: Manual window created successfully")
     }
     
     @objc private func hideMenuBarIcon() {
