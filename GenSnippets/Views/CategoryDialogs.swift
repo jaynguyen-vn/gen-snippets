@@ -84,6 +84,7 @@ struct AddCategorySheet: View {
                     presentationMode.wrappedValue.dismiss()
                 }
                 .buttonStyle(DSButtonStyle(.secondary))
+                .focusable(false)
                 .keyboardShortcut(.escape)
 
                 Spacer()
@@ -211,6 +212,7 @@ struct EditCategorySheet: View {
                     presentationMode.wrappedValue.dismiss()
                 }
                 .buttonStyle(DSButtonStyle(.secondary))
+                .focusable(false)
                 .keyboardShortcut(.escape)
 
                 Spacer()

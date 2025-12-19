@@ -28,6 +28,9 @@ struct SnippetDetailView: View {
     @State private var richContentItems: [RichContentItem]
     @State private var urlString: String
 
+    // Resizable editor
+    @State private var editorHeight: CGFloat = 200
+
     enum FocusedField {
         case none
         case command
@@ -342,22 +345,15 @@ struct SnippetDetailView: View {
                         // Content view based on selected type
                         switch selectedContentType {
                         case .plainText:
-                            TextEditor(text: $content)
-                                .font(DSTypography.code)
-                                .frame(minHeight: 200, maxHeight: 400)
-                                .padding(DSSpacing.sm)
-                                .background(DSColors.textBackground)
-                                .cornerRadius(DSRadius.sm)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: DSRadius.sm)
-                                        .stroke(DSColors.border, lineWidth: 1)
-                                )
-                                .onChange(of: content) { _ in
-                                    checkForChanges()
-                                }
-                                .onTapGesture {
-                                    focusedField = .content
-                                }
+                            ResizableTextEditor(
+                                text: $content,
+                                height: $editorHeight,
+                                minHeight: 120,
+                                maxHeight: 500
+                            )
+                            .onChange(of: content) { _ in
+                                checkForChanges()
+                            }
 
                             Text("Use {{field}} or {{field:default}} for dynamic fields that prompt for input")
                                 .font(DSTypography.caption)

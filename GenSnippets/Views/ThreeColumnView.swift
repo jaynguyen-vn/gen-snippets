@@ -1,6 +1,19 @@
 import SwiftUI
 import Combine
 
+// MARK: - Share Export Item
+enum ShareExportItem: Identifiable {
+    case category(Category)
+    case snippets(Set<String>)
+
+    var id: String {
+        switch self {
+        case .category(let cat): return "category-\(cat.id)"
+        case .snippets(let ids): return "snippets-\(ids.sorted().joined())"
+        }
+    }
+}
+
 struct ThreeColumnView: View {
     @StateObject private var categoryViewModel = CategoryViewModel()
     @StateObject private var snippetsViewModel = LocalSnippetsViewModel()
@@ -32,6 +45,10 @@ struct ThreeColumnView: View {
     // Move snippet state
     @State private var showMoveSheet = false
     @State private var snippetToMove: Snippet?
+
+    // Share feature state
+    @State private var shareExportItem: ShareExportItem?
+    @State private var showShareImportSheet = false
 
     // Event monitor reference to prevent memory leak
     @State private var keyboardEventMonitor: Any?
@@ -213,6 +230,20 @@ struct ThreeColumnView: View {
                 }
             )
         }
+        .sheet(item: $shareExportItem) { item in
+            switch item {
+            case .category(let category):
+                ShareExportSheet(exportType: .category(category))
+            case .snippets(let ids):
+                ShareExportSheet(exportType: .snippets(ids))
+            }
+        }
+        .sheet(isPresented: $showShareImportSheet) {
+            ShareImportSheet(
+                categoryViewModel: categoryViewModel,
+                snippetsViewModel: snippetsViewModel
+            )
+        }
         .alert(isPresented: $showDeleteMultipleAlert) {
             Alert(
                 title: Text("Delete Snippets"),
@@ -279,7 +310,12 @@ struct ThreeColumnView: View {
                     DSIconButton(icon: "square.and.arrow.up.on.square", size: DSIconSize.sm) {
                         showExportImportSheet = true
                     }
-                    .help("Export/Import Data")
+                    .help("Backup/Restore Data")
+
+                    DSIconButton(icon: "square.and.arrow.down", size: DSIconSize.sm) {
+                        showShareImportSheet = true
+                    }
+                    .help("Import Shared Snippets")
 
                     DSIconButton(icon: "plus.circle", size: DSIconSize.sm) {
                         showAddCategorySheet = true
@@ -344,6 +380,9 @@ struct ThreeColumnView: View {
                             onDelete: (category.id != "uncategory" && category.id != "all-snippets") ? {
                                 categoryToDelete = category
                                 showDeleteCategoryAlert = true
+                            } : nil,
+                            onShare: (category.id != "uncategory" && category.id != "all-snippets") ? {
+                                shareCategory(category)
                             } : nil
                         )
                         .id(category.id) // Stable identity for better reuse
@@ -404,6 +443,14 @@ struct ThreeColumnView: View {
                             }
                         }
                         .help("Move to Category")
+                        .opacity(selectedSnippetIds.isEmpty ? 0.5 : 1)
+
+                        DSIconButton(icon: "square.and.arrow.up", size: DSIconSize.sm) {
+                            if !selectedSnippetIds.isEmpty {
+                                shareSnippets(selectedSnippetIds)
+                            }
+                        }
+                        .help("Share Selected (\(selectedSnippetIds.count))")
                         .opacity(selectedSnippetIds.isEmpty ? 0.5 : 1)
 
                         DSIconButton(icon: "trash", size: DSIconSize.sm, isDestructive: true) {
@@ -599,6 +646,14 @@ struct ThreeColumnView: View {
                                     Divider()
 
                                     Button(action: {
+                                        shareSnippets([snippet.id])
+                                    }) {
+                                        Label("Share Snippet...", systemImage: "square.and.arrow.up")
+                                    }
+
+                                    Divider()
+
+                                    Button(action: {
                                         deleteSnippet(snippet)
                                     }) {
                                         Label("Delete", systemImage: "trash")
@@ -724,11 +779,20 @@ struct ThreeColumnView: View {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(snippet.command, forType: .string)
-        
+
         // Show success toast
         currentToast = Toast(type: .info, message: "Command copied to clipboard", duration: 2.0)
     }
-    
+
+    // MARK: - Share Functions
+    private func shareCategory(_ category: Category) {
+        shareExportItem = .category(category)
+    }
+
+    private func shareSnippets(_ ids: Set<String>) {
+        shareExportItem = .snippets(ids)
+    }
+
     private func deleteSnippet(_ snippet: Snippet) {
         snippetToDelete = snippet
         showDeleteSnippetAlert = true
@@ -796,6 +860,7 @@ struct CategoryRowView: View {
     var onSelect: () -> Void
     var onEdit: (() -> Void)?
     var onDelete: (() -> Void)?
+    var onShare: (() -> Void)?
 
     @State private var isHovering = false
 
@@ -863,6 +928,30 @@ struct CategoryRowView: View {
         }
         .onTapGesture {
             onSelect()
+        }
+        .contextMenu {
+            if category.id != "all-snippets" && category.id != "uncategory" {
+                if let onEdit = onEdit {
+                    Button(action: onEdit) {
+                        Label("Edit Category", systemImage: "pencil")
+                    }
+                }
+
+                if let onShare = onShare {
+                    Button(action: onShare) {
+                        Label("Share Category...", systemImage: "square.and.arrow.up")
+                    }
+                }
+
+                Divider()
+
+                if let onDelete = onDelete {
+                    Button(action: onDelete) {
+                        Label("Delete Category", systemImage: "trash")
+                    }
+                    .foregroundColor(.red)
+                }
+            }
         }
     }
 

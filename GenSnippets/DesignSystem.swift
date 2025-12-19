@@ -984,3 +984,87 @@ struct DesignSystem_Previews: PreviewProvider {
     }
 }
 #endif
+
+// MARK: - Resizable Text Editor
+
+struct ResizableTextEditor: View {
+    @Binding var text: String
+    @Binding var height: CGFloat
+    var minHeight: CGFloat = 100
+    var maxHeight: CGFloat = 400
+    var placeholder: String? = nil
+
+    @State private var dragStartHeight: CGFloat = 0
+    @State private var currentHeight: CGFloat = 0
+    @State private var isDragging: Bool = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ZStack(alignment: .topLeading) {
+                TextEditor(text: $text)
+                    .font(DSTypography.code)
+                    .padding(DSSpacing.sm)
+
+                if let placeholder = placeholder, text.isEmpty {
+                    Text(placeholder)
+                        .font(DSTypography.code)
+                        .foregroundColor(DSColors.textPlaceholder)
+                        .padding(DSSpacing.sm)
+                        .padding(.top, 8)
+                        .padding(.leading, 5)
+                        .allowsHitTesting(false)
+                }
+            }
+
+            // Resize handle
+            resizeHandle
+        }
+        .frame(height: isDragging ? currentHeight : height)
+        .cornerRadius(DSRadius.sm)
+        .overlay(
+            RoundedRectangle(cornerRadius: DSRadius.sm)
+                .stroke(DSColors.border, lineWidth: 1)
+        )
+        .onAppear {
+            currentHeight = height
+        }
+    }
+
+    private var resizeHandle: some View {
+        HStack {
+            Spacer()
+            Image(systemName: "line.diagonal")
+                .font(.system(size: 8, weight: .bold))
+                .foregroundColor(DSColors.textTertiary.opacity(0.6))
+                .padding(.trailing, 4)
+                .padding(.bottom, 2)
+        }
+        .frame(height: 12)
+        .frame(maxWidth: .infinity)
+        .background(DSColors.textBackground)
+        .contentShape(Rectangle())
+        .gesture(
+            DragGesture(minimumDistance: 1, coordinateSpace: .global)
+                .onChanged { value in
+                    if !isDragging {
+                        isDragging = true
+                        dragStartHeight = height
+                    }
+                    let newHeight = dragStartHeight + value.translation.height
+                    currentHeight = max(minHeight, min(maxHeight, newHeight))
+                }
+                .onEnded { _ in
+                    height = currentHeight
+                    isDragging = false
+                    dragStartHeight = 0
+                }
+        )
+        .onHover { hovering in
+            if hovering {
+                NSCursor.resizeUpDown.push()
+            } else {
+                NSCursor.pop()
+            }
+        }
+    }
+}

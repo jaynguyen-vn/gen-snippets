@@ -21,6 +21,9 @@ struct AddSnippetSheet: View {
     @State private var urlString = ""
     @State private var hasImageInClipboard = false
 
+    // Resizable editor
+    @State private var editorHeight: CGFloat = 150
+
     private let placeholderSections = [
         PlaceholderSection(title: "CURSOR", icon: "I", items: [
             PlaceholderItem(symbol: "{cursor}", name: "Cursor Position", description: "Place cursor here after expansion")
@@ -154,6 +157,7 @@ struct AddSnippetSheet: View {
                     presentationMode.wrappedValue.dismiss()
                 }
                 .buttonStyle(DSButtonStyle(.secondary))
+                .focusable(false)
                 .keyboardShortcut(.escape)
                 .disabled(isCreating)
 
@@ -181,7 +185,7 @@ struct AddSnippetSheet: View {
             .padding(.vertical, DSSpacing.lg)
             .background(DSColors.surfaceSecondary)
         }
-        .frame(width: 560, height: 580)
+        .frame(width: 560, height: 680)
         .background(DSColors.windowBackground)
     }
 
@@ -247,16 +251,12 @@ struct AddSnippetSheet: View {
 
             switch selectedContentType {
             case .plainText:
-                TextEditor(text: $content)
-                    .font(DSTypography.code)
-                    .frame(minHeight: 120)
-                    .padding(DSSpacing.sm)
-                    .background(DSColors.textBackground)
-                    .cornerRadius(DSRadius.sm)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: DSRadius.sm)
-                            .stroke(DSColors.border, lineWidth: 1)
-                    )
+                ResizableTextEditor(
+                    text: $content,
+                    height: $editorHeight,
+                    minHeight: 100,
+                    maxHeight: 400
+                )
 
                 Text("Use {{field}} or {{field:default}} for dynamic fields that prompt for input")
                     .font(DSTypography.caption)

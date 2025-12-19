@@ -124,6 +124,7 @@ struct CategoryPickerSheet: View {
                     presentationMode.wrappedValue.dismiss()
                 }
                 .buttonStyle(DSButtonStyle(.secondary))
+                .focusable(false)
                 .keyboardShortcut(.escape)
 
                 Spacer()
