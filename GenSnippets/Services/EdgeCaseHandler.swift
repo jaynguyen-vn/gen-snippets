@@ -84,8 +84,8 @@ final class EdgeCaseHandler {
 
         var useSimpleDeletion: Bool {
             switch self {
-            case .terminal, .sshSession, .virtualMachine, .remoteDesktop:
-                return true  // No Shift+Arrow selection
+            case .terminal, .sshSession, .virtualMachine, .remoteDesktop, .ide:
+                return true  // No Shift+Arrow selection - prevents escape sequence issues in embedded terminals
             default:
                 return false
             }
