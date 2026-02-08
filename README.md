@@ -173,29 +173,52 @@ Local data is stored in:
 - **Language**: Swift 5.5+
 - **UI Framework**: SwiftUI
 - **Platform**: macOS 11.5+
-- **Storage**: UserDefaults (local only)
+- **Storage**: UserDefaults (local only, JSON format)
+- **Dependencies**: Zero third-party (Apple frameworks only)
 
-### Key Components
+### MVVM + Service Layer Design
 
-- **TextReplacementService** (~1,195 lines): Core engine with embedded TrieNode class for O(m) text matching
-- **MetafieldService**: Handles dynamic field parsing, input dialog, and value substitution
-- **BrowserCompatibleTextInsertion**: Special handling for web browsers with timing adjustments
-- **CategoryViewModel**: Manages category state with alphabetical sorting
-- **SnippetsViewModel**: Handles snippet CRUD operations with batch saving
-- **AccessibilityPermissionManager**: Manages macOS permission requests and status
-- **LocalStorageService**: Batch-optimized UserDefaults persistence with caching layer
-- **GlobalHotkeyManager**: Carbon-based global hotkey registration
-- **OptimizedSnippetMatcher**: High-performance snippet matching algorithms
+**Services** handle business logic (singletons, thread-safe):
+- **TextReplacementService**: Core engine with Trie for O(m) matching
+- **LocalStorageService**: Batch-optimized UserDefaults with caching
+- **MetafieldService**: Dynamic placeholder parsing and input dialog
+- **RichContentService**: Sequential image/file/URL insertion
+- **EdgeCaseHandler**: App-specific timing (Discord, browsers, IDEs, terminals)
+- **ShareService**: Import/export with conflict resolution
+
+**ViewModels** manage UI state (@Published, reactive):
+- **LocalSnippetsViewModel**: Snippet CRUD + batch operations
+- **CategoryViewModel**: Category management with alphabetical sorting
+
+**Views** use SwiftUI with Design System tokens (DS*):
+- ThreeColumnView, SnippetDetailView, AddSnippetSheet, etc.
+
+For detailed architecture: see [docs/system-architecture.md](docs/system-architecture.md)
+
+## Documentation
+
+Complete developer documentation in `docs/`:
+
+- **[Project Overview & PDR](docs/project-overview-pdr.md)** - Vision, features, requirements, roadmap
+- **[Codebase Summary](docs/codebase-summary.md)** - Directory structure, 47 Swift files, LOC breakdown
+- **[Code Standards](docs/code-standards.md)** - Swift conventions, naming, patterns, design system usage
+- **[System Architecture](docs/system-architecture.md)** - MVVM design, data flow, threading, event system
+- **[Project Roadmap](docs/project-roadmap.md)** - Version history, v2.7+ plans, technical debt
+- **[Deployment Guide](docs/deployment-guide.md)** - Build, code signing, DMG creation, release process
 
 ## Contributing
 
-Contributions are welcome! Whether you're fixing bugs, adding features, or improving documentation, we appreciate your help.
-
-Please see our [CONTRIBUTING.md](CONTRIBUTING.md) for details on:
+Contributions welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for:
 - Code of conduct
-- Development setup
-- Submitting pull requests
+- Development setup (see docs/)
+- Pull request process
 - Reporting issues
+
+**Before Contributing:**
+1. Read [Code Standards](docs/code-standards.md)
+2. Read [System Architecture](docs/system-architecture.md)
+3. Follow MVVM + Service Layer patterns
+4. Keep files <400 LOC, views <300 LOC
 
 ## License
 
