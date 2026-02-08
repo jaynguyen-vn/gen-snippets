@@ -72,15 +72,12 @@ class SnippetSearchWindowController: NSWindowController, NSWindowDelegate {
             shared = nil
         }
 
-        // Check if in background mode and hide any main windows that might appear
-        let appDelegate = NSApp.delegate as? AppDelegate
-        let isInBackground = appDelegate?.isRunningInBackground ?? false
-
         // Helper to hide non-panel windows when in background mode
+        // Re-reads isRunningInBackground each call to avoid stale captures
         let hideMainWindowsIfNeeded = {
+            let isInBackground = (NSApp.delegate as? AppDelegate)?.isRunningInBackground ?? false
             if isInBackground {
                 for window in NSApplication.shared.windows {
-                    // Skip NSPanel windows and status bar windows
                     if !(window is NSPanel) && window.className != "NSStatusBarWindow" {
                         window.orderOut(nil)
                     }

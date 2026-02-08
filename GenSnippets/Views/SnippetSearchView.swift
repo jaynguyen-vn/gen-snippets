@@ -52,7 +52,7 @@ struct SnippetSearchView: View {
                         if let snippet = selectedSnippet {
                             copySnippetToClipboard(snippet)
                             // Close window and return to previous app
-                            NSApp.keyWindow?.close()
+                            SnippetSearchWindowController.shared?.window?.close()
                             SnippetSearchWindowController.returnToPreviousApp()
                         }
                     }
@@ -197,7 +197,7 @@ struct SnippetContentView: View {
                     
                     // Close window and return to previous app after copying
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        NSApp.keyWindow?.close()
+                        SnippetSearchWindowController.shared?.window?.close()
                         SnippetSearchWindowController.returnToPreviousApp()
                     }
                 }) {
@@ -245,7 +245,7 @@ struct SearchTextField: NSViewRepresentable {
     let onSubmit: () -> Void
     
     func getWindow() -> NSWindow? {
-        return NSApp.keyWindow
+        return SnippetSearchWindowController.shared?.window
     }
     
     func makeNSView(context: Context) -> NSTextField {

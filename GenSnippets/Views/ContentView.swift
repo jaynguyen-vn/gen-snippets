@@ -17,10 +17,9 @@ struct ContentView: View {
                 
                 HStack(spacing: 20) {
                     Button("Run in Background".localized) {
-                        NSApplication.shared.hide(nil)
-                        // Hide dock icon when running in background
-                        NotificationCenter.default.post(name: NSNotification.Name("HideDockIcon"), object: nil)
                         isQuitting = false
+                        // hideDockIcon handles orderOut for all windows
+                        NotificationCenter.default.post(name: NSNotification.Name("HideDockIcon"), object: nil)
                     }
                     .buttonStyle(ModernButtonStyle(isPrimary: false))
                     .keyboardShortcut(.escape)
@@ -47,14 +46,12 @@ struct ContentView: View {
             .padding()
             .frame(width: 400, height: 150)
         }
-        .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in
-            // This will be called when the app is about to terminate
-            if !isQuitting {
-                isQuitting = true
-            }
-        }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowQuitDialog"))) { _ in
             isQuitting = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("HideDockIcon"))) { _ in
+            // Reset quit dialog if entering background via another code path
+            isQuitting = false
         }
     }
 }

@@ -28,17 +28,10 @@ struct MenuBarView: View {
                 Spacer()
                 
                 Button(action: {
-                    // First show dock icon
-                    NotificationCenter.default.post(name: NSNotification.Name("ShowDockIcon"), object: nil)
-                    // Then open main window
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        if let window = NSApplication.shared.windows.first {
-                            window.makeKeyAndOrderFront(nil)
-                            NSApplication.shared.activate(ignoringOtherApps: true)
-                        }
-                    }
-                    // Close popover
+                    // Close popover first to avoid visual glitch
                     NotificationCenter.default.post(name: NSNotification.Name("ClosePopover"), object: nil)
+                    // ShowDockIcon handles window restoration reliably
+                    NotificationCenter.default.post(name: NSNotification.Name("ShowDockIcon"), object: nil)
                 }) {
                     Text("Open App")
                         .font(.system(size: 12))

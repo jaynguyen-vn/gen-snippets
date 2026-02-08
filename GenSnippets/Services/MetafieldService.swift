@@ -345,9 +345,15 @@ class MetafieldInputController {
                 panel.setFrameOrigin(NSPoint(x: x, y: y))
             }
 
-            // Show panel
-            NSApp.activate(ignoringOtherApps: true)
-            panel.makeKeyAndOrderFront(nil)
+            // Show panel — use orderFrontRegardless in background mode to avoid surfacing main window
+            let isInBackground = (NSApp.delegate as? AppDelegate)?.isRunningInBackground ?? false
+            if isInBackground {
+                panel.orderFrontRegardless()
+                panel.makeKey()
+            } else {
+                NSApp.activate(ignoringOtherApps: true)
+                panel.makeKeyAndOrderFront(nil)
+            }
         }
     }
 

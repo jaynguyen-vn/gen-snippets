@@ -44,9 +44,7 @@ struct GenSnippetsApp: App {
 }
 
 // AppDelegate to handle menu bar item for macOS 11 compatibility
-class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
-    static let shared = AppDelegate()
-
+class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelegate {
     private var statusItem: NSStatusItem?
     private var popover: NSPopover?
     private var dockMenu: NSMenu?
@@ -55,8 +53,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // Track if app is running in background (menu bar only) mode
     private(set) var isRunningInBackground = false
 
-    // Weak reference to main window for reliable restoration after background mode
-    private weak var mainWindow: NSWindow?
+    // Strong reference to main window — prevents deallocation during background mode
+    // This is the root cause fix: weak reference allowed SwiftUI to deallocate the window
+    // when activation policy changed to .accessory, making the app unable to reopen.
+    private var mainWindow: NSWindow?
+
+    // Identifier used to tag and reliably find the main content window
+    static let mainWindowIdentifier = NSUserInterfaceItemIdentifier("GenSnippetsMainWindow")
 
     @Published private(set) var startAtLogin: Bool = false
 
@@ -85,7 +88,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if !AccessibilityPermissionManager.shared.isAccessibilityEnabled() {
             AccessibilityPermissionManager.shared.showAccessibilityPermissionAlert()
         }
-        
+
         // Check if status bar icon should be shown (default to true if not set)
         let shouldShowStatusBar = UserDefaults.standard.object(forKey: "ShowStatusBarIcon") as? Bool ?? true
         print("[AppDelegate] Status bar icon preference on launch: \(shouldShowStatusBar)")
@@ -93,6 +96,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             setupMenuBarItem()
         }
         setupDockMenu()
+
+        // Tag and capture the main window for reliable restoration
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            self?.captureMainWindow()
+        }
         
         // Always start monitoring for text commands
         TextReplacementService.shared.startMonitoring()
@@ -211,72 +219,104 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func hideDockIcon() {
         isRunningInBackground = true
 
+        // Capture main window before hiding (in case it wasn't captured yet)
+        captureMainWindow()
+
         // Hide all main windows (but not panels like the search window)
-        // Use orderOut instead of close so windows can be restored later
         for window in NSApplication.shared.windows {
-            // Skip NSPanel windows (like our search panel) and status bar windows
             if !(window is NSPanel) && window.className != "NSStatusBarWindow" {
                 window.orderOut(nil)
             }
         }
 
         NSApplication.shared.setActivationPolicy(.accessory)
+        NSLog("GenSnippets: Entered background mode, mainWindow retained: \(mainWindow != nil)")
     }
 
     @objc private func showDockIcon() {
         isRunningInBackground = false
         NSApplication.shared.setActivationPolicy(.regular)
 
-        // Restore main window with fallback logic
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
-            // Try to find and show existing main window
-            var foundWindow = false
-            for window in NSApplication.shared.windows {
-                if !(window is NSPanel) && window.className != "NSStatusBarWindow" {
-                    window.makeKeyAndOrderFront(nil)
-                    NSApplication.shared.activate(ignoringOtherApps: true)
-                    self?.mainWindow = window
-                    foundWindow = true
-                    NSLog("GenSnippets: Main window restored successfully")
-                    break
-                }
+            guard let self = self else { return }
+            // Abort if user switched back to background during the delay
+            guard !self.isRunningInBackground else { return }
+
+            // Priority 1: Use our strongly-retained main window
+            if let window = self.mainWindow {
+                window.makeKeyAndOrderFront(nil)
+                NSApplication.shared.activate(ignoringOtherApps: true)
+                NSLog("GenSnippets: Restored retained main window")
+                return
             }
 
-            // Fallback: If no window found (may have been deallocated after long background), create new one
-            if !foundWindow {
-                NSLog("GenSnippets: No main window found, requesting new window creation")
-                self?.createAndShowMainWindow()
+            // Priority 2: Find by identifier
+            if let window = self.findMainWindow() {
+                window.makeKeyAndOrderFront(nil)
+                NSApplication.shared.activate(ignoringOtherApps: true)
+                self.mainWindow = window
+                NSLog("GenSnippets: Restored window by identifier")
+                return
             }
+
+            // Priority 3: Create new window as last resort
+            NSLog("GenSnippets: No window found, creating new one")
+            self.createAndShowMainWindow()
         }
     }
 
-    /// Creates a new main window when the existing one has been deallocated after prolonged background operation
+    /// Finds the main window by identifier, falling back to class-based search
+    private func findMainWindow() -> NSWindow? {
+        // First: look by identifier
+        if let window = NSApplication.shared.windows.first(where: {
+            $0.identifier == Self.mainWindowIdentifier
+        }) {
+            return window
+        }
+        // Fallback: look for non-panel, non-status-bar window
+        return NSApplication.shared.windows.first(where: {
+            !(($0 is NSPanel) || $0.className == "NSStatusBarWindow")
+        })
+    }
+
+    /// Tags and retains the main content window for reliable restoration
+    private func captureMainWindow() {
+        // Don't re-capture if we already have a valid window
+        if let existing = mainWindow, existing.contentView != nil {
+            existing.identifier = Self.mainWindowIdentifier
+            existing.delegate = self
+            return
+        }
+        // Find and tag the main window
+        if let window = NSApplication.shared.windows.first(where: {
+            !(($0 is NSPanel) || $0.className == "NSStatusBarWindow")
+        }) {
+            window.identifier = Self.mainWindowIdentifier
+            window.delegate = self
+            mainWindow = window
+            NSLog("GenSnippets: Main window captured and tagged")
+        }
+    }
+
+    // Intercept Cmd+W: hide window instead of destroying it to preserve SwiftUI state
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if sender.identifier == Self.mainWindowIdentifier {
+            sender.orderOut(nil)
+            return false // Prevent close — just hide
+        }
+        return true
+    }
+
+    /// Creates a new main window when none exists
     private func createAndShowMainWindow() {
-        // First try: Use NSApp action to trigger SwiftUI's new window mechanism
-        if NSApp.sendAction(Selector(("newWindowForTab:")), to: nil, from: nil) {
-            NSLog("GenSnippets: Triggered new window via sendAction")
+        // Guard: if mainWindow was restored by another code path, just show it
+        if let existing = mainWindow, existing.contentView != nil {
+            existing.makeKeyAndOrderFront(nil)
+            NSApplication.shared.activate(ignoringOtherApps: true)
+            NSLog("GenSnippets: Reused existing main window instead of creating new")
+            return
         }
 
-        // Give SwiftUI time to create the window, then activate it
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-            for window in NSApplication.shared.windows {
-                if !(window is NSPanel) && window.className != "NSStatusBarWindow" {
-                    window.makeKeyAndOrderFront(nil)
-                    NSApplication.shared.activate(ignoringOtherApps: true)
-                    self?.mainWindow = window
-                    NSLog("GenSnippets: Main window activated after creation")
-                    return
-                }
-            }
-
-            // Fallback: Create window manually if SwiftUI didn't create one
-            NSLog("GenSnippets: Creating window manually as fallback")
-            self?.createWindowManually()
-        }
-    }
-
-    /// Manual window creation fallback for when SwiftUI WindowGroup doesn't respond
-    private func createWindowManually() {
         let contentView = ContentView()
         let hostingController = NSHostingController(rootView: contentView)
 
@@ -288,12 +328,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         )
         window.contentViewController = hostingController
         window.title = "GenSnippets"
+        window.identifier = Self.mainWindowIdentifier
+        window.delegate = self
         window.center()
         window.makeKeyAndOrderFront(nil)
         NSApplication.shared.activate(ignoringOtherApps: true)
         mainWindow = window
 
-        NSLog("GenSnippets: Manual window created successfully")
+        NSLog("GenSnippets: Created new main window")
     }
     
     @objc private func hideMenuBarIcon() {
@@ -313,6 +355,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
     
     func applicationDidBecomeActive(_ notification: Notification) {
+        // Ensure main window is captured (fallback if initial 0.5s delay was too early)
+        if mainWindow == nil {
+            captureMainWindow()
+        }
+
         // Check if accessibility permissions were granted while app was inactive
         if !AccessibilityPermissionManager.shared.isAccessibilityEnabled() {
             // If still not enabled, don't show alert automatically on activation
@@ -432,22 +479,33 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     // Handle app reopen (from Spotlight, dock click, etc.)
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        // If running in background mode, exit background mode and show window
         if isRunningInBackground {
             showDockIcon()
-            return false // We handle it ourselves in showDockIcon
+            return false
         }
+
+        // Even when not in background mode, ensure main window is visible
+        // This handles the case where window was closed but app is still running
+        if !flag {
+            if let window = mainWindow {
+                window.makeKeyAndOrderFront(nil)
+                NSApplication.shared.activate(ignoringOtherApps: true)
+            } else if let window = findMainWindow() {
+                window.makeKeyAndOrderFront(nil)
+                NSApplication.shared.activate(ignoringOtherApps: true)
+                mainWindow = window
+            } else {
+                createAndShowMainWindow()
+            }
+            return false
+        }
+
         return true
     }
 
     func applicationWillTerminate(_ notification: Notification) {
         // Save any pending data before terminating
         LocalStorageService.shared.forceSave()
-        
-        // Only allow termination if confirmed through our dialog
-        if !shouldTerminate {
-            NotificationCenter.default.post(name: NSNotification.Name("ShowQuitDialog"), object: nil)
-        }
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {

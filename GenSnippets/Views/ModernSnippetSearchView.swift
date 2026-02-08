@@ -44,7 +44,7 @@ struct ModernSnippetSearchView: View {
             copiedSnippetId = snippet.id
         }
 
-        NSApp.keyWindow?.close()
+        SnippetSearchWindowController.shared?.window?.close()
         SnippetSearchWindowController.returnToPreviousApp()
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -587,10 +587,8 @@ struct ModernSearchTextField: NSViewRepresentable {
                 NotificationCenter.default.post(name: NSNotification.Name("MoveUpInSnippetList"), object: nil)
                 return true
             } else if commandSelector == #selector(NSResponder.cancelOperation(_:)) {
-                if let window = NSApp.keyWindow {
-                    window.close()
-                    SnippetSearchWindowController.returnToPreviousApp()
-                }
+                SnippetSearchWindowController.shared?.window?.close()
+                SnippetSearchWindowController.returnToPreviousApp()
                 return true
             } else if commandSelector == #selector(NSResponder.insertTab(_:)) {
                 NotificationCenter.default.post(name: NSNotification.Name("MoveDownInSnippetList"), object: nil)
