@@ -224,7 +224,9 @@ final class EdgeCaseHandler {
             "net.kovidgoyal.kitty",
             "com.github.wez.wezterm",
             "io.alacritty",
-            "com.mitchellh.ghostty"
+            "com.mitchellh.ghostty",
+            "dev.warp.Warp-Stable",
+            "com.microsoft.VSCode"
         ]
         return terminalApps.contains(bundleID)
     }
