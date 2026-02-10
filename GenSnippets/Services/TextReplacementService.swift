@@ -784,6 +784,7 @@ class TextReplacementService {
             "com.github.wez.wezterm",
             "io.alacritty",
             "dev.warp.Warp-Stable",
+            "com.mitchellh.ghostty",
             "com.microsoft.VSCode"  // VSCode's integrated terminal
         ]
 

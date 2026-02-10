@@ -223,7 +223,8 @@ final class EdgeCaseHandler {
             "com.googlecode.iterm2",
             "net.kovidgoyal.kitty",
             "com.github.wez.wezterm",
-            "io.alacritty"
+            "io.alacritty",
+            "com.mitchellh.ghostty"
         ]
         return terminalApps.contains(bundleID)
     }
