@@ -614,42 +614,46 @@ class TextReplacementService {
                 print("[TextReplacementService] ✅ Found matching suffix command: '\(snippet.command)'")
                 #endif
 
-                deleteLastCharacters(count: charsToDelete)
+                // Dispatch off the event tap thread to avoid macOS disabling the tap
+                DispatchQueue.global(qos: .userInteractive).async { [weak self] in
+                    self?.deleteLastCharacters(count: charsToDelete)
 
-                // Check if snippet contains custom metafields
-                if MetafieldService.shared.containsMetafields(snippet.content) {
-                    // Save previous app before showing dialog
-                    MetafieldInputController.shared.savePreviousApp()
+                    // Check if snippet contains custom metafields
+                    if MetafieldService.shared.containsMetafields(snippet.content) {
+                        // Save previous app before showing dialog
+                        DispatchQueue.main.async {
+                            MetafieldInputController.shared.savePreviousApp()
+                        }
 
-                    // Wait for deletion to complete before showing dialog
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        // Show metafield input dialog
-                        MetafieldInputController.shared.showInputDialog(for: snippet) { [weak self] processedContent in
-                            guard let processedContent = processedContent else { return }
+                        // Wait for deletion to complete before showing dialog
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            MetafieldInputController.shared.showInputDialog(for: snippet) { [weak self] processedContent in
+                                guard let processedContent = processedContent else { return }
 
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                                self?.insertText(processedContent)
-                                UsageTracker.shared.recordUsage(for: snippet.command)
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                                    self?.insertText(processedContent)
+                                    UsageTracker.shared.recordUsage(for: snippet.command)
+                                }
                             }
                         }
-                    }
-                } else {
-                    // No metafields, insert directly
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                        // Check if this is a rich content snippet
-                        if snippet.actualContentType != .plainText {
-                            let previousClipboard = NSPasteboard.general.string(forType: .string)
-                            RichContentService.shared.insertRichContent(for: snippet, previousClipboard: previousClipboard)
+                    } else {
+                        // No metafields, insert directly
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                            // Check if this is a rich content snippet
+                            if snippet.actualContentType != .plainText {
+                                let previousClipboard = NSPasteboard.general.string(forType: .string)
+                                RichContentService.shared.insertRichContent(for: snippet, previousClipboard: previousClipboard)
+                                #if DEBUG
+                                print("[TextReplacementService] 🖼️ Inserted rich content (\(snippet.actualContentType.displayName)) for: \(snippet.command)")
+                                #endif
+                            } else {
+                                self?.insertText(snippet.content)
+                            }
+                            UsageTracker.shared.recordUsage(for: snippet.command)
                             #if DEBUG
-                            print("[TextReplacementService] 🖼️ Inserted rich content (\(snippet.actualContentType.displayName)) for: \(snippet.command)")
+                            print("[TextReplacementService] 📊 Recorded usage for snippet: \(snippet.command)")
                             #endif
-                        } else {
-                            self.insertText(snippet.content)
                         }
-                        UsageTracker.shared.recordUsage(for: snippet.command)
-                        #if DEBUG
-                        print("[TextReplacementService] 📊 Recorded usage for snippet: \(snippet.command)")
-                        #endif
                     }
                 }
                 return // Exit early once a match is found

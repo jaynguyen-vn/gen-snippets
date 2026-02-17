@@ -667,7 +667,7 @@ struct SnippetDetailView: View {
             if !richContentItems.isEmpty {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 120))], spacing: DSSpacing.md) {
                     ForEach(Array(richContentItems.enumerated()), id: \.element.id) { index, item in
-                        if let image = RichContentService.shared.loadImage(from: item.data) {
+                        if let image = RichContentService.shared.loadImageSmart(from: item.data) {
                             VStack(spacing: 0) {
                                 ZStack(alignment: .topTrailing) {
                                     Image(nsImage: image)
@@ -827,7 +827,7 @@ struct SnippetDetailView: View {
 
         // Process the image
         if let image = pastedImage {
-            if let item = RichContentService.shared.createImageItem(from: image, fileName: "Pasted Image") {
+            if let item = RichContentService.shared.createImageItem(from: image, snippetId: snippet.id, fileName: "Pasted Image") {
                 richContentItems.append(item)
                 hasChanges = true
             }
@@ -846,7 +846,7 @@ struct SnippetDetailView: View {
         if panel.runModal() == .OK {
             for url in panel.urls {
                 if let image = NSImage(contentsOf: url) {
-                    if let item = RichContentService.shared.createImageItem(from: image, fileName: url.lastPathComponent) {
+                    if let item = RichContentService.shared.createImageItem(from: image, snippetId: snippet.id, fileName: url.lastPathComponent) {
                         richContentItems.append(item)
                     }
                 }

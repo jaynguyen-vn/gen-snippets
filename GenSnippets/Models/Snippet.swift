@@ -30,7 +30,7 @@ enum RichContentType: String, Codable, CaseIterable {
 struct RichContentItem: Codable, Equatable, Identifiable {
     var id: String
     let type: RichContentType
-    let data: String // Base64 for images, path for files, raw for HTML/URL
+    let data: String // File path for images/files, raw for URL, Base64 for legacy images
     let mimeType: String
     let fileName: String? // Original filename for files/images
 

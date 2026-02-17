@@ -123,9 +123,13 @@ class LocalStorageService {
         
         saveCategories(categories)
         
-        // Delete all snippets from this category
+        // Delete all snippets and their rich content files from this category
         var snippets = loadSnippets()
         let snippetsBeforeCount = snippets.count
+        let toDelete = snippets.filter { $0.categoryId == categoryId }
+        for snippet in toDelete {
+            RichContentService.shared.deleteRichContent(for: snippet.id)
+        }
         snippets.removeAll { $0.categoryId == categoryId }
         let deletedCount = snippetsBeforeCount - snippets.count
         print("[LocalStorageService] Deleted \(deletedCount) snippets from category")
@@ -224,10 +228,25 @@ class LocalStorageService {
     func exportData() -> URL? {
         let categories = loadCategories()
         let snippets = loadSnippets()
-        
+
+        // Convert image file paths to Base64 for portable export
+        let portableSnippets = snippets.map { snippet -> Snippet in
+            guard let items = snippet.richContentItems, !items.isEmpty else { return snippet }
+            let convertedItems = items.map { RichContentService.shared.imageItemToBase64($0) }
+            if convertedItems == items { return snippet }
+            return Snippet(
+                _id: snippet.id, command: snippet.command, content: snippet.content,
+                description: snippet.description, categoryId: snippet.categoryId,
+                userId: snippet.userId, isDeleted: snippet.isDeleted,
+                createdAt: snippet.createdAt, updatedAt: snippet.updatedAt,
+                contentType: snippet.contentType, richContentData: snippet.richContentData,
+                richContentMimeType: snippet.richContentMimeType, richContentItems: convertedItems
+            )
+        }
+
         let exportData = ExportData(
             categories: categories,
-            snippets: snippets,
+            snippets: portableSnippets,
             exportDate: Date(),
             version: "1.0"
         )
@@ -256,12 +275,29 @@ class LocalStorageService {
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
             let exportData = try decoder.decode(ExportData.self, from: data)
-            
+
+            // Convert Base64 images to file-based storage
+            let convertedSnippets = exportData.snippets.map { snippet -> Snippet in
+                guard let items = snippet.richContentItems, !items.isEmpty else { return snippet }
+                let convertedItems = items.map {
+                    RichContentService.shared.imageItemFromBase64($0, snippetId: snippet.id)
+                }
+                if convertedItems == items { return snippet }
+                return Snippet(
+                    _id: snippet.id, command: snippet.command, content: snippet.content,
+                    description: snippet.description, categoryId: snippet.categoryId,
+                    userId: snippet.userId, isDeleted: snippet.isDeleted,
+                    createdAt: snippet.createdAt, updatedAt: snippet.updatedAt,
+                    contentType: snippet.contentType, richContentData: snippet.richContentData,
+                    richContentMimeType: snippet.richContentMimeType, richContentItems: convertedItems
+                )
+            }
+
             // Save imported data
             saveCategories(exportData.categories)
-            saveSnippets(exportData.snippets)
-            
-            print("[LocalStorage] Imported \(exportData.categories.count) categories and \(exportData.snippets.count) snippets")
+            saveSnippets(convertedSnippets)
+
+            print("[LocalStorage] Imported \(exportData.categories.count) categories and \(convertedSnippets.count) snippets")
             return true
         } catch {
             print("[LocalStorage] Import failed: \(error)")

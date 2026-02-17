@@ -40,14 +40,17 @@ struct ShareSnippet: Codable {
         self.richContentItems = richContentItems
     }
 
-    /// Convert from full Snippet model
+    /// Convert from full Snippet model (images converted to Base64 for portability)
     init(from snippet: Snippet, categoryName: String?) {
         self.command = snippet.command
         self.content = snippet.content
         self.description = snippet.description
         self.categoryName = categoryName
         self.contentType = snippet.contentType
-        self.richContentItems = snippet.richContentItems
+        // Convert image file paths to Base64 for portable sharing
+        self.richContentItems = snippet.richContentItems?.map {
+            RichContentService.shared.imageItemToBase64($0)
+        }
     }
 }
 

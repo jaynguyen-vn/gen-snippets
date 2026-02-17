@@ -188,6 +188,12 @@ class ShareService {
     ///   - resolutions: Map of command -> resolution for conflicting snippets
     ///   - targetCategoryId: Optional category to import all snippets into (overrides category hints)
     /// - Returns: Import result summary
+    /// Convert imported Base64 image items to file-based storage
+    private func convertImportedItems(_ items: [RichContentItem]?, snippetId: String) -> [RichContentItem]? {
+        guard let items = items else { return nil }
+        return items.map { RichContentService.shared.imageItemFromBase64($0, snippetId: snippetId) }
+    }
+
     func importWithResolutions(
         shareData: ShareExportData,
         resolutions: [String: ConflictResolution],
@@ -224,6 +230,7 @@ class ShareService {
                     result.snippetsSkipped += 1
 
                 case .overwrite:
+                    let convertedItems = convertImportedItems(shareSnippet.richContentItems, snippetId: existingSnippet.id)
                     let updated = Snippet(
                         _id: existingSnippet.id,
                         command: shareSnippet.command,
@@ -235,14 +242,16 @@ class ShareService {
                         createdAt: existingSnippet.createdAt,
                         updatedAt: Date().description,
                         contentType: shareSnippet.contentType,
-                        richContentItems: shareSnippet.richContentItems
+                        richContentItems: convertedItems
                     )
                     _ = localStorageService.updateSnippet(existingSnippet.id, updated)
                     result.snippetsOverwritten += 1
 
                 case .rename(let newCommand):
+                    let newId = localStorageService.generateId()
+                    let convertedItems = convertImportedItems(shareSnippet.richContentItems, snippetId: newId)
                     let newSnippet = Snippet(
-                        _id: localStorageService.generateId(),
+                        _id: newId,
                         command: newCommand,
                         content: shareSnippet.content,
                         description: shareSnippet.description,
@@ -252,15 +261,17 @@ class ShareService {
                         createdAt: Date().description,
                         updatedAt: Date().description,
                         contentType: shareSnippet.contentType,
-                        richContentItems: shareSnippet.richContentItems
+                        richContentItems: convertedItems
                     )
                     _ = localStorageService.createSnippet(newSnippet)
                     result.snippetsRenamed += 1
                 }
             } else {
                 // No conflict - create new snippet
+                let newId = localStorageService.generateId()
+                let convertedItems = convertImportedItems(shareSnippet.richContentItems, snippetId: newId)
                 let newSnippet = Snippet(
-                    _id: localStorageService.generateId(),
+                    _id: newId,
                     command: shareSnippet.command,
                     content: shareSnippet.content,
                     description: shareSnippet.description,
@@ -270,7 +281,7 @@ class ShareService {
                     createdAt: Date().description,
                     updatedAt: Date().description,
                     contentType: shareSnippet.contentType,
-                    richContentItems: shareSnippet.richContentItems
+                    richContentItems: convertedItems
                 )
                 _ = localStorageService.createSnippet(newSnippet)
                 result.snippetsImported += 1

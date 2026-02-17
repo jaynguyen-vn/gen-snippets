@@ -25,31 +25,65 @@ final class RichContentService {
         }
     }
 
-    // MARK: - Image Storage
+    // MARK: - Image Storage (file-based)
 
-    func storeImage(_ image: NSImage, for snippetId: String) -> (base64: String, mimeType: String)? {
+    func storeImage(_ image: NSImage, for snippetId: String) -> (path: String, mimeType: String)? {
         guard let tiffData = image.tiffRepresentation,
               let bitmapRep = NSBitmapImageRep(data: tiffData),
               let pngData = bitmapRep.representation(using: .png, properties: [:]) else {
             return nil
         }
 
-        let base64 = pngData.base64EncodedString()
-        return (base64, "image/png")
+        let fileName = "\(snippetId)_\(UUID().uuidString).png"
+        let destURL = richContentDirectory.appendingPathComponent(fileName)
+
+        do {
+            try pngData.write(to: destURL)
+            return (destURL.path, "image/png")
+        } catch {
+            print("[RichContentService] Failed to store image: \(error)")
+            return nil
+        }
     }
 
-    func storeImageFromPath(_ path: String, for snippetId: String) -> (base64: String, mimeType: String)? {
-        let url = URL(fileURLWithPath: path)
-        guard let data = try? Data(contentsOf: url) else { return nil }
+    func storeImageFromPath(_ path: String, for snippetId: String) -> (path: String, mimeType: String)? {
+        let sourceURL = URL(fileURLWithPath: path)
+        let ext = sourceURL.pathExtension
+        let fileName = "\(snippetId)_\(UUID().uuidString).\(ext)"
+        let destURL = richContentDirectory.appendingPathComponent(fileName)
 
-        let mimeType = mimeTypeForPath(path)
-        let base64 = data.base64EncodedString()
-        return (base64, mimeType)
+        do {
+            if FileManager.default.fileExists(atPath: destURL.path) {
+                try FileManager.default.removeItem(at: destURL)
+            }
+            try FileManager.default.copyItem(at: sourceURL, to: destURL)
+            let mimeType = mimeTypeForPath(path)
+            return (destURL.path, mimeType)
+        } catch {
+            print("[RichContentService] Failed to store image from path: \(error)")
+            return nil
+        }
     }
 
     func loadImage(from base64: String) -> NSImage? {
         guard let data = Data(base64Encoded: base64) else { return nil }
         return NSImage(data: data)
+    }
+
+    /// Smart loader: tries file path first (new format), falls back to Base64 (legacy)
+    func loadImageSmart(from data: String) -> NSImage? {
+        // Try file path first (new format)
+        if FileManager.default.fileExists(atPath: data),
+           let imageData = try? Data(contentsOf: URL(fileURLWithPath: data)) {
+            return NSImage(data: imageData)
+        }
+        // Fallback: Base64 (legacy)
+        return loadImage(from: data)
+    }
+
+    /// Check if data looks like a file path (vs Base64)
+    func isFilePath(_ data: String) -> Bool {
+        return data.hasPrefix("/") && FileManager.default.fileExists(atPath: data)
     }
 
     // MARK: - File Storage
@@ -121,7 +155,7 @@ final class RichContentService {
             pasteboard.setString(item.data, forType: .string)
 
         case .image:
-            if let image = loadImage(from: item.data) {
+            if let image = loadImageSmart(from: item.data) {
                 pasteboard.writeObjects([image])
             }
 
@@ -150,7 +184,7 @@ final class RichContentService {
 
     private func insertImage(snippet: Snippet, previousClipboard: String?) {
         guard let base64 = snippet.richContentData,
-              let image = loadImage(from: base64) else {
+              let image = loadImageSmart(from: base64) else {
             print("[RichContentService] Failed to load image for snippet: \(snippet.command)")
             return
         }
@@ -207,9 +241,9 @@ final class RichContentService {
 
     // MARK: - Create RichContentItem helpers
 
-    func createImageItem(from image: NSImage, fileName: String? = nil) -> RichContentItem? {
-        guard let result = storeImage(image, for: UUID().uuidString) else { return nil }
-        return RichContentItem(type: .image, data: result.base64, mimeType: result.mimeType, fileName: fileName)
+    func createImageItem(from image: NSImage, snippetId: String, fileName: String? = nil) -> RichContentItem? {
+        guard let result = storeImage(image, for: snippetId) else { return nil }
+        return RichContentItem(type: .image, data: result.path, mimeType: result.mimeType, fileName: fileName)
     }
 
     func createFileItem(from url: URL, for snippetId: String) -> RichContentItem? {
@@ -317,6 +351,112 @@ final class RichContentService {
         case "xls": return "application/vnd.ms-excel"
         case "xlsx": return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         default: return "application/octet-stream"
+        }
+    }
+
+    // MARK: - Migration (Base64 → File)
+
+    /// Migrate a snippet's image data from Base64 to file-based storage.
+    /// Handles both `richContentItems` (multi-item) and legacy `richContentData` (single-item).
+    /// Returns updated snippet if migration was needed, nil otherwise.
+    func migrateSnippetImages(_ snippet: Snippet) -> Snippet? {
+        // Case 1: Multi-item format (richContentItems)
+        if let items = snippet.richContentItems, !items.isEmpty {
+            var migrated = false
+            var updatedItems: [RichContentItem] = []
+
+            for item in items {
+                if item.type == .image && !isFilePath(item.data),
+                   let imageData = Data(base64Encoded: item.data) {
+                    let fileName = "\(snippet.id)_\(UUID().uuidString).png"
+                    let destURL = richContentDirectory.appendingPathComponent(fileName)
+                    do {
+                        try imageData.write(to: destURL)
+                        updatedItems.append(RichContentItem(
+                            id: item.id, type: .image, data: destURL.path,
+                            mimeType: item.mimeType, fileName: item.fileName
+                        ))
+                        migrated = true
+                        continue
+                    } catch {
+                        print("[RichContentService] Migration failed for item: \(error)")
+                    }
+                }
+                updatedItems.append(item)
+            }
+
+            guard migrated else { return nil }
+
+            return Snippet(
+                _id: snippet.id, command: snippet.command, content: snippet.content,
+                description: snippet.description, categoryId: snippet.categoryId,
+                userId: snippet.userId, isDeleted: snippet.isDeleted,
+                createdAt: snippet.createdAt, updatedAt: snippet.updatedAt,
+                contentType: snippet.contentType, richContentData: snippet.richContentData,
+                richContentMimeType: snippet.richContentMimeType, richContentItems: updatedItems
+            )
+        }
+
+        // Case 2: Legacy single-item format (richContentData)
+        if snippet.contentType == .image,
+           let base64 = snippet.richContentData, !isFilePath(base64),
+           let imageData = Data(base64Encoded: base64) {
+            let fileName = "\(snippet.id)_\(UUID().uuidString).png"
+            let destURL = richContentDirectory.appendingPathComponent(fileName)
+            do {
+                try imageData.write(to: destURL)
+                // Convert legacy to multi-item format with file path
+                let newItem = RichContentItem(
+                    type: .image, data: destURL.path,
+                    mimeType: snippet.richContentMimeType ?? "image/png"
+                )
+                return Snippet(
+                    _id: snippet.id, command: snippet.command, content: snippet.content,
+                    description: snippet.description, categoryId: snippet.categoryId,
+                    userId: snippet.userId, isDeleted: snippet.isDeleted,
+                    createdAt: snippet.createdAt, updatedAt: snippet.updatedAt,
+                    contentType: snippet.contentType, richContentData: nil,
+                    richContentMimeType: nil, richContentItems: [newItem]
+                )
+            } catch {
+                print("[RichContentService] Legacy migration failed: \(error)")
+            }
+        }
+
+        return nil
+    }
+
+    // MARK: - Export/Import Helpers
+
+    /// Convert image item from file path to Base64 for portable export.
+    func imageItemToBase64(_ item: RichContentItem) -> RichContentItem {
+        guard item.type == .image, isFilePath(item.data),
+              let imageData = try? Data(contentsOf: URL(fileURLWithPath: item.data)) else {
+            return item
+        }
+        return RichContentItem(
+            id: item.id, type: .image, data: imageData.base64EncodedString(),
+            mimeType: item.mimeType, fileName: item.fileName
+        )
+    }
+
+    /// Convert image item from Base64 to file-based storage after import.
+    func imageItemFromBase64(_ item: RichContentItem, snippetId: String) -> RichContentItem {
+        guard item.type == .image, !isFilePath(item.data),
+              let imageData = Data(base64Encoded: item.data) else {
+            return item
+        }
+        let fileName = "\(snippetId)_\(UUID().uuidString).png"
+        let destURL = richContentDirectory.appendingPathComponent(fileName)
+        do {
+            try imageData.write(to: destURL)
+            return RichContentItem(
+                id: item.id, type: .image, data: destURL.path,
+                mimeType: item.mimeType, fileName: item.fileName
+            )
+        } catch {
+            print("[RichContentService] Failed to save imported image: \(error)")
+            return item
         }
     }
 

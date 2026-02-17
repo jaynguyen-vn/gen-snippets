@@ -20,6 +20,7 @@ struct AddSnippetSheet: View {
     @State private var richContentItems: [RichContentItem] = []
     @State private var urlString = ""
     @State private var hasImageInClipboard = false
+    @State private var pendingSnippetId = UUID().uuidString
 
     // Resizable editor
     @State private var editorHeight: CGFloat = 150
@@ -288,7 +289,7 @@ struct AddSnippetSheet: View {
             if !richContentItems.isEmpty {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 100))], spacing: DSSpacing.sm) {
                     ForEach(richContentItems) { item in
-                        if let image = RichContentService.shared.loadImage(from: item.data) {
+                        if let image = RichContentService.shared.loadImageSmart(from: item.data) {
                             ZStack(alignment: .topTrailing) {
                                 Image(nsImage: image)
                                     .resizable()
@@ -435,7 +436,7 @@ struct AddSnippetSheet: View {
 
         // Process the image
         if let image = pastedImage {
-            if let item = RichContentService.shared.createImageItem(from: image, fileName: "Pasted Image") {
+            if let item = RichContentService.shared.createImageItem(from: image, snippetId: pendingSnippetId, fileName: "Pasted Image") {
                 richContentItems.append(item)
                 print("[AddSnippetSheet] Pasted image successfully, total: \(richContentItems.count)")
             } else {
@@ -463,7 +464,7 @@ struct AddSnippetSheet: View {
         if panel.runModal() == .OK {
             for url in panel.urls {
                 if let image = NSImage(contentsOf: url) {
-                    if let item = RichContentService.shared.createImageItem(from: image, fileName: url.lastPathComponent) {
+                    if let item = RichContentService.shared.createImageItem(from: image, snippetId: pendingSnippetId, fileName: url.lastPathComponent) {
                         richContentItems.append(item)
                     }
                 }
@@ -480,9 +481,8 @@ struct AddSnippetSheet: View {
         panel.prompt = "Add"
 
         if panel.runModal() == .OK {
-            let snippetId = UUID().uuidString
             for url in panel.urls {
-                if let item = RichContentService.shared.createFileItem(from: url, for: snippetId) {
+                if let item = RichContentService.shared.createFileItem(from: url, for: pendingSnippetId) {
                     richContentItems.append(item)
                 }
             }
@@ -634,7 +634,8 @@ struct AddSnippetSheet: View {
             description: description.isEmpty ? nil : description,
             categoryId: categoryId,
             contentType: selectedContentType == .plainText ? nil : selectedContentType,
-            richContentItems: finalItems
+            richContentItems: finalItems,
+            snippetId: pendingSnippetId
         )
 
         presentationMode.wrappedValue.dismiss()

@@ -22,21 +22,47 @@ class LocalSnippetsViewModel: ObservableObject {
     func loadSnippets() {
         isLoading = true
         error = nil
-        
+
         snippets = localStorageService.loadSnippets()
+
+        // One-time migration: convert Base64 image data to file-based storage
+        if !hasRunMigration {
+            hasRunMigration = true
+            migrateBase64ImagesToFiles()
+        }
+
         lastUpdated = Date()
-        
+
         // Notify TextReplacementService about the updated snippets
         NotificationCenter.default.post(name: NSNotification.Name("SnippetsUpdated"), object: snippets)
         TextReplacementService.shared.updateSnippets(snippets)
-        
+
         isLoading = false
         print("[LocalSnippetsViewModel] Loaded \(snippets.count) snippets")
     }
+
+    private var hasRunMigration = false
+
+    private func migrateBase64ImagesToFiles() {
+        let richContentService = RichContentService.shared
+        var didMigrate = false
+
+        for (index, snippet) in snippets.enumerated() {
+            if let migrated = richContentService.migrateSnippetImages(snippet) {
+                snippets[index] = migrated
+                didMigrate = true
+            }
+        }
+
+        if didMigrate {
+            localStorageService.saveSnippets(snippets)
+            print("[LocalSnippetsViewModel] Migrated Base64 images to file-based storage")
+        }
+    }
     
-    func createSnippet(command: String, content: String, description: String?, categoryId: String?, contentType: RichContentType? = nil, richContentData: String? = nil, richContentMimeType: String? = nil, richContentItems: [RichContentItem]? = nil) {
+    func createSnippet(command: String, content: String, description: String?, categoryId: String?, contentType: RichContentType? = nil, richContentData: String? = nil, richContentMimeType: String? = nil, richContentItems: [RichContentItem]? = nil, snippetId: String? = nil) {
         let newSnippet = Snippet(
-            _id: localStorageService.generateId(),
+            _id: snippetId ?? localStorageService.generateId(),
             command: command,
             content: content,
             description: description,
@@ -85,15 +111,17 @@ class LocalSnippetsViewModel: ObservableObject {
     }
     
     func deleteSnippet(_ snippetId: String) {
+        RichContentService.shared.deleteRichContent(for: snippetId)
         if localStorageService.deleteSnippet(snippetId) {
             loadSnippets()
             lastUpdated = Date()
             print("[LocalSnippetsViewModel] Deleted snippet: \(snippetId)")
         }
     }
-    
+
     func deleteMultipleSnippets(_ snippetIds: Set<String>) {
         for snippetId in snippetIds {
+            RichContentService.shared.deleteRichContent(for: snippetId)
             _ = localStorageService.deleteSnippet(snippetId)
         }
         loadSnippets()
@@ -112,7 +140,11 @@ class LocalSnippetsViewModel: ObservableObject {
                 userId: existingSnippet.userId,
                 isDeleted: existingSnippet.isDeleted,
                 createdAt: existingSnippet.createdAt,
-                updatedAt: Date().description
+                updatedAt: Date().description,
+                contentType: existingSnippet.contentType,
+                richContentData: existingSnippet.richContentData,
+                richContentMimeType: existingSnippet.richContentMimeType,
+                richContentItems: existingSnippet.richContentItems
             )
             _ = localStorageService.updateSnippet(snippetId, updatedSnippet)
         }
@@ -128,14 +160,18 @@ class LocalSnippetsViewModel: ObservableObject {
     }
     
     func clearAllData() {
+        // Clean up all rich content files before clearing data
+        for snippet in snippets {
+            RichContentService.shared.deleteRichContent(for: snippet.id)
+        }
         localStorageService.clearAllData()
         snippets = []
         lastUpdated = Date()
-        
+
         // Notify TextReplacementService about the cleared snippets
         NotificationCenter.default.post(name: NSNotification.Name("SnippetsUpdated"), object: snippets)
         TextReplacementService.shared.updateSnippets(snippets)
-        
+
         print("[LocalSnippetsViewModel] Cleared all data")
     }
     
