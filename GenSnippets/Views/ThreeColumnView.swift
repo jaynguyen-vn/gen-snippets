@@ -1,6 +1,21 @@
 import SwiftUI
 import Combine
 
+// MARK: - Alert Type for consolidated alerts
+enum DeleteAlertType: Identifiable {
+    case snippet(Snippet)
+    case multipleSnippets(count: Int)
+    case category(Category)
+
+    var id: String {
+        switch self {
+        case .snippet(let s): return "snippet-\(s.id)"
+        case .multipleSnippets(let c): return "multi-\(c)"
+        case .category(let c): return "category-\(c.id)"
+        }
+    }
+}
+
 // MARK: - Share Export Item
 enum ShareExportItem: Identifiable {
     case category(Category)
@@ -22,13 +37,10 @@ struct ThreeColumnView: View {
     @State private var searchText = ""
     @State private var categorySearchText = ""
     @State private var showAddCategorySheet = false
-    @State private var showDeleteCategoryAlert = false
+    @State private var activeDeleteAlert: DeleteAlertType?
     @State private var categoryToEdit: Category?
-    @State private var categoryToDelete: Category?
     @State private var showAddSnippetSheet = false
     @State private var showExportImportSheet = false
-    @State private var showDeleteSnippetAlert = false
-    @State private var snippetToDelete: Snippet?
     
     @State private var sidebarWidth: CGFloat = 220
     @State private var snippetListWidth: CGFloat = 300
@@ -36,7 +48,6 @@ struct ThreeColumnView: View {
     // Bulk operations
     @State private var isMultiSelectMode = false
     @State private var selectedSnippetIds = Set<String>()
-    @State private var showDeleteMultipleAlert = false
     @State private var currentToast: Toast?
     @State private var showInsightsSheet = false
     @State private var showSettingsSheet = false
@@ -244,35 +255,40 @@ struct ThreeColumnView: View {
                 snippetsViewModel: snippetsViewModel
             )
         }
-        .alert(isPresented: $showDeleteMultipleAlert) {
-            Alert(
-                title: Text("Delete Snippets"),
-                message: Text("Are you sure you want to delete \(selectedSnippetIds.count) snippets? This action cannot be undone."),
-                primaryButton: .destructive(Text("Delete")) {
-                    deleteSelectedSnippets()
-                },
-                secondaryButton: .cancel()
-            )
-        }
-        .alert(isPresented: $showDeleteSnippetAlert) {
-            Alert(
-                title: Text("Delete Snippet"),
-                message: Text("Are you sure you want to delete \"\(snippetToDelete?.command ?? "")\"? This action cannot be undone."),
-                primaryButton: .destructive(Text("Delete")) {
-                    if let snippet = snippetToDelete {
+        .alert(item: $activeDeleteAlert) { alertType in
+            switch alertType {
+            case .multipleSnippets(let count):
+                return Alert(
+                    title: Text("Delete Snippets"),
+                    message: Text("Are you sure you want to delete \(count) snippets? This action cannot be undone."),
+                    primaryButton: .destructive(Text("Delete")) {
+                        deleteSelectedSnippets()
+                    },
+                    secondaryButton: .cancel()
+                )
+            case .snippet(let snippet):
+                return Alert(
+                    title: Text("Delete Snippet"),
+                    message: Text("Are you sure you want to delete \"\(snippet.command)\"? This action cannot be undone."),
+                    primaryButton: .destructive(Text("Delete")) {
                         snippetsViewModel.deleteSnippet(snippet.id)
-                        // Clear selection if deleted snippet was selected
                         if selectedSnippet?.id == snippet.id {
                             selectedSnippet = nil
                         }
                         currentToast = Toast(type: .success, message: "Snippet deleted successfully", duration: 2.0)
-                        snippetToDelete = nil
-                    }
-                },
-                secondaryButton: .cancel {
-                    snippetToDelete = nil
-                }
-            )
+                    },
+                    secondaryButton: .cancel()
+                )
+            case .category(let category):
+                return Alert(
+                    title: Text("Delete Category"),
+                    message: Text("Are you sure you want to delete \"\(category.name)\"? All snippets in this category will be moved to Uncategory."),
+                    primaryButton: .destructive(Text("Delete")) {
+                        categoryViewModel.deleteCategory(category.id)
+                    },
+                    secondaryButton: .cancel()
+                )
+            }
         }
     }
     
@@ -378,8 +394,7 @@ struct ThreeColumnView: View {
                                 categoryToEdit = category
                             } : nil,
                             onDelete: (category.id != "uncategory" && category.id != "all-snippets") ? {
-                                categoryToDelete = category
-                                showDeleteCategoryAlert = true
+                                activeDeleteAlert = .category(category)
                             } : nil,
                             onShare: (category.id != "uncategory" && category.id != "all-snippets") ? {
                                 shareCategory(category)
@@ -393,24 +408,6 @@ struct ThreeColumnView: View {
             }
         }
         .background(DSColors.controlBackground)
-        .alert(isPresented: $showDeleteCategoryAlert) {
-            Alert(
-                title: Text("Delete Category"),
-                message: Text("Are you sure you want to delete \"\(categoryToDelete?.name ?? "")\"? All snippets in this category will be moved to Uncategory."),
-                primaryButton: .destructive(Text("Delete")) {
-                    print("[ThreeColumnView] User confirmed delete for category: \(categoryToDelete?.name ?? "unknown")")
-                    if let category = categoryToDelete {
-                        categoryViewModel.deleteCategory(category.id)
-                        // Reset the state
-                        categoryToDelete = nil
-                    }
-                },
-                secondaryButton: .cancel {
-                    print("[ThreeColumnView] User cancelled delete")
-                    categoryToDelete = nil
-                }
-            )
-        }
     }
     
     // MARK: - Snippet List View
@@ -453,11 +450,17 @@ struct ThreeColumnView: View {
                         .help("Share Selected (\(selectedSnippetIds.count))")
                         .opacity(selectedSnippetIds.isEmpty ? 0.5 : 1)
 
-                        DSIconButton(icon: "trash", size: DSIconSize.sm, isDestructive: true) {
+                        Button {
                             if !selectedSnippetIds.isEmpty {
-                                showDeleteMultipleAlert = true
+                                activeDeleteAlert = .multipleSnippets(count: selectedSnippetIds.count)
                             }
+                        } label: {
+                            Image(systemName: "trash")
+                                .font(.system(size: DSIconSize.sm, weight: .medium))
+                                .foregroundColor(DSColors.error)
+                                .frame(width: 28, height: 28)
                         }
+                        .buttonStyle(.plain)
                         .help("Delete Selected (\(selectedSnippetIds.count))")
                         .opacity(selectedSnippetIds.isEmpty ? 0.5 : 1)
 
@@ -794,8 +797,7 @@ struct ThreeColumnView: View {
     }
 
     private func deleteSnippet(_ snippet: Snippet) {
-        snippetToDelete = snippet
-        showDeleteSnippetAlert = true
+        activeDeleteAlert = .snippet(snippet)
     }
 
     // MARK: - Keyboard Shortcuts Management
@@ -829,13 +831,20 @@ struct ThreeColumnView: View {
             // Command+Delete for delete
             if event.modifierFlags.contains(.command) && event.keyCode == 51 { // 51 is delete key
                 if let snippet = selectedSnippet {
-                    snippetToDelete = snippet
-                    showDeleteSnippetAlert = true
+                    activeDeleteAlert = .snippet(snippet)
                 }
                 return nil
             }
-            // Escape to exit multi-select mode
+            // Escape to exit multi-select mode — but only if no sheet/alert is open
             if event.keyCode == 53 && isMultiSelectMode {
+                let hasActivePopup = showMoveSheet || showShareImportSheet || showAddSnippetSheet ||
+                    showAddCategorySheet || showExportImportSheet || showSettingsSheet ||
+                    showInsightsSheet || showShortcutsGuide || activeDeleteAlert != nil ||
+                    shareExportItem != nil || categoryToEdit != nil
+                if hasActivePopup {
+                    // Let SwiftUI handle ESC to dismiss the popup first
+                    return event
+                }
                 isMultiSelectMode = false
                 selectedSnippetIds.removeAll()
                 return nil

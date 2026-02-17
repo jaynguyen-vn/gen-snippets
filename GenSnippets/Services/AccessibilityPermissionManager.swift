@@ -61,10 +61,8 @@ class AccessibilityPermissionManager {
 
         How to enable:
         1. Click 'Open System Settings' below
-        2. Click the '+' button at the bottom of the list
-        3. Navigate to Applications folder
-        4. Select 'GenSnippets' and click Open
-        5. Toggle the switch ON
+        2. Find 'GenSnippets' in the list
+        3. Toggle the switch ON
 
         GenSnippets will automatically detect when permission is granted.
         """
@@ -80,12 +78,6 @@ class AccessibilityPermissionManager {
 
         if response == .alertFirstButtonReturn {
             openAccessibilityPreferences()
-            // Also reveal app in Finder to make it easier to drag/find
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                if let appURL = Bundle.main.bundleURL.deletingLastPathComponent() as URL? {
-                    NSWorkspace.shared.selectFile(Bundle.main.bundlePath, inFileViewerRootedAtPath: appURL.path)
-                }
-            }
         }
 
         return true
