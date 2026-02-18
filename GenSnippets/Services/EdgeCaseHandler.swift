@@ -13,16 +13,17 @@ final class EdgeCaseHandler {
         }
 
         // Check each category
+        // IMPORTANT: isTerminal() must come BEFORE isSSHSession() to avoid
+        // spawning /bin/ps aux on every keystroke in terminals (50-300ms block)
         if isPasswordField() { return .passwordField }
         if isDiscord(bundleID) { return .discord }
         if isVMApp(bundleID) { return .virtualMachine }
         if isRemoteDesktop(bundleID) { return .remoteDesktop }
         if isElectronApp(bundleID) { return .electronApp }
         if isIDE(bundleID) { return .ide }
-        if isGame(bundleID) { return .game }
-        if isSSHSession() { return .sshSession }
         if isTerminal(bundleID) { return .terminal }
         if isBrowser(bundleID) { return .browser }
+        if isGame(bundleID) { return .game }
 
         return .standard
     }
