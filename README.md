@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Platform-macOS%2011.5%2B-blue" alt="macOS 11.5+">
   <img src="https://img.shields.io/badge/Swift-5.5%2B-orange" alt="Swift 5.5+">
   <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT License">
-  <img src="https://img.shields.io/badge/Version-2.4.0-purple" alt="Version 2.4.0">
+  <img src="https://img.shields.io/badge/Version-2.8.1-purple" alt="Version 2.8.1">
 </div>
 
 ## Overview
@@ -182,9 +182,10 @@ Local data is stored in:
 - **TextReplacementService**: Core engine with Trie for O(m) matching
 - **LocalStorageService**: Batch-optimized UserDefaults with caching
 - **MetafieldService**: Dynamic placeholder parsing and input dialog
-- **RichContentService**: Sequential image/file/URL insertion
-- **EdgeCaseHandler**: App-specific timing (Discord, browsers, IDEs, terminals)
+- **RichContentService**: Sequential image/file/URL insertion (file-based storage)
+- **EdgeCaseHandler**: App-specific timing (Discord, browsers, IDEs, terminals, Ghostty)
 - **ShareService**: Import/export with conflict resolution
+- **SandboxMigrationService**: Handles transition from sandboxed to non-sandboxed environment
 
 **ViewModels** manage UI state (@Published, reactive):
 - **LocalSnippetsViewModel**: Snippet CRUD + batch operations
@@ -200,7 +201,7 @@ For detailed architecture: see [docs/system-architecture.md](docs/system-archite
 Complete developer documentation in `docs/`:
 
 - **[Project Overview & PDR](docs/project-overview-pdr.md)** - Vision, features, requirements, roadmap
-- **[Codebase Summary](docs/codebase-summary.md)** - Directory structure, 47 Swift files, LOC breakdown
+- **[Codebase Summary](docs/codebase-summary.md)** - Directory structure, 48 Swift files, LOC breakdown
 - **[Code Standards](docs/code-standards.md)** - Swift conventions, naming, patterns, design system usage
 - **[System Architecture](docs/system-architecture.md)** - MVVM design, data flow, threading, event system
 - **[Project Roadmap](docs/project-roadmap.md)** - Version history, v2.7+ plans, technical debt

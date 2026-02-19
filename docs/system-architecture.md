@@ -458,22 +458,21 @@ enum RichContent: Codable {
 
 ## Security Architecture
 
-### Sandbox Restrictions (macOS App Sandbox)
+### Sandbox Status (App Sandbox Disabled since v2.7.1)
 
-✓ Allowed:
-- Read/write home directory (~/Documents, ~/Desktop, etc.)
+**Previous (v2.6 and earlier):** Full App Sandbox enabled with entitlements
+**Current (v2.7.1+):** App Sandbox disabled for improved compatibility
+
+**Access Available:**
+- Full home directory read/write (~/Documents, ~/Desktop, etc.)
 - UserDefaults access
 - Clipboard read/write
 - System Events (keyboard simulation)
 - Accessibility framework (permission required)
 - Pasteboard access (NSPasteboard)
+- Unrestricted file access (no container restrictions)
 
-✗ Blocked:
-- Network access (no HTTP/HTTPS)
-- Shell execution (no system())
-- Home directory root (use standard directories)
-- Hardware access (camera, microphone, etc.)
-- Child process creation
+**Note:** Sandbox was disabled to improve compatibility with various terminal emulators (iTerm2, Ghostty) and system applications. The app still runs with Hardened Runtime enabled for security.
 
 ### Data Protection
 
@@ -482,6 +481,7 @@ enum RichContent: Codable {
    - Location: `~/Library/Preferences/Jay8448.Gen-Snippets.plist`
    - Permissions: User read/write only
    - Encryption: FileVault (optional, user's choice)
+   - Images: File-based storage (since v2.8.0) in user's file system
 
 3. **Memory:** No encryption of snippets in RAM
    - Risk: Malware with accessibility could read snippets
@@ -621,7 +621,14 @@ Developer Build
 
 ---
 
-## Future Architectural Improvements (v2.7+)
+## Recent Architectural Changes (v2.7+)
+
+1. ✓ **App Sandbox Disabled (v2.7.1)** - Improved compatibility with terminals and system apps
+2. ✓ **Image Storage Migration (v2.8.0)** - Base64 → file-based for better performance
+3. ✓ **Keystroke Hang Fixes (v2.8.1)** - Support for iTerm2 and Ghostty terminals
+4. ✓ **Terminal List Sync (v2.8.1)** - EdgeCaseHandler now synced with TextReplacementService
+
+## Future Architectural Improvements (v2.9+)
 
 1. **Unit Test Suite** - Add XCTest for core services (Trie, keyword replacement)
 2. **iCloud Sync Completion** - Complete partial implementation
@@ -633,5 +640,6 @@ Developer Build
 
 ---
 
-**Last Updated:** February 2026
+**Last Updated:** February 19, 2026
 **Maintainer:** Jay Nguyen
+**Current Version:** 2.8.1

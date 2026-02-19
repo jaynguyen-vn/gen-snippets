@@ -1,6 +1,6 @@
 # GenSnippets: Project Overview & PDR
 
-**Version:** 2.6.1
+**Version:** 2.8.1
 **Platform:** macOS 11.5+ (Big Sur and later)
 **Language:** Swift 5.5+, SwiftUI
 **Status:** Active Maintenance
@@ -36,7 +36,7 @@ GenSnippets is a macOS menu bar utility that brings professional text expansion 
 
 ### Content Types
 - Plain text replacements
-- Images (base64 encoded)
+- Images (file-based storage, migrated from base64 in v2.8.0)
 - Files (path-based with sequential insertion)
 - URLs (auto-formatted)
 - Rich content mixed in single snippet
@@ -107,7 +107,7 @@ GenSnippets is a macOS menu bar utility that brings professional text expansion 
 - **macOS Version:** 11.5 (Big Sur) or later
 - **Xcode:** 13.0+
 - **Accessibility Permissions:** Required
-- **Sandbox:** Full App Sandbox enabled
+- **Sandbox:** App Sandbox disabled since v2.7.1 (enabled in earlier versions)
 - **Network:** None required (offline-only)
 
 ### Dependencies
@@ -193,7 +193,19 @@ GenSnippets is a macOS menu bar utility that brings professional text expansion 
 - Modern settings UI
 - Sandbox hardening
 
-### Planned: v2.7+ (Backlog)
+### ✓ v2.7 - Disable App Sandbox & UX Improvements
+- App Sandbox disabled to improve compatibility
+- Improved user experience
+- Window management fixes
+- Enhanced event tap recovery
+
+### ✓ v2.8 - Image Storage Refactoring
+- Image storage migrated from Base64 to file-based (v2.8.0)
+- Keystroke hang fixes in iTerm2 and Ghostty (v2.8.1)
+- Terminal list sync improvements
+- Enhanced edge case handling for Ghostty
+
+### Planned: v2.9+ (Backlog)
 - [ ] Unit test coverage (XCTest)
 - [ ] iCloud sync completion
 - [ ] Cloud backup option
@@ -226,13 +238,13 @@ GenSnippets is a macOS menu bar utility that brings professional text expansion 
 
 | Issue | Severity | Owner | Status |
 |---|---|---|---|
-| SnippetDetailView (1245 LOC) | Medium | Split needed | Planned v2.7 |
-| ThreeColumnView (1103 LOC) | Medium | Component extraction | Planned v2.7 |
-| No XCTest coverage | High | Add test suite | Blocked on refactor |
+| SnippetDetailView (1,245 LOC) | Medium | Split needed | Planned v3.0 |
+| ThreeColumnView (1,112 LOC) | Medium | Component extraction | Planned v3.0 |
+| No XCTest coverage | High | Add test suite | Planned v2.9 |
 | iCloud sync disabled | Low | Complete implementation | Deferred |
-| Legacy view duplicates | Low | Remove old views | Planned v2.7 |
-| Code duplication (clipboard, TextFields) | Medium | DRY refactor | Planned v2.8 |
-| Mixed threading model | Medium | Unified queue design | Planned v2.8 |
+| Legacy view duplicates | Low | Remove old views | Planned v3.0 |
+| Code duplication (clipboard, TextFields) | Medium | DRY refactor | Planned v3.0 |
+| OptimizedSnippetMatcher unused | Low | Remove in v3.0 | Candidate for removal |
 
 ---
 
@@ -250,11 +262,12 @@ GenSnippets is a macOS menu bar utility that brings professional text expansion 
 ## Compliance & Security
 
 - **Privacy:** Zero network access, all data local
-- **Sandbox:** Full App Sandbox enabled, no entitlements except file I/O + System Events
+- **Sandbox:** App Sandbox disabled since v2.7.1 for improved compatibility
 - **Code Signing:** Team ID signing configured
 - **Hardened Runtime:** Enabled with necessary exceptions
 - **Data Format:** Plain JSON, human-readable, user-editable
 - **Accessibility:** Uses private API (CGEvent) - may break on macOS major versions
+- **Image Storage:** File-based (not Base64) for better performance and memory efficiency
 
 ---
 
@@ -273,5 +286,5 @@ GenSnippets is a macOS menu bar utility that brings professional text expansion 
 
 ---
 
-**Last Updated:** February 2026
-**Next Review:** Q2 2026 (post v2.7 release)
+**Last Updated:** February 19, 2026
+**Next Review:** Q3 2026 (post v2.8 release)

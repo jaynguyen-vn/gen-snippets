@@ -1,8 +1,8 @@
 # GenSnippets: Development Roadmap
 
-**Current Version:** 2.6.1
-**Release Date:** 2026-02-08
-**Next Planned:** v2.7 (Q2 2026)
+**Current Version:** 2.8.1
+**Release Date:** 2026-02-19
+**Next Planned:** v2.9 (Q3 2026)
 **Status:** Active Maintenance
 
 ---
@@ -109,24 +109,70 @@ Modern UI refinements, sandbox hardening, and improved import/export flows.
 - Enhanced sandbox security configuration
 - Hardened runtime configuration
 
+**Completed in v2.6.2:**
+- Window management issues fixed
+- App reopen functionality restored
+- Event tap stability improvements
+
 ---
 
-## Current Release: v2.6.1
+### ✓ v2.7 - Disable App Sandbox & UX Improvements (2026-02)
+**Status:** Complete
 
-### Released: February 2026
+App Sandbox disabled for improved compatibility with terminal emulators and system applications.
+
+**Completed in v2.7.0:**
+- App Sandbox disabled (security maintained via Hardened Runtime)
+- Improved compatibility with iTerm2 and other terminals
+- User experience improvements
+
+**Completed in v2.7.1:**
+- Keystroke hang fixes
+- Window management enhancements
+- Terminal list synchronization
+
+---
+
+### ✓ v2.8 - Image Storage Refactoring (2026-02)
+**Status:** Complete
+
+Migration from Base64 to file-based image storage and enhanced terminal support.
+
+**Completed in v2.8.0:**
+- Image storage migrated from Base64 to file-based
+- Improved memory efficiency and performance
+- Backward compatibility maintained for legacy format
+
+**Completed in v2.8.1:**
+- Keystroke hang fixes for iTerm2 and Ghostty
+- Enhanced Ghostty terminal support
+- Terminal list sync with TextReplacementService
+- Debugger report improvements
+
+---
+
+## Current Release: v2.8.1
+
+### Released: February 19, 2026
+
+**New Features:**
+- Ghostty terminal support with keystroke hang fixes
+- File-based image storage (replaced Base64)
+- Improved terminal compatibility
 
 **Bug Fixes:**
-- Resolved snippet expansion issue in JetBrains IDE terminals
-- Fixed UI rendering after prolonged background operation
-- Improved event tap recovery with exponential backoff
+- Resolved keystroke hangs in iTerm2 and Ghostty
+- Fixed terminal list sync issues
+- Improved event tap recovery
 
 **Improvements:**
-- Enhanced code signing configuration
-- App sandbox hardening
-- Event tap robustness
+- App Sandbox disabled for better compatibility
+- Enhanced edge case handling
+- Better resource management
 
 **No Breaking Changes**
 - Full backward compatibility with v2.0+
+- Legacy Base64 images still supported
 
 ---
 
@@ -144,11 +190,11 @@ Modern UI refinements, sandbox hardening, and improved import/export flows.
 
 ---
 
-## Planned: v2.7 (Q2 2026)
+## Planned: v2.9 (Q3 2026)
 
 ### Focus: Code Quality & Test Coverage
 
-**Target Completion:** June 2026
+**Target Completion:** September 2026
 
 #### Phase 1: Refactoring (Weeks 1-4)
 
@@ -277,9 +323,9 @@ Comprehensive integration testing and QA:
 
 ---
 
-## Backlog: Future Versions (v2.8+)
+## Backlog: Future Versions (v2.10+)
 
-### v2.8 - iCloud Sync (Q3-Q4 2026)
+### v2.10 - iCloud Sync (Q3-Q4 2026)
 
 Complete partial iCloud sync implementation:
 
@@ -289,7 +335,7 @@ Complete partial iCloud sync implementation:
 - [ ] Opt-in vs automatic sync
 - [ ] Selective sync (categories)
 
-### v2.9 - Snippet Marketplace (2026-2027)
+### v2.11 - Snippet Marketplace (2026-2027)
 
 Sharing and discovery platform:
 
@@ -321,7 +367,7 @@ iPad/iPhone companion apps:
 
 ---
 
-## Success Metrics (v2.7 Target)
+## Success Metrics (v2.9 Target)
 
 | Metric | Current | Target | Notes |
 |---|---|---|---|
@@ -339,10 +385,10 @@ iPad/iPhone companion apps:
 
 | Version | Release Date | Status | Focus |
 |---|---|---|---|
-| **v2.6.1** | 2026-02-08 | ✓ Released | Bug fixes, hardening |
-| **v2.7.0** | 2026-06-15 (Target) | Planned | Quality, tests, refactor |
-| **v2.8.0** | Q3-Q4 2026 | Backlog | iCloud sync |
-| **v2.9.0** | 2026-2027 | Backlog | Marketplace |
+| **v2.8.1** | 2026-02-19 | ✓ Released | Image storage, terminal fixes |
+| **v2.9.0** | 2026-06-15 (Target) | Planned | Quality, tests, refactor |
+| **v2.10.0** | Q3-Q4 2026 | Backlog | iCloud sync |
+| **v2.11.0** | 2026-2027 | Backlog | Marketplace |
 | **v3.0.0** | 2027 | Backlog | Major cleanup, deprecations |
 | **v3.1+** | 2027+ | Backlog | Mobile companion |
 
@@ -352,10 +398,10 @@ iPad/iPhone companion apps:
 
 | Version | Support Status | EOL Date |
 |---|---|---|
-| **2.6.x** | Current | 2026-06-15 (end of v2.7 beta) |
-| **2.5.x** | Legacy | 2026-03-15 |
-| **2.4.x** | EOL | 2025-12-15 |
-| **2.0-2.3.x** | EOL | 2025-06-15 |
+| **2.8.x** | Current | 2026-09-15 (end of v2.9 beta) |
+| **2.7.x** | Legacy | 2026-06-15 |
+| **2.6.x** | Legacy | 2026-03-15 |
+| **2.0-2.5.x** | EOL | 2025-12-15 |
 
 - **Current:** Receives bug fixes and minor features
 - **Legacy:** Critical security fixes only
@@ -407,7 +453,21 @@ iPad/iPhone companion apps:
 
 **Impact:**
 - OptimizedSnippetMatcher (Bloom Filter + Suffix Tree) unused
-- Will remove in v2.7 refactor
+- Will remove in v3.0 refactor
+
+### Decision: Disable App Sandbox (v2.7.1+)
+
+**Status:** ✓ Current (active since 2026-02)
+
+**Rationale:**
+- Improved compatibility with terminal emulators (iTerm2, Ghostty, etc.)
+- Better file access for image storage
+- Simplified maintenance
+
+**Impact:**
+- Hardened Runtime still enabled for security
+- No network access or child process capabilities
+- Full local file system access for snippet storage
 
 ### Decision: Single App Target (No Extensions)
 
@@ -436,6 +496,7 @@ iPad/iPhone companion apps:
 
 ---
 
-**Last Updated:** February 2026
+**Last Updated:** February 19, 2026
 **Maintained By:** Jay Nguyen
+**Current Version:** 2.8.1
 **Feedback:** GitHub Issues welcome

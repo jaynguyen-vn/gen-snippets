@@ -3,7 +3,9 @@
 **Framework:** Swift 5.5+, SwiftUI, AppKit
 **Architecture Pattern:** MVVM + Service Layer
 **Code Style:** Apple Swift API Design Guidelines
-**Last Reviewed:** February 2026
+**Last Reviewed:** February 19, 2026
+**Current Version:** 2.8.1
+**Sandbox Status:** Disabled (since v2.7.1)
 
 ---
 

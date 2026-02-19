@@ -1,6 +1,6 @@
 # GenSnippets: Codebase Summary
 
-**Total Codebase:** ~15,000 LOC across 47 Swift files
+**Total Codebase:** ~15,795 LOC across 48 Swift files
 **Architecture:** MVVM + Service Layer with NotificationCenter events
 **Primary Framework:** SwiftUI + Accessibility framework
 **Deployment Target:** macOS 11.5+
@@ -16,23 +16,24 @@ GenSnippets/
 ├── ValidationScript.swift             287  Self-contained validation tests (no XCTest)
 ├── StressTest.swift                   130  Event tap stress testing utility
 │
-├── Services/ (4,019 LOC)
-│   ├── TextReplacementService.swift  1,317  Core engine with TrieNode, CGEvent tap, buffer
-│   ├── MetafieldService.swift          371  Dynamic placeholder parsing & input dialog
-│   ├── RichContentService.swift        354  Image/file/URL insertion sequencing
-│   ├── LocalStorageService.swift       356  Batch-optimized UserDefaults + caching
-│   ├── EdgeCaseHandler.swift           312  App-specific timing (Discord, SSH, IDEs)
-│   ├── ShareService.swift              285  Import/export with conflict resolution
-│   ├── OptimizedSnippetMatcher.swift   395  Bloom Filter + Suffix Tree (unused)
-│   ├── AccessibilityPermissionManager  206  Permission request & status checking
-│   ├── BrowserCompatibleTextInsertion  175  Browser-specific text insertion
-│   ├── GlobalHotkeyManager.swift       158  Carbon-based hotkey registration
-│   ├── LocalizationService.swift        59  English/Vietnamese infrastructure
+├── Services/ (4,288 LOC)
+│   ├── TextReplacementService.swift  1,330  Core engine with TrieNode, CGEvent tap, buffer
+│   ├── EdgeCaseHandler.swift           280  App-specific timing (Discord, SSH, IDEs, terminals, Ghostty)
+│   ├── OptimizedSnippetMatcher.swift   240  Bloom Filter + Suffix Tree (unused, candidate for removal)
+│   ├── RichContentService.swift        200  Image/file/URL insertion sequencing (file-based storage)
+│   ├── MetafieldService.swift          195  Dynamic placeholder parsing & input dialog
+│   ├── LocalStorageService.swift       390  Batch-optimized UserDefaults + caching
+│   ├── ShareService.swift              180  Import/export with conflict resolution
+│   ├── BrowserCompatibleTextInsertion  130  Browser-specific text insertion
+│   ├── GlobalHotkeyManager.swift       160  Carbon-based hotkey registration
+│   ├── AccessibilityPermissionManager  195  Permission request & status checking
+│   ├── SandboxMigrationService.swift    85  Sandbox to non-sandbox migration helper
+│   ├── LocalizationService.swift        70  English/Vietnamese infrastructure
 │   └── iCloudSyncService.swift          31  Disabled stub (incomplete)
 │
-├── Views/ (8,135 LOC)
+├── Views/ (8,133 LOC)
 │   ├── SnippetDetailView.swift       1,245  Detail pane with rich content editing
-│   ├── ThreeColumnView.swift         1,103  Main 3-column layout (categories/snippets/detail)
+│   ├── ThreeColumnView.swift         1,112  Main 3-column layout (categories/snippets/detail)
 │   ├── AddSnippetSheet.swift           731  Create/edit snippet modal with validation
 │   ├── ShareImportSheet.swift          703  Import snippet sheet with progress
 │   ├── ModernSnippetSearchView.swift   613  Global search UI (Cmd+Ctrl+S)
@@ -158,6 +159,7 @@ User Types → CGEvent Tap (TextReplacementService)
 - **Cached Regex** - Compiled once per app session
 - **Dynamic Clipboard** - Read at insertion time
 - **Date Formatting** - Cached formatter instances
+- **Metafields:** `{{key}}` and `{{key:default}}` for user input prompts
 
 ### Event Processing
 1. CGEvent tap captures keystroke
@@ -283,7 +285,7 @@ All views should prefer DS* components over native SwiftUI.
 | File | LOC | Issue | Priority |
 |---|---|---|---|
 | SnippetDetailView.swift | 1,245 | Too large, complex editing logic | High |
-| ThreeColumnView.swift | 1,103 | Layout + state management mixed | High |
+| ThreeColumnView.swift | 1,112 | Layout + state management mixed | High |
 | AddSnippetSheet.swift | 731 | Form validation + rich content picker | Medium |
 | ShareImportSheet.swift | 703 | Progress tracking + conflict UI | Medium |
 | Code Duplication | N/A | Clipboard reading, TextField wrappers, menu builders | Medium |
@@ -316,7 +318,7 @@ Text("key_name".localized)  // Uses String+Localization extension
 - **Minimum Deployment:** macOS 11.5
 - **Target:** GenSnippets (single app target)
 - **Signing:** Team ID (configured in project.pbxproj)
-- **Sandbox:** Full App Sandbox enabled
+- **Sandbox:** App Sandbox disabled since v2.7.1 (enabled in earlier versions)
 - **Runtime Security:** Hardened runtime with System Events exception
 - **Code Signing Identity:** Apple Development
 
@@ -355,5 +357,6 @@ xcodebuild -project GenSnippets.xcodeproj -scheme GenSnippets \
 
 ---
 
-**Last Updated:** February 2026
+**Last Updated:** February 19, 2026
 **Maintainer:** Jay Nguyen
+**Version:** 2.8.1

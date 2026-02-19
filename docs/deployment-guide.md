@@ -1,6 +1,6 @@
 # GenSnippets: Build & Deployment Guide
 
-**Current Version:** 2.6.1
+**Current Version:** 2.8.1
 **Target macOS:** 11.5+ (Big Sur and later)
 **Build System:** Xcode 13.0+
 **Last Updated:** February 2026
@@ -101,7 +101,7 @@ rm -rf ~/Library/Developer/Xcode/DerivedData/GenSnippets-*
 
 ### Build with Code Coverage (Future)
 
-When XCTest suite is added (v2.7):
+When XCTest suite is added (v2.9):
 
 ```bash
 xcodebuild -project GenSnippets.xcodeproj \
@@ -123,7 +123,7 @@ Edit `GenSnippets.xcodeproj/project.pbxproj`:
 grep "MARKETING_VERSION" GenSnippets.xcodeproj/project.pbxproj
 
 # Example output:
-# MARKETING_VERSION = 2.6.1;
+# MARKETING_VERSION = 2.8.1;
 ```
 
 **To Update:**
@@ -132,13 +132,13 @@ grep "MARKETING_VERSION" GenSnippets.xcodeproj/project.pbxproj
 2. Select GenSnippets target
 3. Go to Build Settings
 4. Search for "Marketing Version"
-5. Update value (e.g., 2.7.0)
+5. Update value (e.g., 2.9.0)
 
 Or edit directly:
 
 ```bash
 # Using sed (macOS)
-sed -i '' 's/MARKETING_VERSION = 2.6.1;/MARKETING_VERSION = 2.7.0;/' \
+sed -i '' 's/MARKETING_VERSION = 2.8.1;/MARKETING_VERSION = 2.9.0;/' \
   GenSnippets.xcodeproj/project.pbxproj
 ```
 
