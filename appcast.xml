@@ -4,11 +4,21 @@
         <title>GenSnippets</title>
         <item>
             <title>2.9.5</title>
-            <pubDate>Sat, 14 Mar 2026 15:37:07 +0700</pubDate>
-            <sparkle:version>5</sparkle:version>
+            <pubDate>Sat, 14 Mar 2026 15:43:21 +0700</pubDate>
+            <sparkle:version>6</sparkle:version>
             <sparkle:shortVersionString>2.9.5</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>11.5</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/jaynguyen-vn/gen-snippets/releases/download/v2.9.5/GenSnippets.2.9.5.dmg" length="3183820" type="application/octet-stream" sparkle:edSignature="nOijLCD6pdPXNORc5/BlVuID/pnivPtbPQVewCvg8+9F9snKN+8OzTgN8dbNnkm2L8xulcBe9FZQ6qYh/xSiDA=="/>
+            <description><![CDATA[
+<h3>What's New in 2.9.5</h3>
+<ul>
+<li><b>Auto-Update</b> — Get notified and install updates directly from the app</li>
+<li><b>Check for Updates</b> — New menu item and Settings toggle</li>
+<li><b>Release Notes</b> — See what's new before updating</li>
+<li><b>Automated Release</b> — Streamlined release pipeline with EdDSA signing</li>
+<li><b>Installation Guide</b> — Gatekeeper bypass instructions in README</li>
+</ul>
+            ]]></description>
+            <enclosure url="https://github.com/jaynguyen-vn/gen-snippets/releases/download/v2.9.5/GenSnippets.2.9.5.dmg" length="3183909" type="application/octet-stream" sparkle:edSignature="rDcwcEMkAeLrNI1dkq6BAv+QzqnNMTIl4pfgD7AnQQqA9Kdd8XtbqpnnccdckG0w3Sapo23Ley8RQRuWN5o2Bw=="/>
         </item>
     </channel>
 </rss>
