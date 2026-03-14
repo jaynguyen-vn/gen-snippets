@@ -56,7 +56,7 @@ else
 fi
 
 # Step 1: Create DMG
-echo "[1/4] Creating DMG..."
+echo "[1/3] Creating DMG..."
 rm -f "$DMG_PATH"
 create-dmg \
     --volname 'GenSnippets' \
@@ -69,7 +69,7 @@ create-dmg \
 echo "  ✓ DMG created: $DMG_PATH"
 
 # Step 2: Generate appcast with Sparkle (auto-signs with EdDSA key from Keychain)
-echo "[2/4] Generating appcast.xml..."
+echo "[2/3] Generating appcast.xml..."
 rm -rf "$RELEASES_DIR"
 mkdir -p "$RELEASES_DIR"
 cp "$DMG_PATH" "$RELEASES_DIR/GenSnippets.${VERSION}.dmg"
@@ -84,21 +84,15 @@ sed -i '' "s|</sparkle:minimumSystemVersion>|</sparkle:minimumSystemVersion>\n  
 echo "  ✓ appcast.xml updated with release notes"
 
 # Step 3: Commit and push
-echo "[3/4] Committing and pushing..."
+echo "[3/3] Committing and pushing..."
 cd "$PROJECT_DIR"
 git add appcast.xml
 git commit -m "release: update appcast for v$VERSION (build $BUILD)"
 git push
 echo "  ✓ Pushed to main"
 
-# Step 4: Create GitHub release
-echo "[4/4] Creating GitHub release..."
-gh release create "v$VERSION" "$DMG_PATH" \
-    --repo "$GITHUB_REPO" \
-    --title "v$VERSION" \
-    --generate-notes
-echo "  ✓ GitHub release v$VERSION created"
-
 echo ""
 echo "=== Release v$VERSION complete! ==="
-echo "Users will be notified of the update automatically."
+echo ""
+echo "Next: Upload DMG to GitHub release manually:"
+echo "  $DMG_PATH"
