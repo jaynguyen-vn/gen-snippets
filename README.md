@@ -180,7 +180,8 @@ Categories help you organize related snippets:
 
 Local data is stored in:
 ```
-~/Library/Preferences/Jay8448.Gen-Snippets.plist
+~/Library/Preferences/Jay8448.Gen-Snippets.plist    # Snippets, categories, settings
+~/Library/Application Support/GenSnippets/RichContent/  # Images, files (since v2.8.0)
 ```
 
 ## Architecture
