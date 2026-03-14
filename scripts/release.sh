@@ -38,6 +38,23 @@ fi
 echo "=== GenSnippets Release v$VERSION (build $BUILD) ==="
 echo ""
 
+# Prompt for release notes
+NOTES_FILE="$PROJECT_DIR/releases_notes.tmp"
+echo "Enter release notes (HTML supported, empty line to finish):"
+echo "  Example: <li>Added auto-update</li><li>Bug fixes</li>"
+echo "---"
+NOTES=""
+while IFS= read -r line; do
+    [ -z "$line" ] && break
+    NOTES="${NOTES}${line}"
+done
+if [ -n "$NOTES" ]; then
+    echo "  ✓ Release notes captured"
+else
+    NOTES="<li>Bug fixes and improvements</li>"
+    echo "  → Using default release notes"
+fi
+
 # Step 1: Create DMG
 echo "[1/4] Creating DMG..."
 rm -f "$DMG_PATH"
@@ -61,7 +78,10 @@ cp "$DMG_PATH" "$RELEASES_DIR/GenSnippets.${VERSION}.dmg"
     "$RELEASES_DIR"
 cp "$RELEASES_DIR/appcast.xml" "$PROJECT_DIR/appcast.xml"
 rm -rf "$RELEASES_DIR"
-echo "  ✓ appcast.xml updated"
+
+# Inject release notes into appcast
+sed -i '' "s|</sparkle:minimumSystemVersion>|</sparkle:minimumSystemVersion>\n            <description><![CDATA[<ul>${NOTES}</ul>]]></description>|" "$PROJECT_DIR/appcast.xml"
+echo "  ✓ appcast.xml updated with release notes"
 
 # Step 3: Commit and push
 echo "[3/4] Committing and pushing..."
