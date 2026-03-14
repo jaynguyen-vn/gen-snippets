@@ -4,12 +4,11 @@
         <title>GenSnippets</title>
         <item>
             <title>2.9.1</title>
-            <pubDate>Sat, 14 Mar 2026 15:08:55 +0700</pubDate>
+            <pubDate>Sat, 14 Mar 2026 15:11:43 +0700</pubDate>
             <sparkle:version>1</sparkle:version>
             <sparkle:shortVersionString>2.9.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>11.5</sparkle:minimumSystemVersion>
-            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <enclosure url="https://github.com/jaynguyen-vn/gen-snippets/releases/download/v2.9.1/GenSnippets.dmg" length="2788798" type="application/octet-stream" sparkle:edSignature="GWN5Dg89MGaYmFt7+QGZ6zJUZG+mw6Ynhf7ZxnHwaq93CGD5TXc4z0iS8yJY6ABNs7BOSdQcLrt2r5ULoHUPAA=="/>
+            <enclosure url="https://github.com/jaynguyen-vn/gen-snippets/releases/download/v2.9.1/GenSnippets.dmg" length="3183849" type="application/octet-stream" sparkle:edSignature="PHzi33RNX88y+B/rb+BrKTIUq//SU+LN8rrcwrG0HIsU/AVhpPIj8YDo4w7U/dsDGk4iHLWJeM9pAUetUuevCg=="/>
         </item>
     </channel>
 </rss>
