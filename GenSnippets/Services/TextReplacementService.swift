@@ -3,6 +3,7 @@ import Combine
 import AppKit
 import Carbon
 import CoreGraphics
+import os
 
 // Trie node for efficient snippet lookup
 class TrieNode {
@@ -61,6 +62,22 @@ class TextReplacementService {
 
     // Trie for efficient snippet lookup
     private var snippetTrie = TrieNode()
+
+    // Thread-safe snapshot for callback path — avoids snippetQueue.sync contention
+    private var _snippetSnapshot: [Snippet] = []
+    private var snippetSnapshotLock = os_unfair_lock()
+    private var snippetSnapshot: [Snippet] {
+        get {
+            os_unfair_lock_lock(&snippetSnapshotLock)
+            defer { os_unfair_lock_unlock(&snippetSnapshotLock) }
+            return _snippetSnapshot
+        }
+        set {
+            os_unfair_lock_lock(&snippetSnapshotLock)
+            _snippetSnapshot = newValue
+            os_unfair_lock_unlock(&snippetSnapshotLock)
+        }
+    }
 
     // Cache compiled regex
     private static let keywordRegex = try? NSRegularExpression(pattern: "\\{([^}]+)\\}", options: [])
@@ -130,13 +147,29 @@ class TextReplacementService {
     private var lastKeyCode: CGKeyCode = 0
     private var lastCharHandled: String = ""
     private var lastCharHandledTime: TimeInterval = 0
-    private var isPerformingExpansion = false
+    // Thread-safe expansion flag — read on event tap thread, written on background queue
+    private var _isPerformingExpansion = false
+    private var expansionLock = os_unfair_lock()
+    private var isPerformingExpansion: Bool {
+        get {
+            os_unfair_lock_lock(&expansionLock)
+            defer { os_unfair_lock_unlock(&expansionLock) }
+            return _isPerformingExpansion
+        }
+        set {
+            os_unfair_lock_lock(&expansionLock)
+            _isPerformingExpansion = newValue
+            os_unfair_lock_unlock(&expansionLock)
+        }
+    }
+
     private var bufferClearTimer: Timer?
     private let bufferInactivityTimeout: TimeInterval = 15.0 // Clear buffer after 15 seconds of inactivity
     private var eventTapCheckTimer: Timer?
     private var eventTapDisabledCount = 0
     private var lastDisabledTime: Date?
     private var callbackExecutionTimes: [TimeInterval] = []
+    private var callbackTimesLock = os_unfair_lock() // Protect cross-thread access
     private let maxExecutionTimesCount = 50 // Limit array size to prevent memory growth
     
     private var cachedEventSource: CGEventSource?
@@ -227,10 +260,14 @@ class TextReplacementService {
                     print("[TextReplacementService] 🔴 Event tap disabled by \(disabledType)! Count: \(service.eventTapDisabledCount), Time: \(Date())")
                     
                     // Log average callback execution time
+                    os_unfair_lock_lock(&service.callbackTimesLock)
                     if !service.callbackExecutionTimes.isEmpty {
                         let avgTime = service.callbackExecutionTimes.reduce(0, +) / Double(service.callbackExecutionTimes.count)
-                        print("[TextReplacementService] ⏱️ Avg callback time: \(String(format: "%.3f", avgTime * 1000))ms")
                         service.callbackExecutionTimes.removeAll()
+                        os_unfair_lock_unlock(&service.callbackTimesLock)
+                        print("[TextReplacementService] ⏱️ Avg callback time: \(String(format: "%.3f", avgTime * 1000))ms")
+                    } else {
+                        os_unfair_lock_unlock(&service.callbackTimesLock)
                     }
                     
                     CGEvent.tapEnable(tap: service.eventTap!, enable: true)
@@ -242,10 +279,12 @@ class TextReplacementService {
                     let startTime = CFAbsoluteTimeGetCurrent()
                     defer {
                         let executionTime = CFAbsoluteTimeGetCurrent() - startTime
+                        os_unfair_lock_lock(&service.callbackTimesLock)
                         service.callbackExecutionTimes.append(executionTime)
                         if service.callbackExecutionTimes.count > service.maxExecutionTimesCount {
                             service.callbackExecutionTimes.removeFirst(service.callbackExecutionTimes.count - service.maxExecutionTimesCount)
                         }
+                        os_unfair_lock_unlock(&service.callbackTimesLock)
                         if executionTime > 0.01 { // Log if takes more than 10ms
                             print("[TextReplacementService] ⚠️ Slow callback: \(String(format: "%.3f", executionTime * 1000))ms")
                         }
@@ -259,11 +298,16 @@ class TextReplacementService {
                     }
                     
                     if keyCode == 0x33 {
+                        service.bufferLock.lock()
                         if !service.currentInputBuffer.isEmpty {
                             service.currentInputBuffer.removeLast()
-                            if service.currentInputBuffer.count >= 2 {
+                            let bufferCount = service.currentInputBuffer.count
+                            service.bufferLock.unlock()
+                            if bufferCount >= 2 {
                                 service.checkForCommands()
                             }
+                        } else {
+                            service.bufferLock.unlock()
                         }
                         return Unmanaged.passUnretained(event)
                     }
@@ -396,16 +440,22 @@ class TextReplacementService {
             self?.eventTapCheckTimer?.invalidate()
             self?.eventTapCheckTimer = nil
 
-            // Increased interval to reduce overhead (from 5s to 10s)
-            self?.eventTapCheckTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { [weak self] _ in
+            // Check frequently to minimize dead time when tap is disabled (3s max gap)
+            self?.eventTapCheckTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
                 self?.checkAndReenableEventTap()
 
                 // Periodically clear accumulated monitoring data
-                if let self = self, self.callbackExecutionTimes.count > self.maxExecutionTimesCount / 2 {
-                    self.callbackExecutionTimes.removeAll(keepingCapacity: true)
-                    #if DEBUG
-                    print("[TextReplacementService] 🧹 Cleared callback execution times")
-                    #endif
+                if let self = self {
+                    os_unfair_lock_lock(&self.callbackTimesLock)
+                    if self.callbackExecutionTimes.count > self.maxExecutionTimesCount / 2 {
+                        self.callbackExecutionTimes.removeAll(keepingCapacity: true)
+                        os_unfair_lock_unlock(&self.callbackTimesLock)
+                        #if DEBUG
+                        print("[TextReplacementService] 🧹 Cleared callback execution times")
+                        #endif
+                    } else {
+                        os_unfair_lock_unlock(&self.callbackTimesLock)
+                    }
                 }
             }
         }
@@ -516,29 +566,34 @@ class TextReplacementService {
             print("[TextReplacementService] 🔍 Detected backspace key")
             #endif
             
+            bufferLock.lock()
             if !currentInputBuffer.isEmpty {
                 let deletedChar = String(currentInputBuffer.last!)
                 currentInputBuffer.removeLast()
-                
+                let bufferCount = currentInputBuffer.count
+                bufferLock.unlock()
+
                 #if DEBUG
-                print("[TextReplacementService] 🔙 Backspace - Deleted '\(deletedChar)', Buffer now: '\(currentInputBuffer)'")
+                print("[TextReplacementService] 🔙 Backspace - Deleted '\(deletedChar)'")
                 #endif
-                
-                if currentInputBuffer.count >= 2 {
+
+                if bufferCount >= 2 {
                     checkForCommands()
                 }
+            } else {
+                bufferLock.unlock()
             }
             return
         }
-        
+
         if char.rangeOfCharacter(from: .whitespaces.union(.alphanumerics).union(.punctuationCharacters)) != nil {
+            bufferLock.lock()
             if currentInputBuffer.count >= maxBufferSize {
-                // Keep only recent characters to prevent memory accumulation
                 let keepCount = maxBufferSize / 2
                 currentInputBuffer = String(currentInputBuffer.suffix(keepCount))
             }
-            
             currentInputBuffer += char
+            bufferLock.unlock()
             
             #if DEBUG
             print("[TextReplacementService] 📝 Current buffer: '\(currentInputBuffer)'")
@@ -564,13 +619,15 @@ class TextReplacementService {
             self.bufferClearTimer = Timer.scheduledTimer(withTimeInterval: self.bufferInactivityTimeout, repeats: false) { [weak self] _ in
                 guard let self = self else { return }
 
+                // Guard with bufferLock — buffer is also accessed on event tap thread
+                self.bufferLock.lock()
                 #if DEBUG
                 if !self.currentInputBuffer.isEmpty {
                     print("[TextReplacementService] 🧹 Clearing buffer due to inactivity: '\(self.currentInputBuffer)'")
                 }
                 #endif
-
                 self.currentInputBuffer = ""
+                self.bufferLock.unlock()
             }
         }
 
@@ -585,13 +642,16 @@ class TextReplacementService {
     }
     
     private func checkForCommands() {
-        // Early exit if buffer is too small to contain any commands
-        guard currentInputBuffer.count >= 2 else { return }
+        // Take a thread-safe snapshot of buffer for matching
+        bufferLock.lock()
+        let bufferCopy = currentInputBuffer
+        bufferLock.unlock()
 
-        // Use cached sorted snippets if available
-        let sortedSnippets = snippetQueue.sync {
-            return sortedSnippetsCache.isEmpty ? snippets.sorted { $0.command.count > $1.command.count } : sortedSnippetsCache
-        }
+        // Early exit if buffer is too small to contain any commands
+        guard bufferCopy.count >= 2 else { return }
+
+        // Use thread-safe snapshot to avoid snippetQueue.sync contention in callback path
+        let sortedSnippets = snippetSnapshot
 
         // Early exit if no snippets
         guard !sortedSnippets.isEmpty else { return }
@@ -599,32 +659,35 @@ class TextReplacementService {
         // Only check snippets that could possibly match based on buffer size
         for snippet in sortedSnippets {
             // Skip if buffer is too small for this command
-            if currentInputBuffer.count < snippet.command.count {
+            if bufferCopy.count < snippet.command.count {
                 continue
             }
 
             // Optimize: only check suffix if last character matches
             if let lastChar = snippet.command.last,
-               let bufferLastChar = currentInputBuffer.last,
+               let bufferLastChar = bufferCopy.last,
                lastChar != bufferLastChar {
                 continue
             }
 
             // Check if buffer ends with the snippet command
-            if currentInputBuffer.hasSuffix(snippet.command) {
+            if bufferCopy.hasSuffix(snippet.command) {
                 let charsToDelete = snippet.command.count
 
+                bufferLock.lock()
                 currentInputBuffer = String(currentInputBuffer.dropLast(charsToDelete))
+                bufferLock.unlock()
 
                 #if DEBUG
                 print("[TextReplacementService] ✅ Found matching suffix command: '\(snippet.command)'")
                 #endif
 
                 // Dispatch off the event tap thread to avoid macOS disabling the tap
+                // Hold isPerformingExpansion = true through full lifecycle (deletion + paste + restore)
                 DispatchQueue.global(qos: .userInteractive).async { [weak self] in
                     self?.isPerformingExpansion = true
                     self?.deleteLastCharacters(count: charsToDelete)
-                    self?.isPerformingExpansion = false
+                    // NOTE: Do NOT reset isPerformingExpansion here — keep it true until paste + restore completes
 
                     // Check if snippet contains custom metafields
                     if MetafieldService.shared.containsMetafields(snippet.content) {
@@ -636,7 +699,10 @@ class TextReplacementService {
                         // Wait for deletion to complete before showing dialog
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                             MetafieldInputController.shared.showInputDialog(for: snippet) { [weak self] processedContent in
-                                guard let processedContent = processedContent else { return }
+                                guard let processedContent = processedContent else {
+                                    self?.isPerformingExpansion = false
+                                    return
+                                }
 
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                                     self?.insertText(processedContent)
@@ -654,7 +720,10 @@ class TextReplacementService {
                                 #if DEBUG
                                 print("[TextReplacementService] 🖼️ Inserted rich content (\(snippet.actualContentType.displayName)) for: \(snippet.command)")
                                 #endif
+                                // Rich content path doesn't go through insertText, so reset flag here
+                                self?.isPerformingExpansion = false
                             } else {
+                                // insertText handles isPerformingExpansion reset in its restore callback
                                 self?.insertText(snippet.content)
                             }
                             UsageTracker.shared.recordUsage(for: snippet.command)
@@ -804,7 +873,10 @@ class TextReplacementService {
     }
 
     private func insertText(_ text: String) {
-        guard !text.isEmpty else { return }
+        guard !text.isEmpty else {
+            isPerformingExpansion = false
+            return
+        }
 
         // First find cursor position marker in the original text
         var processedText = text
@@ -828,8 +900,11 @@ class TextReplacementService {
         pasteboard.setString(processedText, forType: .string)
 
         // Perform paste with appropriate timing
-        if let source = CGEventSource(stateID: .hidSystemState) {
-            if let cmdDown = CGEvent(keyboardEventSource: source, virtualKey: 0x37, keyDown: true),
+        guard let source = CGEventSource(stateID: .hidSystemState) else {
+            isPerformingExpansion = false
+            return
+        }
+        if let cmdDown = CGEvent(keyboardEventSource: source, virtualKey: 0x37, keyDown: true),
                let vDown = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: true),
                let vUp = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: false),
                let cmdUp = CGEvent(keyboardEventSource: source, virtualKey: 0x37, keyDown: false) {
@@ -864,34 +939,37 @@ class TextReplacementService {
                     #endif
 
                     // Wait for paste to complete before moving cursor (extra time for Discord)
-                    let cursorDelay = EdgeCaseHandler.detectAppCategory() == .discord ? 0.3 : 0.15
+                    let cursorDelay = EdgeCaseHandler.detectAppCategory() == .discord ? 0.4 : 0.2
                     DispatchQueue.main.asyncAfter(deadline: .now() + cursorDelay) {
-                        // Use a more reliable approach for cursor positioning that works in most applications
                         self.universalCursorPositioning(source: source, position: position, textLength: processedText.count)
 
-                        // Restore clipboard after cursor positioning (extra time for Discord)
-                        let restoreDelay = EdgeCaseHandler.detectAppCategory() == .discord ? 0.25 : 0.1
+                        // Restore clipboard after cursor positioning — increased delays for reliability
+                        let restoreDelay = EdgeCaseHandler.detectAppCategory() == .discord ? 0.4 : 0.3
                         DispatchQueue.main.asyncAfter(deadline: .now() + restoreDelay) {
                             pasteboard.clearContents()
                             if let previous = previousContent {
                                 pasteboard.setString(previous, forType: .string)
                             }
+                            self.isPerformingExpansion = false
                         }
                     }
                 } else {
-                    // No cursor position specified, just restore clipboard (extra time for Discord)
-                    let restoreDelay = EdgeCaseHandler.detectAppCategory() == .discord ? 0.25 : 0.1
+                    // No cursor position specified — restore clipboard with increased delays
+                    let restoreDelay = EdgeCaseHandler.detectAppCategory() == .discord ? 0.4 : 0.3
                     DispatchQueue.main.asyncAfter(deadline: .now() + restoreDelay) {
                         pasteboard.clearContents()
                         if let previous = previousContent {
                             pasteboard.setString(previous, forType: .string)
                         }
+                        self.isPerformingExpansion = false
                     }
                 }
+            } else {
+                // CGEvent creation failed — reset flag to avoid permanent lockout
+                isPerformingExpansion = false
             }
-        }
     }
-    
+
     // Universal cursor positioning method that works in most applications
     private func universalCursorPositioning(source: CGEventSource, position: Int, textLength: Int) {
         guard position > 0 && position <= textLength else { return }
@@ -1176,6 +1254,9 @@ class TextReplacementService {
             self.sortedSnippetsCache = snippets.sorted { $0.command.count > $1.command.count }
             self.snippetsLastUpdated = Date()
             self.snippetsCacheVersion += 1
+
+            // Update lock-free snapshot for callback path (avoids snippetQueue.sync contention)
+            self.snippetSnapshot = self.sortedSnippetsCache
         }
         
         print("[TextReplacementService] Updated snippets: \(snippets.count) items")
@@ -1270,6 +1351,13 @@ class TextReplacementService {
     
     // Direct snippet insertion for SearchView selection
     func insertSnippetDirectly(_ snippet: Snippet) {
+        // Prevent concurrent clipboard operations with event-tap expansions
+        guard !isPerformingExpansion else {
+            print("[TextReplacementService] ⚠️ Skipping direct insert — expansion in progress")
+            return
+        }
+        isPerformingExpansion = true
+
         print("[TextReplacementService] 🎯 Inserting snippet directly: \(snippet.command)")
 
         // Track usage (by command, not ID)
@@ -1283,10 +1371,11 @@ class TextReplacementService {
             #if DEBUG
             print("[TextReplacementService] 🖼️ Inserted rich content (\(snippet.actualContentType.displayName)) for: \(snippet.command)")
             #endif
+            isPerformingExpansion = false
         } else {
             // Process the snippet content with placeholder handling
             let processedContent = processSnippetWithPlaceholders(snippet.content)
-            // Insert the processed text
+            // insertText handles isPerformingExpansion reset in its restore callback
             insertText(processedContent)
         }
     }
