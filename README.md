@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Platform-macOS%2011.5%2B-blue" alt="macOS 11.5+">
   <img src="https://img.shields.io/badge/Swift-5.5%2B-orange" alt="Swift 5.5+">
   <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT License">
-  <img src="https://img.shields.io/badge/Version-2.8.1-purple" alt="Version 2.8.1">
+  <img src="https://img.shields.io/badge/Version-2.8.2-purple" alt="Version 2.8.2">
 </div>
 
 ## Overview
@@ -61,6 +61,27 @@ GenSnippets is a lightweight macOS application for system-wide text expansion. I
 
 ## Installation
 
+### Download
+
+1. Download the latest DMG from [Releases](https://github.com/jaynguyen-vn/gen-snippets/releases)
+2. Open the DMG and drag **GenSnippets** to your Applications folder
+3. Since the app is not notarized with Apple, macOS Gatekeeper will block it on first launch. To allow it, use **one** of these methods:
+
+   **Option A — GUI (recommended):**
+   - Double-click GenSnippets — you'll see a warning dialog, click **Done** (or **Cancel**)
+   - Open **System Settings → Privacy & Security**
+   - Scroll down to the **Security** section — you'll see *"GenSnippets" was blocked from use because it is not from an identified developer*
+   - Click **Open Anyway** and confirm
+
+   **Option B — Terminal:**
+   ```bash
+   xattr -cr /Applications/GenSnippets.app
+   ```
+
+4. Open GenSnippets — it will ask for **Accessibility** permission
+5. Grant permission in **System Settings → Privacy & Security → Accessibility**
+6. **Quit and reopen** GenSnippets for the permission to take effect
+
 ### Requirements
 - macOS 11.5 (Big Sur) or later
 - Xcode 13.0+ (for building from source)
@@ -98,18 +119,13 @@ open ~/Library/Developer/Xcode/DerivedData/GenSnippets-*/Build/Products/Debug/Ge
 
 ### First Launch
 
-1. **Grant Accessibility Permissions**: 
-   - GenSnippets requires accessibility permissions to monitor keyboard input
-   - You'll be prompted to grant permissions in System Preferences
-   - Navigate to: System Preferences → Security & Privacy → Privacy → Accessibility
-
-2. **Create Your First Snippet**:
+1. **Create Your First Snippet**:
    - Click the "+" button in the snippet list
    - Enter a command trigger (e.g., `!email`)
    - Enter the replacement text (e.g., `john.doe@example.com`)
    - Click "Save"
 
-3. **Test It Out**:
+2. **Test It Out**:
    - Open any application (TextEdit, Safari, etc.)
    - Type your command trigger
    - Watch it instantly replace with your snippet!
@@ -204,7 +220,7 @@ Complete developer documentation in `docs/`:
 - **[Codebase Summary](docs/codebase-summary.md)** - Directory structure, 48 Swift files, LOC breakdown
 - **[Code Standards](docs/code-standards.md)** - Swift conventions, naming, patterns, design system usage
 - **[System Architecture](docs/system-architecture.md)** - MVVM design, data flow, threading, event system
-- **[Project Roadmap](docs/project-roadmap.md)** - Version history, v2.7+ plans, technical debt
+- **[Project Roadmap](docs/project-roadmap.md)** - Version history, upcoming plans, technical debt
 - **[Deployment Guide](docs/deployment-guide.md)** - Build, code signing, DMG creation, release process
 
 ## Contributing
