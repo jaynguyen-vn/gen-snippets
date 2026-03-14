@@ -3,7 +3,8 @@
 **Architecture Pattern:** MVVM + Service Layer with Event-Driven Communication
 **Concurrency Model:** Mixed DispatchQueue + NSLock + CGEvent system thread
 **Storage:** UserDefaults (JSON) with batch coalescing
-**Last Updated:** February 2026
+**Current Version:** 2.8.2
+**Last Updated:** March 14, 2026
 
 ---
 
@@ -408,7 +409,7 @@ struct SnippetUsage: Codable {
 ```swift
 enum RichContent: Codable {
   case plainText(String)
-  case image(base64: String)             // Base64-encoded JPEG/PNG
+  case image(path: String)               // File path (migrated from Base64 in v2.8.0)
   case file(path: String)                // File system path
   case url(String)                       // HTTP/HTTPS/mailto URLs
 }
@@ -627,6 +628,8 @@ Developer Build
 2. ✓ **Image Storage Migration (v2.8.0)** - Base64 → file-based for better performance
 3. ✓ **Keystroke Hang Fixes (v2.8.1)** - Support for iTerm2 and Ghostty terminals
 4. ✓ **Terminal List Sync (v2.8.1)** - EdgeCaseHandler now synced with TextReplacementService
+5. ✓ **Clipboard Race Condition Fix (v2.8.2)** - Improved clipboard access timing and error recovery
+6. ✓ **Event Tap Timeout Recovery (v2.8.2)** - Enhanced event tap timeout detection and recovery
 
 ## Future Architectural Improvements (v2.9+)
 
@@ -640,6 +643,6 @@ Developer Build
 
 ---
 
-**Last Updated:** February 19, 2026
+**Last Updated:** March 14, 2026
 **Maintainer:** Jay Nguyen
-**Current Version:** 2.8.1
+**Current Version:** 2.8.2

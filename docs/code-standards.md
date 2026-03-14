@@ -3,8 +3,8 @@
 **Framework:** Swift 5.5+, SwiftUI, AppKit
 **Architecture Pattern:** MVVM + Service Layer
 **Code Style:** Apple Swift API Design Guidelines
-**Last Reviewed:** February 19, 2026
-**Current Version:** 2.8.1
+**Last Reviewed:** March 14, 2026
+**Current Version:** 2.8.2
 **Sandbox Status:** Disabled (since v2.7.1)
 
 ---
@@ -402,7 +402,7 @@ func saveSnippets() throws {
 
 ### Current Status
 - **No XCTest suite yet** (validation script exists as placeholder)
-- **Target:** >80% coverage by v2.7
+- **Target:** >80% coverage by v2.9
 
 ### Testing Strategy (Future)
 
@@ -643,7 +643,7 @@ struct SnippetSearchView: View {
 ```
 
 Target removal:
-- **v2.7+** - Remove `SnippetSearchView`, `SettingsView`, `ExportImportView`, `SnippetsViewModel`
+- **v3.0** - Remove `SnippetSearchView`, `SettingsView`, `ExportImportView`, `SnippetsViewModel`
 
 ---
 
@@ -665,5 +665,5 @@ Before submitting a pull request:
 
 ---
 
-**Last Updated:** February 2026
+**Last Updated:** March 14, 2026
 **Maintainer:** Jay Nguyen

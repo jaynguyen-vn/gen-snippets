@@ -1,9 +1,11 @@
 # GenSnippets: Codebase Summary
 
-**Total Codebase:** ~15,795 LOC across 48 Swift files
+**Total Codebase:** ~15,884 LOC across 48 Swift files
 **Architecture:** MVVM + Service Layer with NotificationCenter events
 **Primary Framework:** SwiftUI + Accessibility framework
 **Deployment Target:** macOS 11.5+
+**Current Version:** 2.8.2
+**Last Updated:** March 14, 2026
 
 ---
 
@@ -16,27 +18,27 @@ GenSnippets/
 ├── ValidationScript.swift             287  Self-contained validation tests (no XCTest)
 ├── StressTest.swift                   130  Event tap stress testing utility
 │
-├── Services/ (4,288 LOC)
-│   ├── TextReplacementService.swift  1,330  Core engine with TrieNode, CGEvent tap, buffer
-│   ├── EdgeCaseHandler.swift           280  App-specific timing (Discord, SSH, IDEs, terminals, Ghostty)
-│   ├── OptimizedSnippetMatcher.swift   240  Bloom Filter + Suffix Tree (unused, candidate for removal)
-│   ├── RichContentService.swift        200  Image/file/URL insertion sequencing (file-based storage)
-│   ├── MetafieldService.swift          195  Dynamic placeholder parsing & input dialog
-│   ├── LocalStorageService.swift       390  Batch-optimized UserDefaults + caching
-│   ├── ShareService.swift              180  Import/export with conflict resolution
-│   ├── BrowserCompatibleTextInsertion  130  Browser-specific text insertion
-│   ├── GlobalHotkeyManager.swift       160  Carbon-based hotkey registration
-│   ├── AccessibilityPermissionManager  195  Permission request & status checking
-│   ├── SandboxMigrationService.swift    85  Sandbox to non-sandbox migration helper
-│   ├── LocalizationService.swift        70  English/Vietnamese infrastructure
+├── Services/ (4,377 LOC)
+│   ├── TextReplacementService.swift  1,421  Core engine with TrieNode, CGEvent tap, buffer
+│   ├── RichContentService.swift        494  Image/file/URL insertion sequencing (file-based storage)
+│   ├── OptimizedSnippetMatcher.swift   395  SuffixTree, BloomFilter, EventTapRecoveryManager, PerformanceMonitor
+│   ├── LocalStorageService.swift       392  Batch-optimized UserDefaults + caching
+│   ├── MetafieldService.swift          377  Dynamic {{field:default}} templating
+│   ├── EdgeCaseHandler.swift           316  App-specific timing (terminals, browsers, IDEs, Discord, VMs)
+│   ├── ShareService.swift              296  Export/import with conflict resolution
+│   ├── AccessibilityPermissionManager  198  Permission request & status checking
+│   ├── BrowserCompatibleTextInsertion  175  Browser-specific text insertion
+│   ├── GlobalHotkeyManager.swift       158  Carbon-based hotkey registration
+│   ├── SandboxMigrationService.swift    65  Sandbox to non-sandbox migration helper
+│   ├── LocalizationService.swift        59  English/Vietnamese infrastructure
 │   └── iCloudSyncService.swift          31  Disabled stub (incomplete)
 │
 ├── Views/ (8,133 LOC)
 │   ├── SnippetDetailView.swift       1,245  Detail pane with rich content editing
 │   ├── ThreeColumnView.swift         1,112  Main 3-column layout (categories/snippets/detail)
-│   ├── AddSnippetSheet.swift           731  Create/edit snippet modal with validation
+│   ├── AddSnippetSheet.swift           732  Create/edit snippet modal with validation
 │   ├── ShareImportSheet.swift          703  Import snippet sheet with progress
-│   ├── ModernSnippetSearchView.swift   613  Global search UI (Cmd+Ctrl+S)
+│   ├── ModernSnippetSearchView.swift   611  Global search UI (Cmd+Ctrl+S)
 │   ├── ShareExportSheet.swift          396  Export snippet sheet
 │   ├── InsightsView.swift              391  Usage analytics dashboard
 │   ├── ConflictResolutionView.swift    296  Import merge conflict UI
@@ -54,12 +56,12 @@ GenSnippets/
 │   ├── ContentView.swift                65  Container view
 │   └── ButtonStyles.swift               41  Custom button styling
 │
-├── Models/ (951 LOC)
+├── Models/ (990 LOC)
 │   ├── SnippetUsage.swift              287  Usage tracking model (command-based)
-│   ├── LocalSnippetsViewModel.swift    148  Snippet CRUD + batch operations
+│   ├── LocalSnippetsViewModel.swift    184  Snippet CRUD + batch operations + Base64→file migration
 │   ├── CategoryViewModel.swift         143  Category state (alphabetical sorting)
-│   ├── Snippet.swift                   136  Core snippet data model
-│   ├── ShareExportData.swift            90  Export/import data structure
+│   ├── Snippet.swift                   136  RichContentType enum, RichContentItem, dual ID fields
+│   ├── ShareExportData.swift            93  Export/import data structure
 │   ├── Category.swift                   68  Category data model
 │   └── SnippetsViewModel.swift          79  Legacy ViewModel (replaced)
 │
@@ -230,7 +232,7 @@ struct SnippetUsage: Codable {
 ```swift
 enum RichContent: Codable {
   case plainText(String)
-  case image(base64: String)
+  case image(path: String)           // File-based since v2.8.0
   case file(path: String)
   case url(String)
 }
@@ -357,6 +359,6 @@ xcodebuild -project GenSnippets.xcodeproj -scheme GenSnippets \
 
 ---
 
-**Last Updated:** February 19, 2026
+**Last Updated:** March 14, 2026
 **Maintainer:** Jay Nguyen
-**Version:** 2.8.1
+**Version:** 2.8.2

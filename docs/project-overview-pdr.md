@@ -1,10 +1,11 @@
 # GenSnippets: Project Overview & PDR
 
-**Version:** 2.8.1
+**Version:** 2.8.2
 **Platform:** macOS 11.5+ (Big Sur and later)
 **Language:** Swift 5.5+, SwiftUI
 **Status:** Active Maintenance
 **Bundle ID:** Jay8448.Gen-Snippets
+**Release Date:** March 14, 2026
 
 ---
 
@@ -203,7 +204,8 @@ GenSnippets is a macOS menu bar utility that brings professional text expansion 
 - Image storage migrated from Base64 to file-based (v2.8.0)
 - Keystroke hang fixes in iTerm2 and Ghostty (v2.8.1)
 - Terminal list sync improvements
-- Enhanced edge case handling for Ghostty
+- Clipboard race condition fix (v2.8.2)
+- Event tap timeout recovery (v2.8.2)
 
 ### Planned: v2.9+ (Backlog)
 - [ ] Unit test coverage (XCTest)
@@ -286,5 +288,5 @@ GenSnippets is a macOS menu bar utility that brings professional text expansion 
 
 ---
 
-**Last Updated:** February 19, 2026
-**Next Review:** Q3 2026 (post v2.8 release)
+**Last Updated:** March 14, 2026
+**Next Review:** Q3 2026 (post v2.9 release)

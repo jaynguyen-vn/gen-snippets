@@ -1,9 +1,9 @@
 # GenSnippets: Build & Deployment Guide
 
-**Current Version:** 2.8.1
+**Current Version:** 2.8.2
 **Target macOS:** 11.5+ (Big Sur and later)
 **Build System:** Xcode 13.0+
-**Last Updated:** February 2026
+**Last Updated:** March 14, 2026
 
 ---
 
@@ -194,7 +194,7 @@ codesign -v -v ~/Library/Developer/Xcode/DerivedData/GenSnippets-*/Build/Product
 ```bash
 #!/bin/bash
 
-VERSION="2.6.1"
+VERSION="2.8.2"
 APP_PATH=~/Library/Developer/Xcode/DerivedData/GenSnippets-*/Build/Products/Release/GenSnippets.app
 DMG_DIR="/tmp/dmg-staging-${VERSION}"
 DMG_PATH="/tmp/GenSnippets.${VERSION}.dmg"
@@ -234,7 +234,7 @@ chmod +x scripts/create-dmg.sh
 
 **Output:**
 ```
-/tmp/GenSnippets.2.6.1.dmg (15-20 MB typical)
+/tmp/GenSnippets.2.8.2.dmg (15-20 MB typical)
 ```
 
 ### Notarize DMG (Apple Security)
@@ -244,7 +244,7 @@ Required to avoid "unidentified developer" warning on first launch.
 ```bash
 #!/bin/bash
 
-DMG_PATH="/tmp/GenSnippets.2.6.1.dmg"
+DMG_PATH="/tmp/GenSnippets.2.8.2.dmg"
 APPLE_ID="your-apple-id@email.com"
 APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"  # Generate at appleid.apple.com
 TEAM_ID="XXXXXXXXXX"
@@ -282,7 +282,7 @@ xcrun notarytool info {submission-id} \
 ```bash
 #!/bin/bash
 
-VERSION="2.6.1"
+VERSION="2.8.2"
 DMG_PATH="/tmp/GenSnippets.${VERSION}.dmg"
 RELEASE_NOTES="Release notes here"
 
@@ -297,26 +297,26 @@ gh release create "v${VERSION}" \
 
 1. Go to [GitHub Releases](https://github.com/jaynguyen-vn/gen-snippets/releases)
 2. Click "Draft a new release"
-3. Tag: `v2.6.1`
-4. Title: `v2.6.1` or `GenSnippets 2.6.1`
+3. Tag: `v2.8.2`
+4. Title: `v2.8.2` or `GenSnippets 2.8.2`
 5. Description:
    ```markdown
    ## What's New
 
-   ### Features
-   - Feature 1
-   - Feature 2
-
    ### Bug Fixes
-   - Fix 1
-   - Fix 2
+   - Clipboard race condition fix
+   - Event tap timeout recovery
+
+   ### Improvements
+   - Enhanced clipboard access timing
+   - Better error recovery mechanisms
 
    ### Breaking Changes
    - (if any)
 
    ## Installation
 
-   Download `GenSnippets.2.6.1.dmg` below and drag GenSnippets to Applications folder.
+   Download `GenSnippets.2.8.2.dmg` below and drag GenSnippets to Applications folder.
 
    ## Requirements
 
@@ -334,10 +334,10 @@ Before releasing a new version:
 
 ### Pre-Release (1 week before)
 
-- [ ] Create release branch: `release/v2.7.0`
+- [ ] Create release branch: `release/v{VERSION}`
 - [ ] Update `MARKETING_VERSION` in project.pbxproj
 - [ ] Update `docs/project-roadmap.md` with version status
-- [ ] Update `docs/project-changelog.md` with changes
+- [ ] Update all `docs/` files with new version number
 - [ ] Run full test suite (when available)
 - [ ] Code review of changes
 - [ ] Update README.md version badge (if changed)
@@ -356,10 +356,11 @@ Before releasing a new version:
   - [ ] Import/export: backup and restore
   - [ ] Settings: hotkey, permissions
   - [ ] Permission handling: grant/revoke
+- [ ] Test terminal compatibility: iTerm2, Ghostty, Terminal.app
 - [ ] Test on different macOS versions (if available)
 - [ ] Test on both Apple Silicon (M1/M2) and Intel Macs
 - [ ] Performance test: 1000+ snippets
-- [ ] Browser compatibility: Discord, Chrome, Safari
+- [ ] Browser compatibility: Discord, Chrome, Safari, Firefox
 
 ### Build Release (Release day)
 
@@ -425,10 +426,10 @@ open ~/Library/Developer/Xcode/DerivedData/GenSnippets-*/Build/Products/Debug/Ge
 **Solution:**
 ```bash
 # Verify DMG integrity
-hdiutil verify /tmp/GenSnippets.2.6.1.dmg
+hdiutil verify /tmp/GenSnippets.2.8.2.dmg
 
 # Recreate DMG
-rm /tmp/GenSnippets.2.6.1.dmg
+rm /tmp/GenSnippets.2.8.2.dmg
 ./scripts/create-dmg.sh
 ```
 
@@ -465,7 +466,7 @@ For CI/CD automation:
 ```bash
 # Set before building
 export DEVELOPMENT_TEAM="ABC123XYZ"
-export MARKETING_VERSION="2.6.1"
+export MARKETING_VERSION="2.8.2"
 export CODE_SIGN_IDENTITY="Apple Development"
 export PROVISIONING_PROFILE_SPECIFIER=""
 
@@ -483,7 +484,7 @@ xcodebuild -project GenSnippets.xcodeproj \
 For automated releases via GitHub Actions:
 
 ```yaml
-# .github/workflows/release.yml (example for v2.7+)
+# .github/workflows/release.yml (example for v2.9+)
 name: Release
 
 on:
@@ -512,6 +513,28 @@ jobs:
 
 ---
 
+## Gatekeeper & Code Signing Reference
+
+### For Users: Bypass Gatekeeper on First Launch
+
+If you get "unidentified developer" warning:
+
+**GUI Method:**
+1. Right-click GenSnippets.app → Open (not double-click)
+2. Click "Open" in dialog
+3. App launches with permission granted
+
+**Terminal Method:**
+```bash
+# Remove quarantine attribute
+xattr -d com.apple.quarantine /Applications/GenSnippets.app
+
+# Then launch
+open /Applications/GenSnippets.app
+```
+
+---
+
 ## Support & Documentation
 
 - **Build Issues:** See Troubleshooting section above
@@ -521,5 +544,5 @@ jobs:
 
 ---
 
-**Last Updated:** February 2026
+**Last Updated:** March 14, 2026
 **Maintainer:** Jay Nguyen

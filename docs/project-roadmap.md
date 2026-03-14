@@ -1,7 +1,7 @@
 # GenSnippets: Development Roadmap
 
-**Current Version:** 2.8.1
-**Release Date:** 2026-02-19
+**Current Version:** 2.8.2
+**Release Date:** 2026-03-14
 **Next Planned:** v2.9 (Q3 2026)
 **Status:** Active Maintenance
 
@@ -133,7 +133,7 @@ App Sandbox disabled for improved compatibility with terminal emulators and syst
 
 ---
 
-### ✓ v2.8 - Image Storage Refactoring (2026-02)
+### ✓ v2.8 - Image Storage Refactoring (2026-02 to 2026-03)
 **Status:** Complete
 
 Migration from Base64 to file-based image storage and enhanced terminal support.
@@ -149,26 +149,29 @@ Migration from Base64 to file-based image storage and enhanced terminal support.
 - Terminal list sync with TextReplacementService
 - Debugger report improvements
 
+**Completed in v2.8.2:**
+- Clipboard race condition fix (improved clipboard access timing)
+- Event tap timeout recovery (enhanced detection and recovery)
+- Stability improvements
+
 ---
 
-## Current Release: v2.8.1
+## Current Release: v2.8.2
 
-### Released: February 19, 2026
+### Released: March 14, 2026
 
 **New Features:**
-- Ghostty terminal support with keystroke hang fixes
-- File-based image storage (replaced Base64)
-- Improved terminal compatibility
+- Enhanced clipboard race condition handling
+- Improved event tap timeout detection and recovery
 
 **Bug Fixes:**
-- Resolved keystroke hangs in iTerm2 and Ghostty
-- Fixed terminal list sync issues
-- Improved event tap recovery
+- Fixed clipboard race condition in text replacement
+- Fixed event tap timeout bugs
+- Improved system event handling stability
 
 **Improvements:**
-- App Sandbox disabled for better compatibility
-- Enhanced edge case handling
-- Better resource management
+- Better error recovery mechanisms
+- Enhanced reliability in high-load scenarios
 
 **No Breaking Changes**
 - Full backward compatibility with v2.0+
@@ -178,15 +181,17 @@ Migration from Base64 to file-based image storage and enhanced terminal support.
 
 ## Known Issues (Current)
 
-| Issue | Severity | Impact | Workaround |
+| Issue | Severity | Status | Notes |
 |---|---|---|---|
-| **File Size: SnippetDetailView** | Medium | Hard to maintain, slow edits | Use Find/Replace carefully |
-| **File Size: ThreeColumnView** | Medium | Layout + state mixed | Manual component extraction |
-| **No XCTest Coverage** | High | Untested business logic | Manual QA only |
-| **iCloud Sync Disabled** | Low | No cloud backup | Use JSON export |
-| **Legacy View Duplication** | Low | Code duplication | Keep for compat, remove v3.0 |
-| **Mixed Threading Model** | Medium | Potential race conditions | NSLock + DispatchQueue (mitigated) |
-| **Code Duplication** | Medium | Clipboard reading, TextFields | Extract to utilities (v2.7) |
+| **File Size: SnippetDetailView** | Medium | Active | Hard to maintain, target split in v2.9 |
+| **File Size: ThreeColumnView** | Medium | Active | Layout + state mixed, refactor in v2.9 |
+| **No XCTest Coverage** | High | Planned | Target >80% coverage by v2.9 |
+| **iCloud Sync Disabled** | Low | Backlog | No cloud backup, use JSON export |
+| **Legacy View Duplication** | Low | Planned | Keep for compat, remove v3.0 |
+| **Mixed Threading Model** | Medium | Resolved | NSLock + DispatchQueue (v2.8.2) |
+| **Code Duplication** | Medium | Planned | Extract to utilities in v2.9 |
+| ~~**Clipboard Race Condition**~~ | ~~Medium~~ | ✓ Fixed | ✓ Resolved in v2.8.2 |
+| ~~**Event Tap Timeout**~~ | ~~High~~ | ✓ Fixed | ✓ Resolved in v2.8.2 |
 
 ---
 
@@ -385,7 +390,7 @@ iPad/iPhone companion apps:
 
 | Version | Release Date | Status | Focus |
 |---|---|---|---|
-| **v2.8.1** | 2026-02-19 | ✓ Released | Image storage, terminal fixes |
+| **v2.8.2** | 2026-03-14 | ✓ Released | Clipboard fix, event tap timeout |
 | **v2.9.0** | 2026-06-15 (Target) | Planned | Quality, tests, refactor |
 | **v2.10.0** | Q3-Q4 2026 | Backlog | iCloud sync |
 | **v2.11.0** | 2026-2027 | Backlog | Marketplace |
@@ -398,7 +403,7 @@ iPad/iPhone companion apps:
 
 | Version | Support Status | EOL Date |
 |---|---|---|
-| **2.8.x** | Current | 2026-09-15 (end of v2.9 beta) |
+| **2.8.x** | Current | 2026-09-15 (end of v2.9 release) |
 | **2.7.x** | Legacy | 2026-06-15 |
 | **2.6.x** | Legacy | 2026-03-15 |
 | **2.0-2.5.x** | EOL | 2025-12-15 |
@@ -496,7 +501,7 @@ iPad/iPhone companion apps:
 
 ---
 
-**Last Updated:** February 19, 2026
+**Last Updated:** March 14, 2026
 **Maintained By:** Jay Nguyen
-**Current Version:** 2.8.1
+**Current Version:** 2.8.2
 **Feedback:** GitHub Issues welcome
