@@ -78,6 +78,39 @@ struct ModernSettingsView: View {
                         }
                     }
 
+                    // Updates Section
+                    VStack(alignment: .leading, spacing: DSSpacing.xl) {
+                        DSSectionHeader(title: "Updates")
+
+                        VStack(spacing: DSSpacing.lg) {
+                            SettingRow(
+                                icon: "arrow.triangle.2.circlepath",
+                                title: "Automatic Updates",
+                                description: "Check for updates automatically"
+                            ) {
+                                Toggle("", isOn: Binding(
+                                    get: { UpdaterService.shared.automaticallyChecksForUpdates },
+                                    set: { UpdaterService.shared.automaticallyChecksForUpdates = $0 }
+                                ))
+                                .toggleStyle(DSToggleStyle())
+                            }
+
+                            DSDivider()
+
+                            SettingRow(
+                                icon: "arrow.down.circle",
+                                title: "Check for Updates",
+                                description: "Download and install the latest version"
+                            ) {
+                                Button("Check Now") {
+                                    UpdaterService.shared.checkForUpdates()
+                                }
+                                .buttonStyle(DSButtonStyle(.primary, size: .small))
+                                .disabled(!UpdaterService.shared.canCheckForUpdates)
+                            }
+                        }
+                    }
+
                     // Shortcuts Section
                     VStack(alignment: .leading, spacing: DSSpacing.xl) {
                         DSSectionHeader(title: "Shortcuts")

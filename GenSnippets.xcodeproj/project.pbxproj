@@ -6,13 +6,30 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		69EFD8E52F65483700371D87 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 69A100000000000000000002 /* Sparkle */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		691C330F2D51E9B600C4F0A9 /* GenSnippets.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GenSnippets.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		69A100000000000000000003 /* Exceptions for "GenSnippets" folder in "GenSnippets" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 691C330E2D51E9B600C4F0A9 /* GenSnippets */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		691C33102D51E9B600C4F0A9 /* GenSnippets */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				69A100000000000000000003 /* Exceptions for "GenSnippets" folder in "GenSnippets" target */,
+			);
 			path = GenSnippets;
 			sourceTree = "<group>";
 		};
@@ -23,6 +40,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				69EFD8E52F65483700371D87 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +83,7 @@
 			);
 			name = GenSnippets;
 			packageProductDependencies = (
+				69A100000000000000000002 /* Sparkle */,
 			);
 			productName = GenSnippets;
 			productReference = 691C330F2D51E9B600C4F0A9 /* GenSnippets.app */;
@@ -95,6 +114,9 @@
 			);
 			mainGroup = 69C310D42D40F3E60016F219;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				69A100000000000000000001 /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 69C310DE2D40F3E60016F219 /* Products */;
 			projectDirPath = "";
@@ -144,6 +166,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = GenSnippets/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = GenSnippets;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -152,7 +175,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 11.5;
-				MARKETING_VERSION = 2.8.2;
+				MARKETING_VERSION = 2.9.1;
 				PRODUCT_BUNDLE_IDENTIFIER = "Jay8448.Gen-Snippets";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -179,6 +202,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = GenSnippets/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = GenSnippets;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -187,7 +211,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 11.5;
-				MARKETING_VERSION = 2.8.2;
+				MARKETING_VERSION = 2.9.1;
 				PRODUCT_BUNDLE_IDENTIFIER = "Jay8448.Gen-Snippets";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -344,6 +368,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		69A100000000000000000001 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		69A100000000000000000002 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 69A100000000000000000001 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 69C310D52D40F3E60016F219 /* Project object */;
 }

@@ -1,6 +1,6 @@
 # GenSnippets: Build & Deployment Guide
 
-**Current Version:** 2.8.2
+**Current Version:** 2.9.0
 **Target macOS:** 11.5+ (Big Sur and later)
 **Build System:** Xcode 13.0+
 **Last Updated:** March 14, 2026
@@ -275,56 +275,71 @@ xcrun notarytool info {submission-id} \
 
 ---
 
-## GitHub Release
+## Automated Release (Recommended)
 
-### Create Release on GitHub
+Since v2.9.0, a release script handles DMG creation, Sparkle signing, appcast generation, and GitHub release:
 
 ```bash
-#!/bin/bash
+# 1. Export app from Xcode (Product → Archive → Distribute → Direct Distribution)
+#    Save GenSnippets.app to ~/Downloads/
 
-VERSION="2.8.2"
-DMG_PATH="/tmp/GenSnippets.${VERSION}.dmg"
-RELEASE_NOTES="Release notes here"
+# 2. Run the release script
+./scripts/release.sh 2.9.0
+```
 
-# Create release with DMG attachment
+The script performs:
+1. Creates DMG with Applications symlink (via `create-dmg`)
+2. Signs DMG with EdDSA key (from macOS Keychain)
+3. Generates/updates `appcast.xml` with download URL and signature
+4. Commits and pushes `appcast.xml` to main branch
+5. Creates GitHub release with DMG attachment
+
+### Prerequisites
+- `brew install create-dmg`
+- EdDSA key pair generated (one-time: `generate_keys` from Sparkle tools)
+- `gh` CLI authenticated
+
+---
+
+## Auto-Update (Sparkle)
+
+GenSnippets uses [Sparkle 2.x](https://sparkle-project.org/) for in-app auto-updates.
+
+### How It Works
+- On launch, the app checks `appcast.xml` hosted on GitHub (raw URL)
+- If a newer version exists, Sparkle shows a dialog to the user
+- User can install the update, skip, or be reminded later
+- Updates are verified with EdDSA signature for security
+
+### Key Files
+- `appcast.xml` — Update feed (committed to repo root)
+- `GenSnippets/Info.plist` — Contains `SUFeedURL` and `SUPublicEDKey`
+- `GenSnippets/Services/UpdaterService.swift` — Sparkle wrapper
+- `scripts/release.sh` — Automated release with Sparkle signing
+
+### EdDSA Key Management
+- **Private key**: Stored in macOS Keychain (never committed to git)
+- **Public key**: Embedded in `Info.plist` (`SUPublicEDKey`)
+- **Generate keys** (one-time):
+  ```bash
+  ~/Library/Developer/Xcode/DerivedData/GenSnippets-*/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_keys
+  ```
+
+---
+
+## GitHub Release (Manual)
+
+If not using the automated script:
+
+```bash
+VERSION="2.9.0"
+DMG_PATH="$HOME/Downloads/GenSnippets.dmg"
+
 gh release create "v${VERSION}" \
   "$DMG_PATH" \
   --title "v${VERSION}" \
-  --notes "$RELEASE_NOTES"
+  --generate-notes
 ```
-
-**Manual Steps (if gh CLI not available):**
-
-1. Go to [GitHub Releases](https://github.com/jaynguyen-vn/gen-snippets/releases)
-2. Click "Draft a new release"
-3. Tag: `v2.8.2`
-4. Title: `v2.8.2` or `GenSnippets 2.8.2`
-5. Description:
-   ```markdown
-   ## What's New
-
-   ### Bug Fixes
-   - Clipboard race condition fix
-   - Event tap timeout recovery
-
-   ### Improvements
-   - Enhanced clipboard access timing
-   - Better error recovery mechanisms
-
-   ### Breaking Changes
-   - (if any)
-
-   ## Installation
-
-   Download `GenSnippets.2.8.2.dmg` below and drag GenSnippets to Applications folder.
-
-   ## Requirements
-
-   - macOS 11.5 or later
-   - Accessibility permissions
-   ```
-6. Upload `GenSnippets.2.6.1.dmg`
-7. Click "Publish release"
 
 ---
 
@@ -341,6 +356,7 @@ Before releasing a new version:
 - [ ] Run full test suite (when available)
 - [ ] Code review of changes
 - [ ] Update README.md version badge (if changed)
+- [ ] Verify Sparkle EdDSA key is in macOS Keychain
 
 ### Build & Test (3 days before)
 
@@ -366,10 +382,9 @@ Before releasing a new version:
 
 - [ ] Create Release build: `xcodebuild -configuration Release`
 - [ ] Verify code signing: `codesign -v -v GenSnippets.app`
-- [ ] Create DMG: `./scripts/create-dmg.sh`
-- [ ] Notarize DMG (if distributing outside App Store)
-- [ ] Verify DMG size and contents
-- [ ] Create GitHub release with DMG
+- [ ] Export app from Xcode to ~/Downloads/
+- [ ] Run `./scripts/release.sh X.Y.Z` (creates DMG, signs, updates appcast, creates GitHub release)
+- [ ] Verify appcast.xml was pushed to main
 
 ### Post-Release (Day after)
 

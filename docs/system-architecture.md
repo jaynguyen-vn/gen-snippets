@@ -3,7 +3,7 @@
 **Architecture Pattern:** MVVM + Service Layer with Event-Driven Communication
 **Concurrency Model:** Mixed DispatchQueue + NSLock + CGEvent system thread
 **Storage:** UserDefaults (JSON) with batch coalescing
-**Current Version:** 2.8.2
+**Current Version:** 2.9.0
 **Last Updated:** March 14, 2026
 
 ---
@@ -48,7 +48,8 @@
 │  │  ├─ GlobalHotkeyManager (Carbon keyboard)            │  │
 │  │  ├─ EdgeCaseHandler (app-specific timing)            │  │
 │  │  ├─ BrowserCompatibleTextInsertion                   │  │
-│  │  └─ LocalizationService (en/vi)                      │  │
+│  │  ├─ LocalizationService (en/vi)                      │  │
+│  │  └─ UpdaterService (Sparkle auto-update)             │  │
 │  └──────────────────────────────────────────────────────┘  │
 └────────────────────┬────────────────────────────────────────┘
                      │
@@ -584,7 +585,7 @@ TextReplacementService restarts
 
 ## Deployment Architecture
 
-### App Signing & Notarization
+### App Signing & Distribution
 
 ```
 Developer Build
@@ -592,32 +593,43 @@ Developer Build
   ├─→ Sign with Team ID
   │   (project.pbxproj configuration)
   │
-  ├─→ Create DMG with Gatekeeper compatibility
+  ├─→ Create DMG (create-dmg)
   │
-  └─→ Submit to Apple Notarization Service
-      │
-      ├─ Scan for malware
-      ├─ Verify code signing
-      ├─ Issue notarization ticket
-      │
-      └─→ Package into final DMG
-         (prevents "unidentified developer" warning)
+  ├─→ Sign DMG with EdDSA (Sparkle)
+  │
+  ├─→ Generate appcast.xml
+  │   (version, signature, download URL)
+  │
+  └─→ GitHub Release
+      (DMG attachment + appcast.xml push)
 ```
 
-### Distribution
+### Auto-Update Flow (Sparkle)
 
 ```
-~/Library/Developer/Xcode/DerivedData/GenSnippets-*/Build/Products/Release/
+App Launch
   │
-  └─→ GenSnippets.app
+  └─→ UpdaterService (SPUStandardUpdaterController)
       │
-      ├─→ Contents/
-      │   ├─ MacOS/GenSnippets (executable)
-      │   ├─ Resources/ (assets, localization)
-      │   └─ _CodeSignature/
+      ├─→ Fetch appcast.xml from GitHub
+      │   (raw.githubusercontent.com)
       │
-      └─→ Code Sign Identity: "Apple Development"
-          Team ID: (from environment)
+      ├─→ Compare MARKETING_VERSION vs appcast version
+      │
+      ├─ NO UPDATE → Silent, no action
+      │
+      └─ UPDATE AVAILABLE
+          │
+          └─→ Show update dialog (Sparkle UI)
+              │
+              ├─ "Install Update" → Download DMG
+              │   → Verify EdDSA signature
+              │   → Extract & replace app
+              │   → Restart
+              │
+              ├─ "Remind Me Later" → Check again later
+              │
+              └─ "Skip This Version" → Ignore this version
 ```
 
 ---
@@ -631,7 +643,12 @@ Developer Build
 5. ✓ **Clipboard Race Condition Fix (v2.8.2)** - Improved clipboard access timing and error recovery
 6. ✓ **Event Tap Timeout Recovery (v2.8.2)** - Enhanced event tap timeout detection and recovery
 
-## Future Architectural Improvements (v2.9+)
+## Recent Architectural Changes (v2.9.0)
+
+7. ✓ **Sparkle Auto-Update (v2.9.0)** - In-app update via Sparkle 2.x with EdDSA signing
+8. ✓ **Release Script (v2.9.0)** - Automated DMG creation, signing, appcast generation, GitHub release
+
+## Future Architectural Improvements (v3.0+)
 
 1. **Unit Test Suite** - Add XCTest for core services (Trie, keyword replacement)
 2. **iCloud Sync Completion** - Complete partial implementation
@@ -645,4 +662,4 @@ Developer Build
 
 **Last Updated:** March 14, 2026
 **Maintainer:** Jay Nguyen
-**Current Version:** 2.8.2
+**Current Version:** 2.9.0

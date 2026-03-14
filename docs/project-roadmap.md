@@ -1,6 +1,6 @@
 # GenSnippets: Development Roadmap
 
-**Current Version:** 2.8.2
+**Current Version:** 2.9.0
 **Release Date:** 2026-03-14
 **Next Planned:** v2.9 (Q3 2026)
 **Status:** Active Maintenance
@@ -156,22 +156,31 @@ Migration from Base64 to file-based image storage and enhanced terminal support.
 
 ---
 
-## Current Release: v2.8.2
+### ✓ v2.9 - Auto-Update (2026-03)
+**Status:** Complete
+
+In-app auto-update via Sparkle framework and automated release tooling.
+
+**Completed in v2.9.0:**
+- Sparkle 2.x integration (SPM) for in-app auto-updates
+- EdDSA key-based update signature verification
+- "Check for Updates" menu item and Settings toggle
+- `appcast.xml` feed hosted on GitHub
+- `scripts/release.sh` automated release pipeline
+- UpdaterService singleton wrapping SPUStandardUpdaterController
+
+---
+
+## Current Release: v2.9.0
 
 ### Released: March 14, 2026
 
 **New Features:**
-- Enhanced clipboard race condition handling
-- Improved event tap timeout detection and recovery
-
-**Bug Fixes:**
-- Fixed clipboard race condition in text replacement
-- Fixed event tap timeout bugs
-- Improved system event handling stability
-
-**Improvements:**
-- Better error recovery mechanisms
-- Enhanced reliability in high-load scenarios
+- In-app auto-update via Sparkle 2.x framework
+- "Check for Updates" in app menu and Settings
+- Automatic update checks on launch
+- EdDSA signature verification for secure updates
+- Automated release script (`scripts/release.sh`)
 
 **No Breaking Changes**
 - Full backward compatibility with v2.0+
@@ -195,7 +204,7 @@ Migration from Base64 to file-based image storage and enhanced terminal support.
 
 ---
 
-## Planned: v2.9 (Q3 2026)
+## Planned: v2.10 (Q3 2026)
 
 ### Focus: Code Quality & Test Coverage
 
@@ -391,8 +400,9 @@ iPad/iPhone companion apps:
 | Version | Release Date | Status | Focus |
 |---|---|---|---|
 | **v2.8.2** | 2026-03-14 | ✓ Released | Clipboard fix, event tap timeout |
-| **v2.9.0** | 2026-06-15 (Target) | Planned | Quality, tests, refactor |
-| **v2.10.0** | Q3-Q4 2026 | Backlog | iCloud sync |
+| **v2.9.0** | 2026-03-14 | ✓ Released | Sparkle auto-update |
+| **v2.10.0** | 2026-06-15 (Target) | Planned | Quality, tests, refactor |
+| **v2.11.0** | Q3-Q4 2026 | Backlog | iCloud sync |
 | **v2.11.0** | 2026-2027 | Backlog | Marketplace |
 | **v3.0.0** | 2027 | Backlog | Major cleanup, deprecations |
 | **v3.1+** | 2027+ | Backlog | Mobile companion |
@@ -416,20 +426,20 @@ iPad/iPhone companion apps:
 
 ## Key Decisions & Rationale
 
-### Decision: No Third-Party Dependencies
+### Decision: Sparkle for Auto-Update (v2.9.0)
 
-**Status:** ✓ Enforced in v2.0+
+**Status:** ✓ Implemented
 
 **Rationale:**
-- Faster app startup
-- Smaller app bundle
-- Zero dependency updates/security issues
-- Better macOS integration with Apple frameworks
+- De facto standard for macOS auto-update outside App Store
+- EdDSA signing ensures update integrity without Apple Developer ID
+- Users get seamless updates without manual downloads
+- Appcast hosted on GitHub for zero infrastructure cost
 
 **Impact:**
-- More code written in-house
-- No npm/CocoaPods management
-- Full control over functionality
+- First third-party dependency (Sparkle via SPM)
+- EdDSA private key stored in macOS Keychain
+- Release process now includes appcast generation
 
 ### Decision: Local-Only Storage (No Cloud by Default)
 
@@ -503,5 +513,5 @@ iPad/iPhone companion apps:
 
 **Last Updated:** March 14, 2026
 **Maintained By:** Jay Nguyen
-**Current Version:** 2.8.2
+**Current Version:** 2.9.0
 **Feedback:** GitHub Issues welcome

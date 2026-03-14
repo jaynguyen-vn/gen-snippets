@@ -1,18 +1,22 @@
 import SwiftUI
 import ServiceManagement
 import AppKit
+import Sparkle
 
 @main
 struct GenSnippetsApp: App {
     @State private var isQuitting = false
-    
+
     // For macOS 11 compatibility
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    
+
+    // Sparkle auto-updater
+    @ObservedObject private var updaterService = UpdaterService.shared
+
     init() {
         // Initialize app
     }
-    
+
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -24,6 +28,13 @@ struct GenSnippetsApp: App {
         .windowStyle(HiddenTitleBarWindowStyle())
         .commands {
             CommandGroup(after: .appInfo) {
+                Button("Check for Updates...") {
+                    updaterService.checkForUpdates()
+                }
+                .disabled(!updaterService.canCheckForUpdates)
+
+                Divider()
+
                 Button("Settings...") {
                     NotificationCenter.default.post(name: NSNotification.Name("ShowSettings"), object: nil)
                 }

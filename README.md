@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Platform-macOS%2011.5%2B-blue" alt="macOS 11.5+">
   <img src="https://img.shields.io/badge/Swift-5.5%2B-orange" alt="Swift 5.5+">
   <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT License">
-  <img src="https://img.shields.io/badge/Version-2.8.2-purple" alt="Version 2.8.2">
+  <img src="https://img.shields.io/badge/Version-2.9.0-purple" alt="Version 2.9.0">
 </div>
 
 ## Overview
@@ -38,6 +38,7 @@ GenSnippets is a lightweight macOS application for system-wide text expansion. I
 - **Optimized Storage** - Caching layer with batch operations for performance
 
 ### Advanced Features
+- **Auto-Update** - Built-in Sparkle integration checks for updates automatically
 - **Usage Tracking** - Command-based usage tracking for accurate statistics
 - **Insights Dashboard** - Monitor snippet usage patterns and analytics
 - **Multi-language Support** - Localization infrastructure ready for expansion
@@ -170,6 +171,8 @@ Categories help you organize related snippets:
 
 ### Settings Options
 
+- **Automatic Updates** - Enable/disable automatic update checks
+- **Check for Updates** - Manually check for new versions
 - **Menu Bar Icon** - Show/hide the menu bar icon with snippet count
 - **Dock Icon** - Show/hide the dock icon
 - **Launch at Login** - Automatically start GenSnippets when you log in
@@ -191,7 +194,7 @@ Local data is stored in:
 - **UI Framework**: SwiftUI
 - **Platform**: macOS 11.5+
 - **Storage**: UserDefaults (local only, JSON format)
-- **Dependencies**: Zero third-party (Apple frameworks only)
+- **Dependencies**: [Sparkle 2.x](https://sparkle-project.org/) for auto-updates
 
 ### MVVM + Service Layer Design
 

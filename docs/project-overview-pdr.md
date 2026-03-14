@@ -1,6 +1,6 @@
 # GenSnippets: Project Overview & PDR
 
-**Version:** 2.8.2
+**Version:** 2.9.0
 **Platform:** macOS 11.5+ (Big Sur and later)
 **Language:** Swift 5.5+, SwiftUI
 **Status:** Active Maintenance
@@ -112,11 +112,11 @@ GenSnippets is a macOS menu bar utility that brings professional text expansion 
 - **Network:** None required (offline-only)
 
 ### Dependencies
+- [Sparkle 2.x](https://sparkle-project.org/) (auto-update, SPM)
 - SwiftUI (built-in)
 - Accessibility framework (built-in)
 - Carbon framework (global hotkeys)
 - Foundation (UserDefaults, NotificationCenter)
-- Zero third-party dependencies
 
 ### Permissions Required
 1. **Accessibility** - System-wide keyboard event monitoring
@@ -207,7 +207,13 @@ GenSnippets is a macOS menu bar utility that brings professional text expansion 
 - Clipboard race condition fix (v2.8.2)
 - Event tap timeout recovery (v2.8.2)
 
-### Planned: v2.9+ (Backlog)
+### ✓ v2.9 - Auto-Update
+- Sparkle 2.x integration for in-app auto-updates (v2.9.0)
+- EdDSA signature verification for secure updates
+- Automated release script (`scripts/release.sh`)
+- "Check for Updates" menu item and Settings UI
+
+### Planned: v2.10+ (Backlog)
 - [ ] Unit test coverage (XCTest)
 - [ ] iCloud sync completion
 - [ ] Cloud backup option
@@ -253,11 +259,9 @@ GenSnippets is a macOS menu bar utility that brings professional text expansion 
 ## Release Process
 
 1. **Version Bump:** Update `MARKETING_VERSION` in `project.pbxproj`
-2. **Changelog:** Update `docs/project-changelog.md` and `docs/development-roadmap.md`
-3. **Build:** `xcodebuild -configuration Release`
-4. **DMG:** Create installer via `hdiutil`
-5. **GitHub Release:** Create GitHub release with DMG attachment and release notes
-6. **Notarization:** Submit to Apple for notarization (prevents "unidentified developer" warning)
+2. **Changelog:** Update docs with new version
+3. **Export:** Archive and export app from Xcode to `~/Downloads/`
+4. **Release:** Run `./scripts/release.sh X.Y.Z` (creates DMG, signs with EdDSA, generates appcast, creates GitHub release)
 
 ---
 

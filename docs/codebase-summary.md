@@ -4,7 +4,7 @@
 **Architecture:** MVVM + Service Layer with NotificationCenter events
 **Primary Framework:** SwiftUI + Accessibility framework
 **Deployment Target:** macOS 11.5+
-**Current Version:** 2.8.2
+**Current Version:** 2.9.0
 **Last Updated:** March 14, 2026
 
 ---
@@ -31,6 +31,7 @@ GenSnippets/
 │   ├── GlobalHotkeyManager.swift       158  Carbon-based hotkey registration
 │   ├── SandboxMigrationService.swift    65  Sandbox to non-sandbox migration helper
 │   ├── LocalizationService.swift        59  English/Vietnamese infrastructure
+│   ├── UpdaterService.swift             35  Sparkle auto-update wrapper (singleton)
 │   └── iCloudSyncService.swift          31  Disabled stub (incomplete)
 │
 ├── Views/ (8,133 LOC)
@@ -328,7 +329,9 @@ Text("key_name".localized)  // Uses String+Localization extension
 
 ## Dependencies
 
-**Zero third-party dependencies.** Built entirely with Apple frameworks:
+- **[Sparkle 2.x](https://sparkle-project.org/)** — In-app auto-update framework (SPM)
+
+All other dependencies are Apple frameworks:
 - SwiftUI (UI)
 - Foundation (UserDefaults, NotificationCenter, DateFormatter)
 - Accessibility (accessibility framework)
