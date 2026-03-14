@@ -1,0 +1,14 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>GenSnippets</title>
+        <item>
+            <title>2.9.0</title>
+            <pubDate>Sat, 14 Mar 2026 14:53:48 +0700</pubDate>
+            <sparkle:version>1</sparkle:version>
+            <sparkle:shortVersionString>2.9.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>11.5</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/jaynguyen-vn/gen-snippets/releases/download/v2.9.0/GenSnippets.dmg" length="3183818" type="application/octet-stream" sparkle:edSignature="0ZbE7Bzy8YohpRV6TTTMHjBMcg+eIcRhZUcmHigmQuTfi2r/NZvgsf6VK7IKV+Pb01hkLuBPu42SWUf7JYVICw=="/>
+        </item>
+    </channel>
+</rss>
