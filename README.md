@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Platform-macOS%2011.5%2B-blue" alt="macOS 11.5+">
   <img src="https://img.shields.io/badge/Swift-5.5%2B-orange" alt="Swift 5.5+">
   <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT License">
-  <img src="https://img.shields.io/badge/Version-2.9.0-purple" alt="Version 2.9.0">
+  <img src="https://img.shields.io/badge/Version-2.9.5-purple" alt="Version 2.9.5">
 </div>
 
 ## Overview

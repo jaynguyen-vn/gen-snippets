@@ -4,7 +4,7 @@
 **Architecture Pattern:** MVVM + Service Layer
 **Code Style:** Apple Swift API Design Guidelines
 **Last Reviewed:** March 14, 2026
-**Current Version:** 2.8.2
+**Current Version:** 2.9.5
 **Sandbox Status:** Disabled (since v2.7.1)
 
 ---

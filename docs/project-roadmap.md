@@ -1,6 +1,6 @@
 # GenSnippets: Development Roadmap
 
-**Current Version:** 2.9.0
+**Current Version:** 2.9.5
 **Release Date:** 2026-03-14
 **Next Planned:** v2.9 (Q3 2026)
 **Status:** Active Maintenance
@@ -171,7 +171,7 @@ In-app auto-update via Sparkle framework and automated release tooling.
 
 ---
 
-## Current Release: v2.9.0
+## Current Release: v2.9.5
 
 ### Released: March 14, 2026
 
@@ -179,6 +179,7 @@ In-app auto-update via Sparkle framework and automated release tooling.
 - In-app auto-update via Sparkle 2.x framework
 - "Check for Updates" in app menu and Settings
 - Automatic update checks on launch
+- Release notes displayed in update dialog
 - EdDSA signature verification for secure updates
 - Automated release script (`scripts/release.sh`)
 
@@ -400,7 +401,7 @@ iPad/iPhone companion apps:
 | Version | Release Date | Status | Focus |
 |---|---|---|---|
 | **v2.8.2** | 2026-03-14 | ✓ Released | Clipboard fix, event tap timeout |
-| **v2.9.0** | 2026-03-14 | ✓ Released | Sparkle auto-update |
+| **v2.9.5** | 2026-03-14 | ✓ Released | Sparkle auto-update, release notes |
 | **v2.10.0** | 2026-06-15 (Target) | Planned | Quality, tests, refactor |
 | **v2.11.0** | Q3-Q4 2026 | Backlog | iCloud sync |
 | **v2.11.0** | 2026-2027 | Backlog | Marketplace |
@@ -513,5 +514,5 @@ iPad/iPhone companion apps:
 
 **Last Updated:** March 14, 2026
 **Maintained By:** Jay Nguyen
-**Current Version:** 2.9.0
+**Current Version:** 2.9.5
 **Feedback:** GitHub Issues welcome

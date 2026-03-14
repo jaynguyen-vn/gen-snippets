@@ -4,7 +4,7 @@
 **Architecture:** MVVM + Service Layer with NotificationCenter events
 **Primary Framework:** SwiftUI + Accessibility framework
 **Deployment Target:** macOS 11.5+
-**Current Version:** 2.9.0
+**Current Version:** 2.9.5
 **Last Updated:** March 14, 2026
 
 ---
@@ -364,4 +364,4 @@ xcodebuild -project GenSnippets.xcodeproj -scheme GenSnippets \
 
 **Last Updated:** March 14, 2026
 **Maintainer:** Jay Nguyen
-**Version:** 2.8.2
+**Version:** 2.9.5

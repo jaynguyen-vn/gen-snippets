@@ -1,6 +1,6 @@
 # GenSnippets: Build & Deployment Guide
 
-**Current Version:** 2.9.0
+**Current Version:** 2.9.5
 **Target macOS:** 11.5+ (Big Sur and later)
 **Build System:** Xcode 13.0+
 **Last Updated:** March 14, 2026
