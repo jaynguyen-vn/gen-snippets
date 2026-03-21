@@ -95,22 +95,49 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
     }
     
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Check accessibility permissions first
-        if !AccessibilityPermissionManager.shared.isAccessibilityEnabled() {
-            AccessibilityPermissionManager.shared.showAccessibilityPermissionAlert()
+        // Check accessibility permissions — suppress alert in background mode to avoid
+        // a random dialog appearing during boot
+        if !isRunningInBackground {
+            if !AccessibilityPermissionManager.shared.isAccessibilityEnabled() {
+                AccessibilityPermissionManager.shared.showAccessibilityPermissionAlert()
+            }
         }
 
         // Check if status bar icon should be shown (default to true if not set)
+        // IMPORTANT: Force show menu bar icon when running in background mode,
+        // otherwise the app becomes a ghost process with no way to access it
         let shouldShowStatusBar = UserDefaults.standard.object(forKey: "ShowStatusBarIcon") as? Bool ?? true
-        print("[AppDelegate] Status bar icon preference on launch: \(shouldShowStatusBar)")
-        if shouldShowStatusBar {
+        print("[AppDelegate] Status bar icon preference on launch: \(shouldShowStatusBar), background mode: \(isRunningInBackground)")
+        if shouldShowStatusBar || isRunningInBackground {
             setupMenuBarItem()
         }
         setupDockMenu()
 
+        // If in background mode, hide any windows immediately (before the 0.5s delay)
+        // to prevent a brief window flash during boot
+        if isRunningInBackground {
+            for window in NSApplication.shared.windows {
+                if !(window is NSPanel) && window.className != "NSStatusBarWindow" {
+                    window.orderOut(nil)
+                }
+            }
+        }
+
         // Tag and capture the main window for reliable restoration
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            self?.captureMainWindow()
+            guard let self = self else { return }
+            self.captureMainWindow()
+
+            // Safety net: hide any windows that WindowGroup may have created after our
+            // immediate hide above (SwiftUI can defer window creation)
+            if self.isRunningInBackground {
+                for window in NSApplication.shared.windows {
+                    if !(window is NSPanel) && window.className != "NSStatusBarWindow" {
+                        window.orderOut(nil)
+                    }
+                }
+                NSLog("GenSnippets: Hidden windows for background mode")
+            }
         }
         
         // Always start monitoring for text commands
@@ -528,6 +555,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
     }
 
     func applicationWillFinishLaunching(_ notification: Notification) {
+        // Detect login item launch → start in background mode immediately
+        // This must happen BEFORE WindowGroup creates its window
+        if shouldStartInBackground() {
+            isRunningInBackground = true
+            NSApplication.shared.setActivationPolicy(.accessory)
+            NSLog("GenSnippets: Detected login item launch, starting in background mode")
+        }
+
         // Get the main menu
         if let mainMenu = NSApp.mainMenu {
             // Find the application menu (first menu)
@@ -539,6 +574,57 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
                 }
             }
         }
+    }
+
+    /// Detect if the app was launched as a login item (system startup) rather than by the user
+    private func shouldStartInBackground() -> Bool {
+        // Only auto-background if Start at Login is configured
+        if #available(macOS 13.0, *) {
+            guard SMAppService.mainApp.status == .enabled else { return false }
+        } else {
+            return false
+        }
+
+        // Method 1: Apple Event descriptor — macOS sets 'logi' when launched as login item
+        if let event = NSAppleEventManager.shared().currentAppleEvent,
+           let descriptor = event.paramDescriptor(forKeyword: keyAEPropData) {
+            let launchedAsLoginItem = descriptor.enumCodeValue == 0x6C6F6769 // 'logi'
+            if launchedAsLoginItem {
+                NSLog("GenSnippets: Apple Event confirms login item launch")
+                markBackgroundLaunchThisBoot()
+                return true
+            }
+        }
+
+        // Method 2: System uptime heuristic — if booted < 2 min ago, likely a login launch
+        // Guard: skip if we already launched in background this boot cycle
+        // (prevents false positive when user force-quits and reopens manually within 2 min)
+        let uptime = ProcessInfo.processInfo.systemUptime
+        if uptime < 120 {
+            if hasAlreadyLaunchedInBackgroundThisBoot() {
+                NSLog("GenSnippets: Uptime %.0fs < 120s but already background-launched this boot, skipping", uptime)
+                return false
+            }
+            NSLog("GenSnippets: System uptime %.0fs < 120s, assuming login item launch", uptime)
+            markBackgroundLaunchThisBoot()
+            return true
+        }
+
+        return false
+    }
+
+    /// Track boot-cycle background launches to prevent false positives on re-launch
+    private func markBackgroundLaunchThisBoot() {
+        let bootTime = Date().timeIntervalSince1970 - ProcessInfo.processInfo.systemUptime
+        UserDefaults.standard.set(bootTime, forKey: "LastBackgroundLaunchBootTime")
+    }
+
+    private func hasAlreadyLaunchedInBackgroundThisBoot() -> Bool {
+        let savedBootTime = UserDefaults.standard.double(forKey: "LastBackgroundLaunchBootTime")
+        guard savedBootTime > 0 else { return false }
+        let currentBootTime = Date().timeIntervalSince1970 - ProcessInfo.processInfo.systemUptime
+        // Same boot cycle if boot times match within 5 seconds tolerance
+        return abs(savedBootTime - currentBootTime) < 5
     }
     
     private func checkLoginItemStatus() {
