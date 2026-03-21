@@ -3,6 +3,15 @@
     <channel>
         <title>GenSnippets</title>
         <item>
+            <title>2.9.7</title>
+            <pubDate>Sat, 21 Mar 2026 16:11:30 +0700</pubDate>
+            <sparkle:version>9</sparkle:version>
+            <sparkle:shortVersionString>2.9.7</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>11.5</sparkle:minimumSystemVersion>
+            <description><![CDATA[<ul><li>Fix text replacement not working after boot — snippets now load immediately in background mode</li><li>Fix login item startup — app correctly starts in background mode when launched at boot</li><li>Prevent ghost app state when menu bar icon is hidden during background launch</li></ul>]]></description>
+            <enclosure url="https://github.com/jaynguyen-vn/gen-snippets/releases/download/v2.9.7/GenSnippets.2.9.7.dmg" length="2790531" type="application/octet-stream" sparkle:edSignature="cUu4yDfjFNxT2T20nKmtrPJtdyKZ4vokDzDjGOCuhmo1zg/JEQjarS9ABQb3uTMmevucWMTW5dJJJh3CMGc1Ag=="/>
+        </item>
+        <item>
             <title>2.9.6</title>
             <pubDate>Sat, 21 Mar 2026 15:58:08 +0700</pubDate>
             <sparkle:version>8</sparkle:version>
