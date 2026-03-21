@@ -142,6 +142,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
         
         // Always start monitoring for text commands
         TextReplacementService.shared.startMonitoring()
+
+        // Load snippets directly from storage so text replacement works immediately,
+        // even when SwiftUI views haven't been initialized (e.g. background mode)
+        let snippets = LocalStorageService.shared.loadSnippets()
+        TextReplacementService.shared.updateSnippets(snippets)
+        NSLog("GenSnippets: Loaded %d snippets for text replacement", snippets.count)
         
         // Setup global hotkey for snippet search
         GlobalHotkeyManager.shared.setupGlobalHotkey()
