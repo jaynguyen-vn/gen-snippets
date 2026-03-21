@@ -3,6 +3,15 @@
     <channel>
         <title>GenSnippets</title>
         <item>
+            <title>2.9.6</title>
+            <pubDate>Sat, 21 Mar 2026 15:58:08 +0700</pubDate>
+            <sparkle:version>8</sparkle:version>
+            <sparkle:shortVersionString>2.9.6</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>11.5</sparkle:minimumSystemVersion>
+            <description><![CDATA[<ul><li>Fix login item startup — app now correctly starts in background mode when launched at boot</li><li>Prevent ghost app state when menu bar icon is hidden during background launch</li><li>Suppress accessibility permission alert during system startup</li></ul>]]></description>
+            <enclosure url="https://github.com/jaynguyen-vn/gen-snippets/releases/download/v2.9.6/GenSnippets.2.9.6.dmg" length="3187052" type="application/octet-stream" sparkle:edSignature="xiTrENX3Mmmzggi4cupFPE2yR7LdUNXQtzc8bsjMbtYrNNhuJXIzJEwCQjWFJEBnwRmbprmwYNnWW4tsu/B+Bg=="/>
+        </item>
+        <item>
             <title>2.9.5</title>
             <pubDate>Sat, 14 Mar 2026 15:51:45 +0700</pubDate>
             <sparkle:version>7</sparkle:version>
