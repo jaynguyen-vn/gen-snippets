@@ -278,15 +278,28 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
     }
 
     @objc private func showDockIcon() {
+        let wasBackgroundSinceLaunch = isRunningInBackground
         isRunningInBackground = false
         NSApplication.shared.setActivationPolicy(.regular)
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+        // Allow macOS time to fully process the activation policy change
+        // (0.15s can be too short during boot when system is under load)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
             guard let self = self else { return }
             // Abort if user switched back to background during the delay
             guard !self.isRunningInBackground else { return }
 
-            // Priority 1: Use our strongly-retained main window
+            // If app has been in background since launch, the WindowGroup-created
+            // window may be a zombie (created in .accessory mode before SwiftUI
+            // fully rendered). Discard it and create a fresh window.
+            if wasBackgroundSinceLaunch {
+                NSLog("GenSnippets: First open after background launch, creating fresh window")
+                self.mainWindow = nil
+                self.createAndShowMainWindow()
+                return
+            }
+
+            // Normal restore (user chose "Run in Background" then reopened)
             if let window = self.mainWindow {
                 window.makeKeyAndOrderFront(nil)
                 NSApplication.shared.activate(ignoringOtherApps: true)
@@ -294,7 +307,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
                 return
             }
 
-            // Priority 2: Find by identifier
             if let window = self.findMainWindow() {
                 window.makeKeyAndOrderFront(nil)
                 NSApplication.shared.activate(ignoringOtherApps: true)
@@ -303,7 +315,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
                 return
             }
 
-            // Priority 3: Create new window as last resort
             NSLog("GenSnippets: No window found, creating new one")
             self.createAndShowMainWindow()
         }
