@@ -1,9 +1,9 @@
 # GenSnippets: Build & Deployment Guide
 
-**Current Version:** 2.9.5
+**Current Version:** 2.9.8 (build 10)
 **Target macOS:** 11.5+ (Big Sur and later)
 **Build System:** Xcode 13.0+
-**Last Updated:** March 14, 2026
+**Last Updated:** March 21, 2026
 
 ---
 
@@ -559,5 +559,5 @@ open /Applications/GenSnippets.app
 
 ---
 
-**Last Updated:** March 14, 2026
+**Last Updated:** March 21, 2026
 **Maintainer:** Jay Nguyen

@@ -1,8 +1,8 @@
 # GenSnippets: Development Roadmap
 
-**Current Version:** 2.9.5
-**Release Date:** 2026-03-14
-**Next Planned:** v2.9 (Q3 2026)
+**Current Version:** 2.9.8
+**Release Date:** 2026-03-21
+**Next Planned:** v2.10 (Q2-Q3 2026)
 **Status:** Active Maintenance
 
 ---
@@ -156,10 +156,10 @@ Migration from Base64 to file-based image storage and enhanced terminal support.
 
 ---
 
-### ✓ v2.9 - Auto-Update (2026-03)
+### ✓ v2.9 - Auto-Update & Background Mode (2026-03)
 **Status:** Complete
 
-In-app auto-update via Sparkle framework and automated release tooling.
+In-app auto-update via Sparkle framework, automated release tooling, and background mode support.
 
 **Completed in v2.9.0:**
 - Sparkle 2.x integration (SPM) for in-app auto-updates
@@ -169,19 +169,35 @@ In-app auto-update via Sparkle framework and automated release tooling.
 - `scripts/release.sh` automated release pipeline
 - UpdaterService singleton wrapping SPUStandardUpdaterController
 
+**Completed in v2.9.6:**
+- Auto-enter background mode when launched as login item
+- Improved background mode support for menu bar app
+
+**Completed in v2.9.7:**
+- Load snippets on startup so text replacement works in background mode
+- Enhanced snippet loading during app initialization
+
+**Completed in v2.9.8:**
+- Create fresh window when opening app after login-item background launch
+- Fixed window management for background mode transitions
+
 ---
 
-## Current Release: v2.9.5
+## Current Release: v2.9.8
 
-### Released: March 14, 2026
+### Released: March 21, 2026
 
-**New Features:**
-- In-app auto-update via Sparkle 2.x framework
-- "Check for Updates" in app menu and Settings
-- Automatic update checks on launch
-- Release notes displayed in update dialog
-- EdDSA signature verification for secure updates
-- Automated release script (`scripts/release.sh`)
+**v2.9.8 Changes (build 10):**
+- Create fresh window when opening app after login-item background launch
+- Improved window management for background mode transitions
+
+**v2.9.7 Changes (build 9):**
+- Load snippets on startup so text replacement works in background mode
+- Enhanced snippet loading infrastructure
+
+**v2.9.6 Changes (build 8):**
+- Auto-enter background mode when launched as login item
+- Background mode stability improvements
 
 **No Breaking Changes**
 - Full backward compatibility with v2.0+
@@ -401,10 +417,13 @@ iPad/iPhone companion apps:
 | Version | Release Date | Status | Focus |
 |---|---|---|---|
 | **v2.8.2** | 2026-03-14 | ✓ Released | Clipboard fix, event tap timeout |
-| **v2.9.5** | 2026-03-14 | ✓ Released | Sparkle auto-update, release notes |
+| **v2.9.0** | 2026-03-14 | ✓ Released | Sparkle auto-update |
+| **v2.9.6** | 2026-03-19 | ✓ Released | Login item background mode |
+| **v2.9.7** | 2026-03-20 | ✓ Released | Startup snippet loading |
+| **v2.9.8** | 2026-03-21 | ✓ Released | Window management, background mode |
 | **v2.10.0** | 2026-06-15 (Target) | Planned | Quality, tests, refactor |
 | **v2.11.0** | Q3-Q4 2026 | Backlog | iCloud sync |
-| **v2.11.0** | 2026-2027 | Backlog | Marketplace |
+| **v2.12.0** | 2026-2027 | Backlog | Marketplace |
 | **v3.0.0** | 2027 | Backlog | Major cleanup, deprecations |
 | **v3.1+** | 2027+ | Backlog | Mobile companion |
 
@@ -512,7 +531,7 @@ iPad/iPhone companion apps:
 
 ---
 
-**Last Updated:** March 14, 2026
+**Last Updated:** March 21, 2026
 **Maintained By:** Jay Nguyen
-**Current Version:** 2.9.5
+**Current Version:** 2.9.8 (build 10)
 **Feedback:** GitHub Issues welcome

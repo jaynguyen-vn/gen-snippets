@@ -1,11 +1,11 @@
 # GenSnippets: Codebase Summary
 
-**Total Codebase:** ~15,884 LOC across 48 Swift files
+**Total Codebase:** ~16,063 LOC across 48 Swift files
 **Architecture:** MVVM + Service Layer with NotificationCenter events
 **Primary Framework:** SwiftUI + Accessibility framework
 **Deployment Target:** macOS 11.5+
-**Current Version:** 2.9.5
-**Last Updated:** March 14, 2026
+**Current Version:** 2.9.8
+**Last Updated:** March 21, 2026
 
 ---
 
@@ -362,6 +362,6 @@ xcodebuild -project GenSnippets.xcodeproj -scheme GenSnippets \
 
 ---
 
-**Last Updated:** March 14, 2026
+**Last Updated:** March 21, 2026
 **Maintainer:** Jay Nguyen
-**Version:** 2.9.5
+**Version:** 2.9.8

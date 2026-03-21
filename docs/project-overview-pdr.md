@@ -1,11 +1,11 @@
 # GenSnippets: Project Overview & PDR
 
-**Version:** 2.9.0
+**Version:** 2.9.8
 **Platform:** macOS 11.5+ (Big Sur and later)
 **Language:** Swift 5.5+, SwiftUI
 **Status:** Active Maintenance
 **Bundle ID:** Jay8448.Gen-Snippets
-**Release Date:** March 14, 2026
+**Release Date:** March 21, 2026
 
 ---
 
@@ -207,11 +207,14 @@ GenSnippets is a macOS menu bar utility that brings professional text expansion 
 - Clipboard race condition fix (v2.8.2)
 - Event tap timeout recovery (v2.8.2)
 
-### ✓ v2.9 - Auto-Update
+### ✓ v2.9 - Auto-Update & Background Mode
 - Sparkle 2.x integration for in-app auto-updates (v2.9.0)
 - EdDSA signature verification for secure updates
 - Automated release script (`scripts/release.sh`)
 - "Check for Updates" menu item and Settings UI
+- Auto-enter background mode when launched as login item (v2.9.6)
+- Load snippets on startup for background mode text replacement (v2.9.7)
+- Fresh window management after login-item background launch (v2.9.8)
 
 ### Planned: v2.10+ (Backlog)
 - [ ] Unit test coverage (XCTest)
@@ -292,5 +295,5 @@ GenSnippets is a macOS menu bar utility that brings professional text expansion 
 
 ---
 
-**Last Updated:** March 14, 2026
+**Last Updated:** March 21, 2026
 **Next Review:** Q3 2026 (post v2.9 release)

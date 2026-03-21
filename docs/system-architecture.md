@@ -3,8 +3,8 @@
 **Architecture Pattern:** MVVM + Service Layer with Event-Driven Communication
 **Concurrency Model:** Mixed DispatchQueue + NSLock + CGEvent system thread
 **Storage:** UserDefaults (JSON) with batch coalescing
-**Current Version:** 2.9.0
-**Last Updated:** March 14, 2026
+**Current Version:** 2.9.8
+**Last Updated:** March 21, 2026
 
 ---
 
@@ -643,10 +643,13 @@ App Launch
 5. ✓ **Clipboard Race Condition Fix (v2.8.2)** - Improved clipboard access timing and error recovery
 6. ✓ **Event Tap Timeout Recovery (v2.8.2)** - Enhanced event tap timeout detection and recovery
 
-## Recent Architectural Changes (v2.9.0)
+## Recent Architectural Changes (v2.9.0-v2.9.8)
 
 7. ✓ **Sparkle Auto-Update (v2.9.0)** - In-app update via Sparkle 2.x with EdDSA signing
 8. ✓ **Release Script (v2.9.0)** - Automated DMG creation, signing, appcast generation, GitHub release
+9. ✓ **Background Mode (v2.9.6)** - Auto-enter background mode when launched as login item
+10. ✓ **Startup Snippet Loading (v2.9.7)** - Load snippets on startup for background mode text replacement
+11. ✓ **Window Management (v2.9.8)** - Create fresh window when opening app after login-item background launch
 
 ## Future Architectural Improvements (v3.0+)
 
@@ -660,6 +663,6 @@ App Launch
 
 ---
 
-**Last Updated:** March 14, 2026
+**Last Updated:** March 21, 2026
 **Maintainer:** Jay Nguyen
-**Current Version:** 2.9.0
+**Current Version:** 2.9.8

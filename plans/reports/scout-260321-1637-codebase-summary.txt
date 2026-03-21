@@ -1,0 +1,204 @@
+GENSNIPPETS CODEBASE SCOUT - QUICK REFERENCE
+==============================================
+
+PROJECT: GenSnippets macOS Text Expansion Application
+DATE: 2026-03-21
+TOTAL FILES: 48 Swift files | 16,063 LOC
+
+ARCHITECTURE OVERVIEW
+=====================
+
+Root (4 files, 2,171 LOC):
+  • GenSnippetsApp.swift (684 LOC) - Main app + AppDelegate with menu bar management
+  • DesignSystem.swift (1,070 LOC) - Comprehensive design tokens (colors, typography, spacing)
+  • ValidationScript.swift (287 LOC) - Data validation utility
+  • StressTest.swift (130 LOC) - Performance testing
+
+Models (6 files, 1,024 LOC):
+  • Snippet.swift (136 LOC) - Core data model + RichContentType/RichContentItem enums
+  • Category.swift (68 LOC) - Folder/organization model
+  • LocalSnippetsViewModel.swift (184 LOC) - Local-first state management with migrations
+  • SnippetsViewModel.swift (79 LOC) - Legacy fallback for basic CRUD
+  • CategoryViewModel.swift (143 LOC) - Category state with alphabetical sorting
+  • SnippetUsage.swift (287 LOC) - Usage tracking + UsageTracker class
+  • ShareExportData.swift (93 LOC) - Import/export data models
+
+Services (14 files, 5,882 LOC):
+  • TextReplacementService.swift (1,421 LOC) - Core engine: CGEvent tap, TrieNode matching, dynamic keywords
+  • LocalStorageService.swift (392 LOC) - UserDefaults with caching + batch saves
+  • RichContentService.swift (494 LOC) - File-based storage for images/files
+  • ShareService.swift (296 LOC) - Import/export orchestration
+  • MetafieldService.swift (377 LOC) - Template variable {{key}} support
+  • EdgeCaseHandler.swift (316 LOC) - App-specific behavior (Discord, terminals, browsers)
+  • OptimizedSnippetMatcher.swift (395 LOC) - SuffixTree + BloomFilter for fast matching
+  • AccessibilityPermissionManager.swift (198 LOC) - Handles macOS accessibility perms
+  • GlobalHotkeyManager.swift (158 LOC) - Global hotkey registration (Cmd+Ctrl+S)
+  • BrowserCompatibleTextInsertion.swift (175 LOC) - Browser-specific paste delays
+  • UpdaterService.swift (32 LOC) - Sparkle auto-update wrapper
+  • SandboxMigrationService.swift (65 LOC) - Sandbox→non-sandbox UserDefaults migration
+  • LocalizationService.swift (59 LOC) - English/Vietnamese support
+  • iCloudSyncService.swift (31 LOC) - [STUB] Future iCloud sync
+
+Views (18 files, 7,166 LOC):
+  • ThreeColumnView.swift (1,112 LOC) - Main layout: categories | snippets | details
+  • SnippetDetailView.swift (1,245 LOC) - Detailed snippet display + rich content preview
+  • AddSnippetSheet.swift (732 LOC) - Modal: create/edit with rich content support
+  • ModernSnippetSearchView.swift (611 LOC) - Floating global search window (hotkey)
+  • ShareImportSheet.swift (703 LOC) - Import with conflict resolution UI
+  • ExportImportView.swift (221 LOC) - Data backup/restore interface
+  • ModernSettingsView.swift (310 LOC) - Advanced settings panel
+  • ShareExportSheet.swift (396 LOC) - Share snippets/categories dialog
+  • ConflictResolutionView.swift (296 LOC) - Import conflict resolution UI
+  • InsightsView.swift (391 LOC) - Usage statistics dashboard
+  • ShortcutsGuideView.swift (235 LOC) - Help modal with shortcuts
+  • CategoryDialogs.swift (263 LOC) - Add/edit/delete category modals
+  • ShortcutRecorderView.swift (275 LOC) - Custom hotkey recorder
+  • MenuBarView.swift (191 LOC) - Menu bar popover content
+  • SnippetSearchView.swift (336 LOC) - Legacy search interface
+  • SimpleSettingsView.swift (265 LOC) - Minimal settings variant
+  • SettingsView.swift (177 LOC) - Legacy settings variant
+  • StatusBarView.swift (100 LOC) - Bottom status indicator
+  • CategoryPickerSheet.swift (204 LOC) - Category assignment modal
+  • ButtonStyles.swift (41 LOC) - Reusable button components
+
+Controllers (1 file, 136 LOC):
+  • SnippetSearchWindowController.swift (136 LOC) - Window management for global search
+
+Components (1 file, 185 LOC):
+  • ToastView.swift (185 LOC) - Toast notification component
+
+Extensions (1 file, 6 LOC):
+  • String+Localization.swift (6 LOC) - .localized property
+
+KEY PATTERNS
+============
+
+1. SINGLETON SERVICES
+   - TextReplacementService, LocalStorageService, AccessibilityPermissionManager
+   - Static .shared property for app-wide access
+   - Thread-safe with DispatchQueue + NSLock
+
+2. OBSERVABLE STATE MANAGEMENT
+   - @Published variables in ViewModels
+   - Combine publishers for reactive updates
+   - Single source of truth via LocalStorageService
+
+3. THREAD SAFETY MODEL
+   - DispatchQueue(concurrent) for reader-writer patterns
+   - os_unfair_lock for callback fast path performance
+   - NSLock within suffix tree nodes
+
+4. DATA FLOW
+   UserDefaults → LocalStorageService (cached/batched)
+      ↓
+   {LocalSnippetsViewModel, CategoryViewModel}
+      ↓
+   Views (ThreeColumnView, ModernSnippetSearchView)
+      ↓
+   TextReplacementService (keyboard monitoring → replacement)
+
+CORE FEATURES
+=============
+
+TEXT REPLACEMENT:
+  • CGEvent tap for system-wide keyboard monitoring
+  • TrieNode suffix tree for O(m) command matching
+  • Rolling buffer: last 50 characters, 15-second timeout
+  • Thread-safe per-app customization via EdgeCaseHandler
+
+DYNAMIC KEYWORDS:
+  {clipboard}, {cursor}, {timestamp}, {random-number}
+  {dd/mm}, {dd/mm/yyyy}, {time}, {hh:mm}
+  {uuid}, {weekday}, {month}
+
+RICH CONTENT:
+  • File-based storage: ~/Library/Application Support/GenSnippets/RichContent/
+  • Supports: images (PNG), files, URLs
+  • Base64 fallback for legacy compatibility
+  • Multi-file per snippet support
+
+IMPORT/EXPORT:
+  • Share snippets/categories as JSON
+  • Conflict detection on import
+  • Skip/overwrite/rename conflict resolutions
+  • Rich content included in exports (as Base64 for portability)
+
+APP-SPECIFIC CUSTOMIZATION (EdgeCaseHandler):
+  Browser, Terminal, Discord, IDE, VM, RemoteDesktop, PasswordField, Game
+  Per-app: deletion delay, paste delay, simple deletion, expansion disable flags
+
+RECENT ADDITIONS (not in original CLAUDE.md)
+==============================================
+
+1. MetafieldService.swift - Template variable support {{key:default}}
+2. EdgeCaseHandler.swift - Comprehensive app-specific behavior detection
+3. ShareExportData.swift - Import/export data model types
+4. RichContentService.swift - Enhanced file-based content storage
+5. ShareService.swift - Export/import orchestration
+6. ShareExportSheet.swift - Category/snippet sharing UI
+7. ShareImportSheet.swift - Import with conflict resolution UI
+8. ConflictResolutionView.swift - Conflict UX component
+9. ValidationScript.swift - Data validation utility
+10. SandboxMigrationService.swift - v2.7.0 sandbox transition
+11. UpdaterService.swift - Sparkle integration wrapper
+
+CODE QUALITY
+============
+
+STRENGTHS:
+  ✓ Clear separation of concerns (Models, Views, Services)
+  ✓ Comprehensive threading model with proper synchronization
+  ✓ Rich error handling with user-facing feedback
+  ✓ Excellent documentation (CLAUDE.md + design system)
+  ✓ Reusable design system (colors, typography, spacing tokens)
+  ✓ Multiple view variants for compatibility (Modern + Legacy + Simple)
+
+AREAS FOR IMPROVEMENT:
+  • ThreeColumnView (1,112 LOC) - Extract sub-components
+  • SnippetDetailView (1,245 LOC) - Extract rich content preview
+  • No automated tests (complex due to system-level integration)
+  • iCloudSyncService incomplete/unused
+  • Mixed UI frameworks (SwiftUI + legacy NSPanel code)
+
+TESTING CHALLENGES:
+  • CGEvent tap requires accessibility permissions (hard to mock)
+  • Global hotkey registration system-level integration
+  • Keyboard monitoring requires permissions
+  • Clipboard operations require integration tests
+
+UNRESOLVED QUESTIONS
+====================
+
+1. Is iCloudSyncService intended for future use, or remove?
+2. Test coverage strategy given CGEvent tap integration challenges?
+3. Refactor large views (1,000+ LOC) into smaller components?
+4. Plans to support more languages beyond English/Vietnamese?
+5. Performance target for 10,000+ snippets matching?
+
+DEPENDENCIES SUMMARY
+====================
+
+Framework Imports:
+  • SwiftUI - UI framework
+  • Combine - Reactive data binding
+  • Foundation - Core utilities
+  • AppKit - macOS-specific (windows, events, pasteboard)
+  • Carbon - Low-level keyboard/event handling
+  • CoreGraphics - CGEvent tap, event generation
+  • Sparkle - Auto-update framework
+  • ServiceManagement - Login item management
+  • UniformTypeIdentifiers - MIME type handling
+  • os.log - System logging
+
+Storage:
+  • UserDefaults - ~/Library/Preferences/Jay8448.Gen-Snippets.plist
+  • File system - ~/Library/Application Support/GenSnippets/RichContent/
+
+ENTRY POINTS
+============
+
+• GenSnippetsApp.swift - @main entry point
+• AppDelegate - Menu bar setup, window management, lifecycle
+• ContentView.swift - Root SwiftUI view (ThreeColumnView)
+• ModernSnippetSearchView.swift - Global search (hotkey Cmd+Ctrl+S)
+• TextReplacementService.startMonitoring() - Keyboard tap activation
