@@ -3,6 +3,15 @@
     <channel>
         <title>GenSnippets</title>
         <item>
+            <title>2.9.11</title>
+            <pubDate>Sun, 22 Mar 2026 11:04:55 +0700</pubDate>
+            <sparkle:version>13</sparkle:version>
+            <sparkle:shortVersionString>2.9.11</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>11.5</sparkle:minimumSystemVersion>
+            <description><![CDATA[<ul><li>Fix snippets still showing after deleting their category</li><li>Fix toast notifications not auto-dismissing</li></ul>]]></description>
+            <enclosure url="https://github.com/jaynguyen-vn/gen-snippets/releases/download/v2.9.11/GenSnippets.2.9.11.dmg" length="2796122" type="application/octet-stream" sparkle:edSignature="LsRyYeu4eVuFLOQHyHUYjPbSIYV3EemB55SQdlLzGoKXNTY2FRopdU+pNHVxxRGOocBR7WVfgjeX/iDtB4X/Ag=="/>
+        </item>
+        <item>
             <title>2.9.10</title>
             <pubDate>Sun, 22 Mar 2026 10:32:47 +0700</pubDate>
             <sparkle:version>12</sparkle:version>
