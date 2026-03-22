@@ -64,6 +64,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
     // Track if app is running in background (menu bar only) mode
     private(set) var isRunningInBackground = false
 
+    // True only when app launched as login item (boot) — window is a zombie and must be recreated.
+    // False when user chose "Run in Background" — window is valid, just hidden.
+    private var launchedAsLoginItem = false
+
     // Strong reference to main window — prevents deallocation during background mode
     // This is the root cause fix: weak reference allowed SwiftUI to deallocate the window
     // when activation policy changed to .accessory, making the app unable to reopen.
@@ -289,17 +293,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
             // Abort if user switched back to background during the delay
             guard !self.isRunningInBackground else { return }
 
-            // If app has been in background since launch, the WindowGroup-created
-            // window may be a zombie (created in .accessory mode before SwiftUI
-            // fully rendered). Discard it and create a fresh window.
-            if wasBackgroundSinceLaunch {
-                NSLog("GenSnippets: First open after background launch, creating fresh window")
+            // Login-item launch: window is a zombie (created in .accessory mode before
+            // SwiftUI fully rendered). Discard it and create a fresh window.
+            if self.launchedAsLoginItem {
+                self.launchedAsLoginItem = false
+                NSLog("GenSnippets: First open after login-item launch, creating fresh window")
                 self.mainWindow = nil
                 self.createAndShowMainWindow()
                 return
             }
 
-            // Normal restore (user chose "Run in Background" then reopened)
+            // Normal restore (user chose "Run in Background" then reopened, or other cases)
             if let window = self.mainWindow {
                 self.ensureReasonableWindowSize(window)
                 window.makeKeyAndOrderFront(nil)
@@ -595,6 +599,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
         // This must happen BEFORE WindowGroup creates its window
         if shouldStartInBackground() {
             isRunningInBackground = true
+            launchedAsLoginItem = true
             NSApplication.shared.setActivationPolicy(.accessory)
             NSLog("GenSnippets: Detected login item launch, starting in background mode")
         }
