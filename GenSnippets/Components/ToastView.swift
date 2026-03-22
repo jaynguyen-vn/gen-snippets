@@ -47,7 +47,7 @@ struct Toast: Identifiable, Equatable {
 
 struct ToastView: View {
     let toast: Toast
-    @Binding var isPresented: Bool
+    let onDismiss: () -> Void
 
     @State private var isHovered = false
 
@@ -72,7 +72,7 @@ struct ToastView: View {
 
             Button(action: {
                 withAnimation(DSAnimation.easeOut) {
-                    isPresented = false
+                    onDismiss()
                 }
             }) {
                 Image(systemName: "xmark")
@@ -117,13 +117,6 @@ struct ToastView: View {
             insertion: .move(edge: .top).combined(with: .opacity).combined(with: .scale(scale: 0.95)),
             removal: .move(edge: .top).combined(with: .opacity)
         ))
-        .onAppear {
-            DispatchQueue.main.asyncAfter(deadline: .now() + toast.duration) {
-                withAnimation(DSAnimation.springNormal) {
-                    isPresented = false
-                }
-            }
-        }
     }
 }
 
@@ -136,10 +129,9 @@ struct ToastModifier: ViewModifier {
 
             VStack {
                 if let toast = toast {
-                    ToastView(toast: toast, isPresented: Binding(
-                        get: { self.toast != nil },
-                        set: { if !$0 { self.toast = nil } }
-                    ))
+                    ToastView(toast: toast, onDismiss: {
+                        self.toast = nil
+                    })
                     .padding(.top, DSSpacing.massive)
                     .padding(.horizontal, DSSpacing.lg)
                 }
@@ -147,6 +139,18 @@ struct ToastModifier: ViewModifier {
                 Spacer()
             }
             .animation(DSAnimation.springNormal, value: toast)
+        }
+        .onChange(of: toast) { newToast in
+            guard let newToast = newToast else { return }
+            let toastId = newToast.id
+            DispatchQueue.main.asyncAfter(deadline: .now() + newToast.duration) {
+                // Only dismiss if still showing the same toast
+                if self.toast?.id == toastId {
+                    withAnimation(DSAnimation.springNormal) {
+                        self.toast = nil
+                    }
+                }
+            }
         }
     }
 }

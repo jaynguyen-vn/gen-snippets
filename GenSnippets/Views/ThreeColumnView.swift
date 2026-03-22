@@ -285,6 +285,11 @@ struct ThreeColumnView: View {
                     message: Text("Are you sure you want to delete \"\(category.name)\"? All snippets in this category will be moved to Uncategory."),
                     primaryButton: .destructive(Text("Delete")) {
                         categoryViewModel.deleteCategory(category.id)
+                        snippetsViewModel.fetchSnippets()
+                        if let sel = selectedSnippet, sel.categoryId == category.id {
+                            selectedSnippet = nil
+                        }
+                        currentToast = Toast(type: .success, message: "Category and its snippets deleted", duration: 2.0)
                     },
                     secondaryButton: .cancel()
                 )
