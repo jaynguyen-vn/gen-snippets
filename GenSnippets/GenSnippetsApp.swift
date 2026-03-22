@@ -47,7 +47,7 @@ struct GenSnippetsApp: App {
             }
         }
     }
-    
+
     // Alert to confirm if user wants to quit or run in background
     private func quitApp() {
         NSApp.terminate(nil)
@@ -301,6 +301,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
 
             // Normal restore (user chose "Run in Background" then reopened)
             if let window = self.mainWindow {
+                self.ensureReasonableWindowSize(window)
                 window.makeKeyAndOrderFront(nil)
                 NSApplication.shared.activate(ignoringOtherApps: true)
                 NSLog("GenSnippets: Restored retained main window")
@@ -308,6 +309,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
             }
 
             if let window = self.findMainWindow() {
+                self.ensureReasonableWindowSize(window)
                 window.makeKeyAndOrderFront(nil)
                 NSApplication.shared.activate(ignoringOtherApps: true)
                 self.mainWindow = window
@@ -362,10 +364,25 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
         return true
     }
 
+    /// Ensures the window is at least a reasonable size when restoring from background.
+    /// SwiftUI may have created it with a tiny frame while in .accessory mode.
+    private func ensureReasonableWindowSize(_ window: NSWindow) {
+        let minReasonableWidth: CGFloat = 780
+        let minReasonableHeight: CGFloat = 550
+        let frame = window.frame
+        if frame.width < minReasonableWidth || frame.height < minReasonableHeight {
+            let defaultRect = NSRect(x: 0, y: 0, width: 1100, height: 700)
+            window.setFrame(defaultRect, display: false)
+            window.center()
+            NSLog("GenSnippets: Window was too small (%.0fx%.0f), resized to default", frame.width, frame.height)
+        }
+    }
+
     /// Creates a new main window when none exists
     private func createAndShowMainWindow() {
         // Guard: if mainWindow was restored by another code path, just show it
         if let existing = mainWindow, existing.contentView != nil {
+            ensureReasonableWindowSize(existing)
             existing.makeKeyAndOrderFront(nil)
             NSApplication.shared.activate(ignoringOtherApps: true)
             NSLog("GenSnippets: Reused existing main window instead of creating new")
@@ -543,9 +560,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
         // This handles the case where window was closed but app is still running
         if !flag {
             if let window = mainWindow {
+                ensureReasonableWindowSize(window)
                 window.makeKeyAndOrderFront(nil)
                 NSApplication.shared.activate(ignoringOtherApps: true)
             } else if let window = findMainWindow() {
+                ensureReasonableWindowSize(window)
                 window.makeKeyAndOrderFront(nil)
                 NSApplication.shared.activate(ignoringOtherApps: true)
                 mainWindow = window
