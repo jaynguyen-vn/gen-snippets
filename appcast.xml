@@ -3,6 +3,15 @@
     <channel>
         <title>GenSnippets</title>
         <item>
+            <title>2.9.10</title>
+            <pubDate>Sun, 22 Mar 2026 10:32:47 +0700</pubDate>
+            <sparkle:version>12</sparkle:version>
+            <sparkle:shortVersionString>2.9.10</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>11.5</sparkle:minimumSystemVersion>
+            <description><![CDATA[<ul><li>Fix window opening too small when restoring from "Run in Background" mode</li><li>Properly distinguish login-item launch from user-chosen background mode</li></ul>]]></description>
+            <enclosure url="https://github.com/jaynguyen-vn/gen-snippets/releases/download/v2.9.10/GenSnippets.2.9.10.dmg" length="2790917" type="application/octet-stream" sparkle:edSignature="u1xVPJiWdUKNalPniApTCXpnlH7jB+RwfGAXyc/OiF0YWr60KE4rNFGay8XvqkewzGdPENSGVZ+Pc2hDh6jHAA=="/>
+        </item>
+        <item>
             <title>2.9.9</title>
             <pubDate>Sun, 22 Mar 2026 10:25:22 +0700</pubDate>
             <sparkle:version>11</sparkle:version>
