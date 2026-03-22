@@ -3,6 +3,15 @@
     <channel>
         <title>GenSnippets</title>
         <item>
+            <title>2.9.9</title>
+            <pubDate>Sun, 22 Mar 2026 10:25:22 +0700</pubDate>
+            <sparkle:version>11</sparkle:version>
+            <sparkle:shortVersionString>2.9.9</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>11.5</sparkle:minimumSystemVersion>
+            <description><![CDATA[<ul><li>Fix window opening too small after restoring from background mode</li><li>Ensure reasonable window size across all restore paths (dock click, Spotlight, login item)</li></ul>]]></description>
+            <enclosure url="https://github.com/jaynguyen-vn/gen-snippets/releases/download/v2.9.9/GenSnippets.2.9.9.dmg" length="2791007" type="application/octet-stream" sparkle:edSignature="0+pPaq8ymJY6g+eW5Cv32L3WEtcuzPnsErMU5ZM6B2jg0wyH1jh/b/E2sO0I6kGMDoVaa2zLtBFjszIMeTUeBg=="/>
+        </item>
+        <item>
             <title>2.9.8</title>
             <pubDate>Sat, 21 Mar 2026 16:31:00 +0700</pubDate>
             <sparkle:version>10</sparkle:version>
