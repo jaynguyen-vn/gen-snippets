@@ -3,6 +3,15 @@
     <channel>
         <title>GenSnippets</title>
         <item>
+            <title>2.9.12</title>
+            <pubDate>Mon, 23 Mar 2026 09:13:28 +0700</pubDate>
+            <sparkle:version>14</sparkle:version>
+            <sparkle:shortVersionString>2.9.12</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>11.5</sparkle:minimumSystemVersion>
+            <description><![CDATA[<ul><li>Fix usage analytics data being reset after every app restart or version update</li><li>Fix usage data never being persisted to disk during normal operation</li><li>Ensure analytics data is saved before app termination and Sparkle updates</li></ul>]]></description>
+            <enclosure url="https://github.com/jaynguyen-vn/gen-snippets/releases/download/v2.9.12/GenSnippets.2.9.12.dmg" length="2792329" type="application/octet-stream" sparkle:edSignature="tqoqtWSQf+2MD7UViNNi09uvwde4TbDxdHEHROQmIG8SqTg/5mvysGJcWNEvPcS7OBl4ORvft34S5fKgc2MwAA=="/>
+        </item>
+        <item>
             <title>2.9.11</title>
             <pubDate>Sun, 22 Mar 2026 11:04:55 +0700</pubDate>
             <sparkle:version>13</sparkle:version>
