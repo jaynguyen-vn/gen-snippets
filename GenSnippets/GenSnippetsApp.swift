@@ -510,8 +510,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
     }
     
     @objc private func handleConfirmedQuit() {
-        // Save data before quitting
+        // Save all data before quitting
         LocalStorageService.shared.forceSave()
+        UsageTracker.shared.forceSave()
         shouldTerminate = true
         NSApp.terminate(nil)
     }
@@ -582,8 +583,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        // Save any pending data before terminating
+        // Save all pending data before terminating (including Sparkle updates)
         LocalStorageService.shared.forceSave()
+        UsageTracker.shared.forceSave()
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
