@@ -3,6 +3,15 @@
     <channel>
         <title>GenSnippets</title>
         <item>
+            <title>2.9.13</title>
+            <pubDate>Fri, 24 Apr 2026 10:15:00 +0700</pubDate>
+            <sparkle:version>15</sparkle:version>
+            <sparkle:shortVersionString>2.9.13</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>11.5</sparkle:minimumSystemVersion>
+            <description><![CDATA[<ul><li>Fix stale clipboard content being pasted instead of snippet text in long-lived terminal sessions (e.g. iTerm2 tabs open for a while)</li><li>Wait for pasteboard IPC to propagate before triggering paste to prevent race condition</li><li>Safety check to abort paste if another process interferes with the clipboard</li></ul>]]></description>
+            <enclosure url="https://github.com/jaynguyen-vn/gen-snippets/releases/download/v2.9.13/GenSnippets.2.9.13.dmg" length="2490043" type="application/octet-stream" sparkle:edSignature="pm5hyMl7IBcTbYnkyJFtOpBgitdzIURPaSTbsf1h9QE1ZwmeLbxvxprMTZj8qrbqD6jfp53EIP5/AKBxdJAtDw=="/>
+        </item>
+        <item>
             <title>2.9.12</title>
             <pubDate>Mon, 23 Mar 2026 09:13:28 +0700</pubDate>
             <sparkle:version>14</sparkle:version>
