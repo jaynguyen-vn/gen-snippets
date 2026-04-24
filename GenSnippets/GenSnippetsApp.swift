@@ -305,6 +305,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
 
             // Normal restore (user chose "Run in Background" then reopened, or other cases)
             if let window = self.mainWindow {
+                self.applyHiddenTitleBarStyle(to: window)
                 self.ensureReasonableWindowSize(window)
                 window.makeKeyAndOrderFront(nil)
                 NSApplication.shared.activate(ignoringOtherApps: true)
@@ -313,6 +314,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
             }
 
             if let window = self.findMainWindow() {
+                self.applyHiddenTitleBarStyle(to: window)
                 self.ensureReasonableWindowSize(window)
                 window.makeKeyAndOrderFront(nil)
                 NSApplication.shared.activate(ignoringOtherApps: true)
@@ -368,6 +370,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
         return true
     }
 
+    /// Enforces the hidden-title-bar look that matches SwiftUI's `HiddenTitleBarWindowStyle`.
+    /// Called on every window restore/create path to guard against style drift after long
+    /// background sleeps or when a fallback NSWindow is instantiated manually.
+    private func applyHiddenTitleBarStyle(to window: NSWindow) {
+        if !window.styleMask.contains(.fullSizeContentView) {
+            window.styleMask.insert(.fullSizeContentView)
+        }
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
+    }
+
     /// Ensures the window is at least a reasonable size when restoring from background.
     /// SwiftUI may have created it with a tiny frame while in .accessory mode.
     private func ensureReasonableWindowSize(_ window: NSWindow) {
@@ -398,7 +411,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
 
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1100, height: 700),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
@@ -406,6 +419,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
         window.title = "GenSnippets"
         window.identifier = Self.mainWindowIdentifier
         window.delegate = self
+        // Match SwiftUI WindowGroup's HiddenTitleBarWindowStyle — hide title chrome so
+        // SwiftUI content flows behind traffic lights (fixes blank title bar after background)
+        applyHiddenTitleBarStyle(to: window)
         window.center()
         window.makeKeyAndOrderFront(nil)
         NSApplication.shared.activate(ignoringOtherApps: true)
@@ -565,10 +581,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
         // This handles the case where window was closed but app is still running
         if !flag {
             if let window = mainWindow {
+                applyHiddenTitleBarStyle(to: window)
                 ensureReasonableWindowSize(window)
                 window.makeKeyAndOrderFront(nil)
                 NSApplication.shared.activate(ignoringOtherApps: true)
             } else if let window = findMainWindow() {
+                applyHiddenTitleBarStyle(to: window)
                 ensureReasonableWindowSize(window)
                 window.makeKeyAndOrderFront(nil)
                 NSApplication.shared.activate(ignoringOtherApps: true)
