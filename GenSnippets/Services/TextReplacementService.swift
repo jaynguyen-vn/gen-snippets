@@ -887,6 +887,7 @@ class TextReplacementService {
 
         let pasteboard = NSPasteboard.general
         let previousContent = pasteboard.string(forType: .string)
+        let previousChangeCount = pasteboard.changeCount
 
         // Get timing configuration for current app
         let timingConfig = getTimingForCurrentApp()
@@ -898,6 +899,31 @@ class TextReplacementService {
         // Clear and set new content
         pasteboard.clearContents()
         pasteboard.setString(processedText, forType: .string)
+
+        // Wait for pasteboard IPC (pbs) to actually register our write before posting Cmd+V.
+        // Long-lived terminals (iTerm2 with heavy scrollback/selection auto-copy) can delay
+        // propagation; without this, Cmd+V reads the pre-write content and pastes stale data.
+        // Bounded spin-wait: usually completes in <1ms; worst-case caps at 50ms.
+        let changeCountDeadline = Date().addingTimeInterval(0.050)
+        while pasteboard.changeCount == previousChangeCount && Date() < changeCountDeadline {
+            Thread.sleep(forTimeInterval: 0.0005)
+        }
+
+        // Safety check: verify our content is actually on the pasteboard before pasting.
+        // If another process (e.g., terminal shell integration) raced us, bail out rather
+        // than paste stale clipboard content.
+        if pasteboard.string(forType: .string) != processedText {
+            #if DEBUG
+            print("[TextReplacementService] ⚠️ Pasteboard write did not settle — aborting paste to avoid stale content")
+            #endif
+            // Best-effort restore of original clipboard
+            pasteboard.clearContents()
+            if let previous = previousContent {
+                pasteboard.setString(previous, forType: .string)
+            }
+            isPerformingExpansion = false
+            return
+        }
 
         // Perform paste with appropriate timing
         guard let source = CGEventSource(stateID: .hidSystemState) else {

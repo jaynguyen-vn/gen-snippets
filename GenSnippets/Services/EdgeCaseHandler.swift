@@ -78,6 +78,10 @@ final class EdgeCaseHandler {
                 return 0.004  // 4ms - extra time for VM
             case .sshSession:
                 return 0.003  // 3ms - network latency
+            case .terminal:
+                return 0.005  // 5ms - long-lived terminal sessions (e.g., iTerm2 with large
+                              // scrollback or selection auto-copy) can slow pasteboard IPC.
+                              // Too-short delay caused stale-clipboard paste bug.
             default:
                 return 0.0008 // 0.8ms - standard
             }
