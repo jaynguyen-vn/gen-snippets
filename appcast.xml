@@ -3,6 +3,15 @@
     <channel>
         <title>GenSnippets</title>
         <item>
+            <title>2.9.14</title>
+            <pubDate>Fri, 24 Apr 2026 12:20:00 +0700</pubDate>
+            <sparkle:version>16</sparkle:version>
+            <sparkle:shortVersionString>2.9.14</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>11.5</sparkle:minimumSystemVersion>
+            <description><![CDATA[<ul><li>Fix blank/white title bar area appearing when reopening the app after long background or login-item relaunch</li><li>Enforce hidden-title-bar style across all window create/restore paths to match the SwiftUI window style</li></ul>]]></description>
+            <enclosure url="https://github.com/jaynguyen-vn/gen-snippets/releases/download/v2.9.14/GenSnippets.2.9.14.dmg" length="2490407" type="application/octet-stream" sparkle:edSignature="xG1j16yTDQtg92KuiAP8ZBs3wsgDQDcPEydvJcNZ3m7Xf1L7GDR1gHcl5TpBDe+nN9dt8zAE2GPgMY7SR6l2CA=="/>
+        </item>
+        <item>
             <title>2.9.13</title>
             <pubDate>Fri, 24 Apr 2026 10:15:00 +0700</pubDate>
             <sparkle:version>15</sparkle:version>
