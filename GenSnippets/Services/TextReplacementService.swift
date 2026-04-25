@@ -332,13 +332,13 @@ class TextReplacementService {
                                 
                                 // Check if we've just handled this exact same character
                                 // Use lastCharHandledTime (not lastKeyTime which was just set to currentTime)
-                                if characters != service.lastCharHandled || (currentTime - service.lastCharHandledTime > 0.1) {
+                                if characters != service.lastCharHandled || (currentTime - service.lastCharHandledTime > 0.03) {
                                     service.handleKeyPress(characters)
                                     service.lastCharHandled = characters
                                     service.lastCharHandledTime = currentTime
 
                                     // Reset lastCharHandled after a delay to allow for legitimate repeated characters
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                                         if service.lastCharHandled == characters {
                                             service.lastCharHandled = ""
                                         }
@@ -386,13 +386,13 @@ class TextReplacementService {
                                 
                                 // Check if we've just handled this exact same character
                                 // Use lastCharHandledTime (not lastKeyTime which was just set to currentTime)
-                                if char != service.lastCharHandled || (currentTime - service.lastCharHandledTime > 0.1) {
+                                if char != service.lastCharHandled || (currentTime - service.lastCharHandledTime > 0.03) {
                                     service.handleKeyPress(char)
                                     service.lastCharHandled = char
                                     service.lastCharHandledTime = currentTime
 
                                     // Reset lastCharHandled after a delay to allow for legitimate repeated characters
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                                         if service.lastCharHandled == char {
                                             service.lastCharHandled = ""
                                         }
@@ -957,7 +957,15 @@ class TextReplacementService {
                 if extraDelay > 0 {
                     usleep(useconds_t(extraDelay))
                 }
-                
+
+                // Release expansion flag shortly after paste posted, decoupled from clipboard restore.
+                // Synthesized Cmd+V events already bypass handleKeyPress via maskCommand check upstream,
+                // so the flag does not need to span the 300ms clipboard restore window. Holding it that long
+                // drops user keystrokes during fast consecutive expansions (e.g. typing `;ggp;ggp` quickly).
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.03) { [weak self] in
+                    self?.isPerformingExpansion = false
+                }
+
                 // If cursor position is specified, move cursor to that position after paste is complete
                 if let position = cursorPosition {
                     #if DEBUG
