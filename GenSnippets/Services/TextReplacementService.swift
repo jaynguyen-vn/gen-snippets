@@ -684,9 +684,13 @@ class TextReplacementService {
 
                 // Dispatch off the event tap thread to avoid macOS disabling the tap
                 // Hold isPerformingExpansion = true through full lifecycle (deletion + paste + restore)
+                // Cache app category once for the entire expansion lifecycle. This avoids 5-6
+                // redundant detectAppCategory() probes (each touches NSWorkspace, IsSecureEventInputEnabled,
+                // CGWindowListCopyWindowInfo) and guarantees pipeline coherence even if user switches app mid-paste.
+                let cachedCategory = EdgeCaseHandler.detectAppCategory()
                 DispatchQueue.global(qos: .userInteractive).async { [weak self] in
                     self?.isPerformingExpansion = true
-                    self?.deleteLastCharacters(count: charsToDelete)
+                    self?.deleteLastCharacters(count: charsToDelete, category: cachedCategory)
                     // NOTE: Do NOT reset isPerformingExpansion here — keep it true until paste + restore completes
 
                     // Check if snippet contains custom metafields
@@ -705,7 +709,8 @@ class TextReplacementService {
                                 }
 
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                                    self?.insertText(processedContent)
+                                    // Re-detect category here: metafield dialog may have changed frontmost app
+                                    self?.insertText(processedContent, category: EdgeCaseHandler.detectAppCategory())
                                     UsageTracker.shared.recordUsage(for: snippet.command)
                                 }
                             }
@@ -724,7 +729,7 @@ class TextReplacementService {
                                 self?.isPerformingExpansion = false
                             } else {
                                 // insertText handles isPerformingExpansion reset in its restore callback
-                                self?.insertText(snippet.content)
+                                self?.insertText(snippet.content, category: cachedCategory)
                             }
                             UsageTracker.shared.recordUsage(for: snippet.command)
                             #if DEBUG
@@ -738,7 +743,7 @@ class TextReplacementService {
         }
     }
     
-    private func deleteLastCharacters(count: Int) {
+    private func deleteLastCharacters(count: Int, category: EdgeCaseHandler.AppCategory? = nil) {
         guard count > 0 else { return }
 
         let source = cachedEventSource ?? CGEventSource(stateID: .hidSystemState)
@@ -751,8 +756,13 @@ class TextReplacementService {
         deleteDown.flags = .maskNonCoalesced
         deleteUp.flags = .maskNonCoalesced
 
-        // Get timing configuration for current app
-        let timingConfig = getTimingForCurrentApp()
+        // Use passed-in category if available; fallback to detecting (for legacy callers)
+        let resolvedCategory = category ?? EdgeCaseHandler.detectAppCategory()
+        let timingConfig: (deletion: TimeInterval, paste: TimeInterval, useSimple: Bool) = (
+            deletion: resolvedCategory.deletionDelay,
+            paste: resolvedCategory.pasteDelay,
+            useSimple: resolvedCategory.useSimpleDeletion
+        )
 
         #if DEBUG
         print("[TextReplacementService] ⏱️ Using deletion delay: \(timingConfig.deletion * 1000)ms, simple: \(timingConfig.useSimple)")
@@ -872,7 +882,7 @@ class TextReplacementService {
         return terminalBundleIDs.contains(bundleID)
     }
 
-    private func insertText(_ text: String) {
+    private func insertText(_ text: String, category: EdgeCaseHandler.AppCategory? = nil) {
         guard !text.isEmpty else {
             isPerformingExpansion = false
             return
@@ -889,8 +899,13 @@ class TextReplacementService {
         let previousContent = pasteboard.string(forType: .string)
         let previousChangeCount = pasteboard.changeCount
 
-        // Get timing configuration for current app
-        let timingConfig = getTimingForCurrentApp()
+        // Use passed-in category if available; fallback to detecting (for legacy callers)
+        let resolvedCategory = category ?? EdgeCaseHandler.detectAppCategory()
+        let timingConfig: (deletion: TimeInterval, paste: TimeInterval, useSimple: Bool) = (
+            deletion: resolvedCategory.deletionDelay,
+            paste: resolvedCategory.pasteDelay,
+            useSimple: resolvedCategory.useSimpleDeletion
+        )
 
         #if DEBUG
         print("[TextReplacementService] ⏱️ Using paste delay: \(timingConfig.paste * 1000)ms for current app")
@@ -952,10 +967,10 @@ class TextReplacementService {
                 usleep(delay)
                 cmdUp.post(tap: .cghidEventTap)
 
-                // Extra delay for Discord and similar apps to ensure paste completes
-                let extraDelay = EdgeCaseHandler.detectAppCategory() == .discord ? 5000 : 0  // 5ms extra for Discord
+                // Extra delay for Discord and similar apps to ensure paste completes (use cached category)
+                let extraDelay: useconds_t = resolvedCategory == .discord ? 5000 : 0  // 5ms extra for Discord
                 if extraDelay > 0 {
-                    usleep(useconds_t(extraDelay))
+                    usleep(extraDelay)
                 }
 
                 // Release expansion flag shortly after paste posted, decoupled from clipboard restore.
@@ -966,19 +981,41 @@ class TextReplacementService {
                     self?.isPerformingExpansion = false
                 }
 
+                // Plan D: adaptive cursorDelay per app category. Old hardcoded 0.2s was conservative
+                // worst-case; native apps settle paste in <30ms, so 0.05s is plenty with safety margin.
+                // Discord/VM/RemoteDesktop kept at 0.4s to avoid regressions in fragile environments.
+                let cursorDelay: TimeInterval
+                switch resolvedCategory {
+                case .discord, .virtualMachine, .remoteDesktop:
+                    cursorDelay = 0.4
+                case .browser, .electronApp, .terminal:
+                    cursorDelay = 0.08
+                case .ide:
+                    cursorDelay = 0.05
+                default:
+                    cursorDelay = 0.05
+                }
+
+                // Plan F: adaptive restoreDelay. Original 0.3s was buffer for paste app to finish reading
+                // clipboard; native apps consume in <50ms. Keep 0.4s for fragile categories.
+                let restoreDelay: TimeInterval
+                switch resolvedCategory {
+                case .discord, .virtualMachine, .remoteDesktop:
+                    restoreDelay = 0.4
+                default:
+                    restoreDelay = 0.15
+                }
+
                 // If cursor position is specified, move cursor to that position after paste is complete
                 if let position = cursorPosition {
                     #if DEBUG
-                    print("[TextReplacementService] 📍 Will move cursor to position: \(position)")
+                    print("[TextReplacementService] 📍 Will move cursor to position: \(position) (cursorDelay=\(Int(cursorDelay * 1000))ms)")
                     #endif
 
-                    // Wait for paste to complete before moving cursor (extra time for Discord)
-                    let cursorDelay = EdgeCaseHandler.detectAppCategory() == .discord ? 0.4 : 0.2
                     DispatchQueue.main.asyncAfter(deadline: .now() + cursorDelay) {
                         self.universalCursorPositioning(source: source, position: position, textLength: processedText.count)
 
-                        // Restore clipboard after cursor positioning — increased delays for reliability
-                        let restoreDelay = EdgeCaseHandler.detectAppCategory() == .discord ? 0.4 : 0.3
+                        // Restore clipboard after cursor positioning
                         DispatchQueue.main.asyncAfter(deadline: .now() + restoreDelay) {
                             pasteboard.clearContents()
                             if let previous = previousContent {
@@ -988,8 +1025,7 @@ class TextReplacementService {
                         }
                     }
                 } else {
-                    // No cursor position specified — restore clipboard with increased delays
-                    let restoreDelay = EdgeCaseHandler.detectAppCategory() == .discord ? 0.4 : 0.3
+                    // No cursor position specified — restore clipboard
                     DispatchQueue.main.asyncAfter(deadline: .now() + restoreDelay) {
                         pasteboard.clearContents()
                         if let previous = previousContent {
