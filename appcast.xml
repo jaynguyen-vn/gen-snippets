@@ -3,6 +3,15 @@
     <channel>
         <title>GenSnippets</title>
         <item>
+            <title>2.9.16</title>
+            <pubDate>Sat, 25 Apr 2026 23:45:00 +0700</pubDate>
+            <sparkle:version>18</sparkle:version>
+            <sparkle:shortVersionString>2.9.16</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>11.5</sparkle:minimumSystemVersion>
+            <description><![CDATA[<ul><li>Snippet expansion now feels snappier — cursor positioning latency reduced ~75% on native macOS apps (Notes, Mail, Xcode, IDEs)</li><li>Adaptive timing per app category: Discord, VMs, and Remote Desktop keep conservative delays for reliability</li><li>Cache app detection per expansion — eliminates 5-6 redundant system probes per snippet, lowering CPU usage during fast typing</li></ul>]]></description>
+            <enclosure url="https://github.com/jaynguyen-vn/gen-snippets/releases/download/v2.9.16/GenSnippets.2.9.16.dmg" length="3018523" type="application/octet-stream" sparkle:edSignature="UHIlqrcXW/Og6L0GdOwmFAePrOjSgoiSijSSHquzQTqc9iv7idSB1Vihh9+dNHo7qMQhb5L7kKcm30FN+CHvBw=="/>
+        </item>
+        <item>
             <title>2.9.15</title>
             <pubDate>Sat, 25 Apr 2026 23:25:00 +0700</pubDate>
             <sparkle:version>17</sparkle:version>
