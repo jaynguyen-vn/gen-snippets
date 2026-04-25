@@ -3,6 +3,15 @@
     <channel>
         <title>GenSnippets</title>
         <item>
+            <title>2.9.15</title>
+            <pubDate>Sat, 25 Apr 2026 23:25:00 +0700</pubDate>
+            <sparkle:version>17</sparkle:version>
+            <sparkle:shortVersionString>2.9.15</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>11.5</sparkle:minimumSystemVersion>
+            <description><![CDATA[<ul><li>Fix snippets like <code>;ggp</code> intermittently failing to expand when typed in rapid succession</li><li>Decouple expansion lock from clipboard restore — release ~30ms after paste instead of 300ms so consecutive expansions no longer drop user keystrokes</li><li>Tighten duplicate-character dedup window from 100ms → 30ms to allow fast typing of repeated characters (e.g. the double <code>g</code> in <code>;ggp</code>)</li></ul>]]></description>
+            <enclosure url="https://github.com/jaynguyen-vn/gen-snippets/releases/download/v2.9.15/GenSnippets.2.9.15.dmg" length="2490548" type="application/octet-stream" sparkle:edSignature="//bccdhtaq7EOXsnizKakuB/zNDIntSQcHqwXmXX3Rr2uGy5KmS1/Pc95IqLXvC8IK7AMF8wDVxntKVU3dSeBw=="/>
+        </item>
+        <item>
             <title>2.9.14</title>
             <pubDate>Fri, 24 Apr 2026 12:20:00 +0700</pubDate>
             <sparkle:version>16</sparkle:version>
