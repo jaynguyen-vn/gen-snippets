@@ -3,6 +3,15 @@
     <channel>
         <title>GenSnippets</title>
         <item>
+            <title>2.9.17</title>
+            <pubDate>Thu, 28 May 2026 10:10:00 +0700</pubDate>
+            <sparkle:version>19</sparkle:version>
+            <sparkle:shortVersionString>2.9.17</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>11.5</sparkle:minimumSystemVersion>
+            <description><![CDATA[<ul><li>Fixed snippet expansion in cmux terminal — the typed command no longer stays on screen with stray characters before the replacement</li><li>cmux now uses the same reliable timing as iTerm2, Terminal.app and Warp for long-lived terminal sessions</li></ul>]]></description>
+            <enclosure url="https://github.com/jaynguyen-vn/gen-snippets/releases/download/v2.9.17/GenSnippets.2.9.17.dmg" length="2490503" type="application/octet-stream" sparkle:edSignature="VmitSIXEG+3qkKSvCOpfPfr55t481ZltwD6irb1BiKX3hwVzovtzttCeeTyMIfwudeUjUaVyY8fjkitnQr/kBg=="/>
+        </item>
+        <item>
             <title>2.9.16</title>
             <pubDate>Sat, 25 Apr 2026 23:45:00 +0700</pubDate>
             <sparkle:version>18</sparkle:version>
