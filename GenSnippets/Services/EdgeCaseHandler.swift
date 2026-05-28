@@ -231,7 +231,11 @@ final class EdgeCaseHandler {
             "io.alacritty",
             "com.mitchellh.ghostty",
             "dev.warp.Warp-Stable",
-            "com.microsoft.VSCode"
+            "com.microsoft.VSCode",
+            // Rust + native-wrapped TUI terminal. Has its own input pipeline that
+            // drops fast-coalesced backspace events at the default 0.5ms cadence
+            // and renders them as printable garbage in long-lived sessions.
+            "com.cmuxterm.app"
         ]
         return terminalApps.contains(bundleID)
     }
