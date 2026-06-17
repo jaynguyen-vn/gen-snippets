@@ -6,6 +6,25 @@ Format: `### <version> (build <n>) — <YYYY-MM-DD>` followed by short bullets. 
 
 ---
 
+## v2.10.0 (build 20) — 2026-06-17
+
+### Added
+- **Inline rich-text snippets.** A snippet can now combine text and images in a single rich-text document edited in one box (NSTextView/RTFD), replacing the old single-content-type picker. Trigger once to paste the whole formatted block.
+- **Add Image / Add File toolbar** attached to the snippet editor; paste or drop images inline at the cursor.
+- **App-aware paste.** Rich-text apps (Notes, TextEdit, Mail, Word) receive text + inline images in one paste; chat/web apps (Slack, Discord, browsers) receive the text and images pasted sequentially (each image alone, since they drop inline images when text is present); terminals receive plain text only.
+- Dynamic placeholders (`{time}`, `{uuid}`, `{clipboard}`, `{dd/mm/yyyy}`, `{random}`) resolve inside rich snippets while preserving images and formatting.
+
+### Changed
+- Removed the manual "Add Link" control — type URLs directly in the editor (rich apps auto-linkify).
+
+### Compatibility
+- Pure plain-text snippets are unchanged and still save as plain text, preserving the `{cursor}` and `{{field}}` interactive prompts. Legacy plain-text / image / URL / file snippets load into the new editor without data loss; export/import round-trips the rich content.
+
+### Affected files
+- `Models/Snippet.swift`, `Services/RichContentService.swift`, `Services/TextReplacementService.swift`, `Models/ShareExportData.swift`, `Services/ShareService.swift`, `Views/AddSnippetSheet.swift`, `Views/SnippetDetailView.swift`, and new `Components/InlineRichTextEditor.swift` + `Components/SnippetFileAttachments.swift`
+
+---
+
 ## v2.9.17 (build 19) — 2026-05-28
 
 ### Fixed

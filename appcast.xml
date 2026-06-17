@@ -3,6 +3,15 @@
     <channel>
         <title>GenSnippets</title>
         <item>
+            <title>2.10.0</title>
+            <pubDate>Wed, 17 Jun 2026 12:19:09 +0700</pubDate>
+            <sparkle:version>20</sparkle:version>
+            <sparkle:shortVersionString>2.10.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>11.5</sparkle:minimumSystemVersion>
+            <description><![CDATA[<ul><li>Snippets can now mix text and inline images in a single rich-text document — trigger once to paste a whole formatted block</li><li>New Add Image / Add File toolbar in the snippet editor; paste or drop images right into the text</li><li>Smart paste per app: rich-text apps (Notes, TextEdit, Mail) get text + inline images in one paste; chat apps (Slack, Discord) receive the text and images correctly too</li><li>Dynamic placeholders ({time}, {uuid}, {clipboard}, dates) work inside rich snippets</li><li>Plain-text snippets are unchanged — {cursor} and {{field}} prompts keep working</li></ul>]]></description>
+            <enclosure url="https://github.com/jaynguyen-vn/gen-snippets/releases/download/v2.10.0/GenSnippets.2.10.0.dmg" length="2685173" type="application/octet-stream" sparkle:edSignature="vdrSnGQJtNYkdhl3CNrYfbwT+hg92fg4IU1Xoj8Rd7aYvXhp/S4JkN+AKlt1X8N9QWZE9FPKF0wGr0B3VtA0Cg=="/>
+        </item>
+        <item>
             <title>2.9.17</title>
             <pubDate>Thu, 28 May 2026 10:10:00 +0700</pubDate>
             <sparkle:version>19</sparkle:version>
