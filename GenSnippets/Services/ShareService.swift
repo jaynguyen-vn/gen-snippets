@@ -191,7 +191,10 @@ class ShareService {
     /// Convert imported Base64 image items to file-based storage
     private func convertImportedItems(_ items: [RichContentItem]?, snippetId: String) -> [RichContentItem]? {
         guard let items = items else { return nil }
-        return items.map { RichContentService.shared.imageItemFromBase64($0, snippetId: snippetId) }
+        return items.map { item in
+            let withImage = RichContentService.shared.imageItemFromBase64(item, snippetId: snippetId)
+            return RichContentService.shared.rtfdItemFromBase64(withImage, snippetId: snippetId)
+        }
     }
 
     func importWithResolutions(

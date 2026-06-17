@@ -47,9 +47,11 @@ struct ShareSnippet: Codable {
         self.description = snippet.description
         self.categoryName = categoryName
         self.contentType = snippet.contentType
-        // Convert image file paths to Base64 for portable sharing
-        self.richContentItems = snippet.richContentItems?.map {
-            RichContentService.shared.imageItemToBase64($0)
+        // Convert image + inline-RTFD file paths to Base64 for portable sharing.
+        // Each helper is a no-op for non-matching types, so chaining is safe.
+        self.richContentItems = snippet.richContentItems?.map { item in
+            let withImage = RichContentService.shared.imageItemToBase64(item)
+            return RichContentService.shared.rtfdItemToBase64(withImage)
         }
     }
 }

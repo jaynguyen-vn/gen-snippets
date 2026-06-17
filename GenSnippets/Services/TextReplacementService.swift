@@ -718,8 +718,9 @@ class TextReplacementService {
                     } else {
                         // No metafields, insert directly
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                            // Check if this is a rich content snippet
-                            if snippet.actualContentType != .plainText {
+                            // Route by hasRichContent (not first-block type) so mixed snippets whose
+                            // first block is text still take the rich path and paste their images/files.
+                            if snippet.hasRichContent {
                                 let previousClipboard = NSPasteboard.general.string(forType: .string)
                                 RichContentService.shared.insertRichContent(for: snippet, previousClipboard: previousClipboard)
                                 #if DEBUG
@@ -1229,7 +1230,9 @@ class TextReplacementService {
         }
     }
     
-    private func processSpecialKeywords(_ text: String) -> String {
+    // Keyword-only processing (no {cursor} handling). Exposed so rich-content text
+    // blocks can resolve dynamic keywords ({time}, {uuid}, …) on the paste path.
+    func processSpecialKeywords(_ text: String) -> String {
         var dummyCursorPos: Int? = nil
         return processSpecialKeywordsWithCursor(text, cursorPosition: &dummyCursorPos)
     }
@@ -1434,8 +1437,9 @@ class TextReplacementService {
         UsageTracker.shared.recordUsage(for: snippet.command)
         print("[TextReplacementService] 📊 Recorded usage for snippet: \(snippet.command)")
 
-        // Check if this is a rich content snippet
-        if snippet.actualContentType != .plainText {
+        // Route by hasRichContent (not first-block type) so mixed snippets whose
+        // first block is text still take the rich path and paste their images/files.
+        if snippet.hasRichContent {
             let previousClipboard = NSPasteboard.general.string(forType: .string)
             RichContentService.shared.insertRichContent(for: snippet, previousClipboard: previousClipboard)
             #if DEBUG
