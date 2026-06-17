@@ -6,6 +6,7 @@ enum RichContentType: String, Codable, CaseIterable {
     case image = "image"
     case url = "url"
     case file = "file"
+    case inlineRichText = "inlineRichText" // text + inline images as one RTFD document
 
     var displayName: String {
         switch self {
@@ -13,6 +14,7 @@ enum RichContentType: String, Codable, CaseIterable {
         case .image: return "Image"
         case .url: return "URL"
         case .file: return "File"
+        case .inlineRichText: return "Rich Text"
         }
     }
 
@@ -22,6 +24,7 @@ enum RichContentType: String, Codable, CaseIterable {
         case .image: return "photo"
         case .url: return "link"
         case .file: return "doc"
+        case .inlineRichText: return "doc.richtext"
         }
     }
 }
@@ -30,9 +33,9 @@ enum RichContentType: String, Codable, CaseIterable {
 struct RichContentItem: Codable, Equatable, Identifiable {
     var id: String
     let type: RichContentType
-    let data: String // File path for images/files, raw for URL, Base64 for legacy images
+    var data: String // File path for images/files, raw for URL, Base64 for legacy images; mutable so text/url blocks can be edited inline
     let mimeType: String
-    let fileName: String? // Original filename for files/images
+    var fileName: String? // Original filename for files/images
 
     init(id: String = UUID().uuidString, type: RichContentType, data: String, mimeType: String, fileName: String? = nil) {
         self.id = id
@@ -93,6 +96,19 @@ struct Snippet: Identifiable, Codable, Equatable {
     // Check if snippet has rich content
     var hasRichContent: Bool {
         return !allRichContentItems.isEmpty
+    }
+
+    // True when the snippet combines more than one distinct block type (e.g. text + image)
+    var isMixedContent: Bool {
+        let items = allRichContentItems
+        guard items.count > 1 else { return false }
+        return Set(items.map { $0.type }).count > 1
+    }
+
+    // True for a single inline rich-text (RTFD) document snippet (text + inline images)
+    var isInlineRichText: Bool {
+        let items = allRichContentItems
+        return items.count == 1 && items[0].type == .inlineRichText
     }
 
     enum CodingKeys: String, CodingKey {
