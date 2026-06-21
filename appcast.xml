@@ -3,6 +3,15 @@
     <channel>
         <title>GenSnippets</title>
         <item>
+            <title>2.10.1</title>
+            <pubDate>Sun, 21 Jun 2026 20:13:00 +0700</pubDate>
+            <sparkle:version>21</sparkle:version>
+            <sparkle:shortVersionString>2.10.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>11.5</sparkle:minimumSystemVersion>
+            <description><![CDATA[<ul><li>Snippet content now follows the system theme — text is readable in dark mode instead of staying dark</li><li>Inline images show at a tidy preview size in the editor (full resolution is kept for pasting)</li><li>The content editor auto-grows with your text and has a drag handle to resize it; double-click the handle to auto-fit</li><li>Description field uses the normal system font; cleaner contrast and borders throughout the dark theme</li></ul>]]></description>
+            <enclosure url="https://github.com/jaynguyen-vn/gen-snippets/releases/download/v2.10.1/GenSnippets.2.10.1.dmg" length="2697044" type="application/octet-stream" sparkle:edSignature="5QG5nkvV5HycFfd8LEwZBdVzVK1sS4Um/031AdV8Helm64+4w6/yfnMacg5S5iM98V8ZXQHh4s5uN1yZbglFCQ=="/>
+        </item>
+        <item>
             <title>2.10.0</title>
             <pubDate>Wed, 17 Jun 2026 12:19:09 +0700</pubDate>
             <sparkle:version>20</sparkle:version>
