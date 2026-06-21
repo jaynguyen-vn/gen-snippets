@@ -3,6 +3,15 @@
     <channel>
         <title>GenSnippets</title>
         <item>
+            <title>2.10.2</title>
+            <pubDate>Sun, 21 Jun 2026 21:24:46 +0700</pubDate>
+            <sparkle:version>22</sparkle:version>
+            <sparkle:shortVersionString>2.10.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>11.5</sparkle:minimumSystemVersion>
+            <description><![CDATA[<ul><li>Snippets that contain both inline images and {{field}} prompts now paste fully — the image is no longer dropped when you fill in a field</li><li>Restored the Insert menu in the snippet editor to add dynamic placeholders ({time}, {uuid}, {clipboard}, dates) and {{field}} prompts at the cursor</li><li>New "What you can add" info popover next to Content explains text, images, files, and dynamic tokens at a glance</li><li>Minor layout polish in the snippet editor</li></ul>]]></description>
+            <enclosure url="https://github.com/jaynguyen-vn/gen-snippets/releases/download/v2.10.2/GenSnippets.2.10.2.dmg" length="2740225" type="application/octet-stream" sparkle:edSignature="lWxifVo/nxzBzByEh9TOvbbhL/ONCKpCZdlWPwlN15+sgFC/zecpYXv6+GeEwHcXVNdq5G/4l4AjbvzkXipnDg=="/>
+        </item>
+        <item>
             <title>2.10.1</title>
             <pubDate>Sun, 21 Jun 2026 20:13:00 +0700</pubDate>
             <sparkle:version>21</sparkle:version>
