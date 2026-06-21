@@ -27,7 +27,7 @@ struct DSColors {
     // MARK: Text Colors
     static let textPrimary = Color.primary
     static let textSecondary = Color.secondary
-    static let textTertiary = Color.secondary.opacity(0.7)
+    static let textTertiary = Color.secondary.opacity(0.8)
     static let textPlaceholder = Color.secondary.opacity(0.5)
 
     // MARK: Accent Colors
@@ -49,8 +49,8 @@ struct DSColors {
     static let infoBackground = Color.blue.opacity(0.12)
 
     // MARK: Border Colors
-    static let border = Color.secondary.opacity(0.15)
-    static let borderSubtle = Color.secondary.opacity(0.08)
+    static let border = Color.secondary.opacity(0.18)
+    static let borderSubtle = Color.secondary.opacity(0.12)
     static let borderFocused = Color.accentColor.opacity(0.5)
 
     // MARK: Shadow Colors

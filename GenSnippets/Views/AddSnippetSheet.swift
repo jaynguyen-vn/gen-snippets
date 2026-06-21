@@ -88,8 +88,7 @@ struct AddSnippetSheet: View {
                                 extraItems.append(contentsOf: RichContentService.shared.pickFiles(for: pendingSnippetId))
                                 errorMessage = ""
                             },
-                            onChange: { errorMessage = "" },
-                            height: 200
+                            onChange: { errorMessage = "" }
                         )
 
                         SnippetFileAttachments(

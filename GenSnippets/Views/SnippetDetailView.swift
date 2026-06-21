@@ -253,8 +253,7 @@ struct SnippetDetailView: View {
                             onChange: {
                                 contentDirty = true
                                 checkForChanges()
-                            },
-                            height: 220
+                            }
                         )
 
                         SnippetFileAttachments(
@@ -280,7 +279,8 @@ struct SnippetDetailView: View {
                             placeholder: "Add a description...",
                             text: $description,
                             identifier: "descriptionField",
-                            onFocus: { focusedField = .description }
+                            onFocus: { focusedField = .description },
+                            useMonospacedFont: false
                         )
                         .onChange(of: description) { _ in
                             checkForChanges()
@@ -509,6 +509,8 @@ struct CustomTextField: NSViewRepresentable {
     @Binding var text: String
     let identifier: String
     var onFocus: (() -> Void)?
+    /// Monospace fits trigger commands; plain prose (e.g. descriptions) should use the system font.
+    var useMonospacedFont: Bool = true
 
     static var fieldEditors: [String: NSText] = [:]
 
@@ -519,7 +521,9 @@ struct CustomTextField: NSViewRepresentable {
         textField.stringValue = text
         textField.delegate = context.coordinator
         textField.bezelStyle = .roundedBezel
-        textField.font = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+        textField.font = useMonospacedFont
+            ? NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+            : NSFont.systemFont(ofSize: NSFont.systemFontSize)
 
         context.coordinator.textField = textField
 

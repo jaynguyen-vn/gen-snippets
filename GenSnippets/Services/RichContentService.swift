@@ -517,6 +517,17 @@ final class RichContentService {
     /// - plainText / no items → text-only document, no extras.
     /// - inlineRichText → the stored RTFD document, no extras.
     /// - legacy single / block → text+image runs become one inline document; url/file become extras.
+    /// Drop baked foreground/background colors so loaded text follows the current theme (the editor's
+    /// adaptive `labelColor` governs instead of a color frozen at save time). The app has no text-color
+    /// authoring, so nothing intentional is lost.
+    private func themeNeutral(_ attr: NSAttributedString) -> NSAttributedString {
+        let mutable = NSMutableAttributedString(attributedString: attr)
+        let full = NSRange(location: 0, length: mutable.length)
+        mutable.removeAttribute(.foregroundColor, range: full)
+        mutable.removeAttribute(.backgroundColor, range: full)
+        return mutable
+    }
+
     func inlineComponents(for snippet: Snippet) -> (attributed: NSAttributedString, extras: [RichContentItem]) {
         let items = snippet.allRichContentItems
 
@@ -526,7 +537,7 @@ final class RichContentService {
                    data: data,
                    options: [.documentType: NSAttributedString.DocumentType.rtfd],
                    documentAttributes: nil) {
-                return (attr, [])
+                return (themeNeutral(attr), [])
             }
             return (NSAttributedString(string: snippet.content), [])
         }
@@ -556,7 +567,7 @@ final class RichContentService {
                        data: data,
                        options: [.documentType: NSAttributedString.DocumentType.rtfd],
                        documentAttributes: nil) {
-                    doc.append(a)
+                    doc.append(themeNeutral(a))
                 }
             }
         }
@@ -588,9 +599,11 @@ final class RichContentService {
             return (trimmed, nil, nil)
         }
 
-        // Inline document (with images and/or extras).
-        guard let rtfd = try? attributed.data(
-                from: NSRange(location: 0, length: attributed.length),
+        // Inline document (with images and/or extras). Strip the editor's preview-only image
+        // down-scaling so the stored RTFD — and every expansion/paste from it — keeps full size.
+        let serializable = storableCopy(of: attributed)
+        guard let rtfd = try? serializable.data(
+                from: NSRange(location: 0, length: serializable.length),
                 documentAttributes: [.documentType: NSAttributedString.DocumentType.rtfd]),
               let inlineItem = createInlineRichTextItem(rtfdData: rtfd, snippetId: snippetId) else {
             return (text, nil, nil) // fallback to plain text if RTFD serialization fails
@@ -627,6 +640,34 @@ final class RichContentService {
             attachment.image = image
         }
         return NSAttributedString(attachment: attachment)
+    }
+
+    /// Prepare `attr` for storage. Two preview-only concerns must NOT leak into the stored RTFD:
+    /// (1) the editor's image down-scaling — rebuild each fileWrapper-backed attachment as a plain one
+    /// carrying only the full-res fileWrapper (no scaled image, zeroed bounds); and (2) the editor's
+    /// adaptive text color — strip foreground/background colors so expansion uses the target app's own
+    /// text color (never a frozen white/black that could be invisible there).
+    private func storableCopy(of attr: NSAttributedString) -> NSAttributedString {
+        let mutable = NSMutableAttributedString(attributedString: attr)
+        let full = NSRange(location: 0, length: mutable.length)
+        mutable.removeAttribute(.foregroundColor, range: full)
+        mutable.removeAttribute(.backgroundColor, range: full)
+
+        // Collect ranges first — mutating attributes during enumeration is unsafe.
+        var scaled: [(range: NSRange, wrapper: FileWrapper)] = []
+        mutable.enumerateAttribute(.attachment, in: full, options: []) { value, range, _ in
+            if let att = value as? NSTextAttachment, let wrapper = att.fileWrapper, wrapper.regularFileContents != nil {
+                scaled.append((range, wrapper))
+            }
+        }
+        for entry in scaled {
+            let fresh = NSTextAttachment()
+            fresh.fileWrapper = entry.wrapper
+            // No scaled image + .zero bounds → TextKit/RTFD use the image's native size.
+            mutable.removeAttribute(.attachment, range: entry.range)
+            mutable.addAttribute(.attachment, value: fresh, range: entry.range)
+        }
+        return mutable
     }
 
     private func singleItemContent(_ item: RichContentItem) -> String {

@@ -911,7 +911,7 @@ struct CategoryRowView: View {
                     }
                 }
                 .transition(.opacity.combined(with: .scale(scale: 0.9)))
-            } else {
+            } else if snippetCount > 0 {
                 Text("\(snippetCount)")
                     .font(DSTypography.captionMedium)
                     .foregroundColor(isSelected ? .white.opacity(0.9) : DSColors.textSecondary)
@@ -919,7 +919,7 @@ struct CategoryRowView: View {
                     .padding(.vertical, DSSpacing.xxxs)
                     .background(
                         Capsule()
-                            .fill(isSelected ? Color.white.opacity(0.2) : DSColors.surfaceSecondary)
+                            .fill(isSelected ? Color.white.opacity(0.25) : DSColors.surfaceSecondary)
                     )
             }
         }
@@ -998,10 +998,10 @@ struct UsageStatsView: View {
                     Text("\(usage.usageCount)")
                         .font(DSTypography.caption)
                 }
-                .foregroundColor(isSelected ? .white.opacity(0.85) : DSColors.info.opacity(0.9))
+                .foregroundColor(isSelected ? .white.opacity(0.95) : DSColors.info.opacity(0.9))
 
                 Circle()
-                    .fill(isSelected ? Color.white.opacity(0.4) : DSColors.textTertiary)
+                    .fill(isSelected ? Color.white.opacity(0.5) : DSColors.textTertiary)
                     .frame(width: 3, height: 3)
 
                 HStack(spacing: DSSpacing.xxxs) {
@@ -1010,7 +1010,7 @@ struct UsageStatsView: View {
                     Text(usage.formattedLastUsed)
                         .font(DSTypography.caption)
                 }
-                .foregroundColor(isSelected ? .white.opacity(0.75) : DSColors.textTertiary)
+                .foregroundColor(isSelected ? .white.opacity(0.88) : DSColors.textTertiary)
             }
         }
     }
@@ -1055,12 +1055,12 @@ struct SnippetRowView: View {
                 } else if showCategory, let categoryName = categoryName {
                     Text(categoryName)
                         .font(DSTypography.captionMedium)
-                        .foregroundColor(isSelected ? .white.opacity(0.8) : DSColors.textSecondary)
+                        .foregroundColor(isSelected ? .white.opacity(0.95) : DSColors.textSecondary)
                         .padding(.horizontal, DSSpacing.xs)
                         .padding(.vertical, DSSpacing.xxxs)
                         .background(
                             Capsule()
-                                .fill(isSelected ? Color.white.opacity(0.2) : DSColors.surfaceSecondary)
+                                .fill(isSelected ? Color.white.opacity(0.25) : DSColors.surfaceSecondary)
                         )
                 }
             }
@@ -1068,12 +1068,12 @@ struct SnippetRowView: View {
             if let description = snippet.description, !description.isEmpty {
                 Text(description)
                     .font(DSTypography.caption)
-                    .foregroundColor(isSelected ? .white.opacity(0.8) : DSColors.textSecondary)
+                    .foregroundColor(isSelected ? .white.opacity(0.92) : DSColors.textSecondary)
                     .lineLimit(2)
             } else {
                 Text(snippet.content)
                     .font(DSTypography.caption)
-                    .foregroundColor(isSelected ? .white.opacity(0.8) : DSColors.textTertiary)
+                    .foregroundColor(isSelected ? .white.opacity(0.92) : DSColors.textTertiary)
                     .lineLimit(2)
             }
         }
