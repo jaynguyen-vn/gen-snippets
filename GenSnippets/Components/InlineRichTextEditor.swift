@@ -29,6 +29,14 @@ final class InlineRichTextController {
         }
     }
 
+    /// Insert literal placeholder text ({time}, {{field}}, …) at the caret. Picks up the editor's
+    /// typing attributes (font/color) and fires the delegate so the binding + height update.
+    func insertPlaceholder(_ text: String) {
+        guard let tv = textView else { return }
+        tv.window?.makeFirstResponder(tv)
+        tv.insertText(text, replacementRange: tv.selectedRange())
+    }
+
     private func insert(_ image: NSImage) {
         guard let tv = textView else { return }
         tv.window?.makeFirstResponder(tv)
@@ -319,6 +327,7 @@ struct InlineRichTextField: View {
     @State private var manualHeight: CGFloat? = nil
     @State private var isDragging = false
     @State private var dragStartHeight: CGFloat = 0
+    @State private var showPlaceholderMenu = false
 
     /// Drives the editor frame: a manual override if set, otherwise content height clamped to range.
     private var editorHeight: CGFloat {
@@ -344,6 +353,18 @@ struct InlineRichTextField: View {
                     InlineEditorChipLabel(title: "Add File", icon: "doc.badge.plus")
                 }
                 .buttonStyle(PlainButtonStyle())
+
+                Button(action: { showPlaceholderMenu.toggle() }) {
+                    InlineEditorChipLabel(title: "Insert", icon: "curlybraces")
+                }
+                .buttonStyle(PlainButtonStyle())
+                .popover(isPresented: $showPlaceholderMenu) {
+                    PlaceholderMenuView(sections: PlaceholderCatalog.sections) { placeholder in
+                        controller.insertPlaceholder(placeholder.symbol)
+                        showPlaceholderMenu = false
+                        onChange?()
+                    }
+                }
 
                 Spacer()
             }
@@ -402,6 +423,82 @@ struct InlineRichTextField: View {
             if hovering { NSCursor.resizeUpDown.push() } else { NSCursor.pop() }
         }
         .help("Drag to resize · double-click to auto-fit")
+    }
+}
+
+/// "ⓘ" affordance placed next to the Content label. Opens a structured guide of WHAT a snippet's
+/// content can hold and HOW to add each kind — replaces the old verbose caption under the editor.
+struct ContentHelpButton: View {
+    @State private var show = false
+
+    var body: some View {
+        Button(action: { show.toggle() }) {
+            Image(systemName: "info.circle")
+                .font(.system(size: DSIconSize.sm))
+                .foregroundColor(DSColors.textTertiary)
+        }
+        .buttonStyle(PlainButtonStyle())
+        .help("What can I add?")
+        .popover(isPresented: $show) { ContentHelpPopover() }
+    }
+}
+
+private struct ContentHelpPopover: View {
+    private struct Row: Identifiable { let id = UUID(); let icon: String; let title: String; let detail: String }
+    private let rows: [Row] = [
+        Row(icon: "textformat", title: "Text", detail: "Just type."),
+        Row(icon: "photo", title: "Images", detail: "Paste or drag inline, or use Add Image."),
+        Row(icon: "doc", title: "Files", detail: "Use Add File — they paste after the document."),
+        Row(icon: "curlybraces", title: "Dynamic tokens", detail: "Use Insert — {time}, {uuid}, {{field}}… resolve on paste.")
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("What you can add")
+                .font(DSTypography.captionMedium)
+                .foregroundColor(DSColors.textSecondary)
+                .padding(.horizontal, DSSpacing.md)
+                .padding(.vertical, DSSpacing.xs)
+
+            DSDivider()
+
+            VStack(alignment: .leading, spacing: DSSpacing.sm) {
+                ForEach(rows) { row in
+                    HStack(alignment: .top, spacing: DSSpacing.sm) {
+                        Image(systemName: row.icon)
+                            .font(.system(size: DSIconSize.sm))
+                            .foregroundColor(DSColors.accent)
+                            .frame(width: 18, alignment: .center)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(row.title)
+                                .font(DSTypography.captionMedium)
+                                .foregroundColor(DSColors.textPrimary)
+                            Text(row.detail)
+                                .font(DSTypography.caption)
+                                .foregroundColor(DSColors.textTertiary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+            }
+            .padding(DSSpacing.md)
+
+            DSDivider()
+
+            HStack(alignment: .top, spacing: DSSpacing.xs) {
+                Image(systemName: "info.circle")
+                    .font(.system(size: DSIconSize.xs))
+                    .foregroundColor(DSColors.textTertiary)
+                Text("{cursor} positions the caret in text-only snippets.")
+                    .font(DSTypography.caption)
+                    .foregroundColor(DSColors.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.horizontal, DSSpacing.md)
+            .padding(.vertical, DSSpacing.sm)
+        }
+        .frame(width: 320)
+        .background(DSColors.controlBackground)
     }
 }
 

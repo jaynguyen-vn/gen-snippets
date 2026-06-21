@@ -79,6 +79,8 @@ struct AddSnippetSheet: View {
                             Text("*")
                                 .font(DSTypography.label)
                                 .foregroundColor(DSColors.error)
+
+                            ContentHelpButton()
                         }
 
                         InlineRichTextField(
@@ -95,10 +97,6 @@ struct AddSnippetSheet: View {
                             items: $extraItems,
                             onChange: { errorMessage = "" }
                         )
-
-                        Text("Type text and paste images inline. {time}, {uuid}, {clipboard}, {dd/mm/yyyy} resolve on paste. Files paste after the document. ({cursor} and {{field}} only apply to text-only snippets.)")
-                            .font(DSTypography.caption)
-                            .foregroundColor(DSColors.textTertiary)
                     }
 
                     // Description Field

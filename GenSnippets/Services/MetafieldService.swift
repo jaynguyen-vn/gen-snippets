@@ -86,7 +86,7 @@ class MetafieldInputPanel: NSPanel, NSTextFieldDelegate {
     private var textFields: [String: NSTextField] = [:]
     private var previewTextView: NSTextView!
     private var insertButton: NSButton!
-    private var completionHandler: ((String?) -> Void)?
+    private var completionHandler: ((String?, [String: String]?) -> Void)?
     private var eventMonitor: Any?
 
     init() {
@@ -121,7 +121,7 @@ class MetafieldInputPanel: NSPanel, NSTextFieldDelegate {
         }
     }
 
-    func setup(snippet: Snippet, metafields: [Metafield], completion: @escaping (String?) -> Void) {
+    func setup(snippet: Snippet, metafields: [Metafield], completion: @escaping (String?, [String: String]?) -> Void) {
         self.snippet = snippet
         self.metafields = metafields
         self.completionHandler = completion
@@ -287,14 +287,16 @@ class MetafieldInputPanel: NSPanel, NSTextFieldDelegate {
         let handler = completionHandler
         completionHandler = nil
         close()
-        handler?(processedContent)
+        // Pass both the flattened string (plain-text path) and the raw values
+        // (rich path substitutes them into text runs while preserving inline images).
+        handler?(processedContent, values)
     }
 
     @objc private func cancelClicked() {
         let handler = completionHandler
         completionHandler = nil
         close()
-        handler?(nil)
+        handler?(nil, nil)
     }
 
     override func cancelOperation(_ sender: Any?) {
@@ -315,11 +317,11 @@ class MetafieldInputController {
         previousApp = NSWorkspace.shared.frontmostApplication
     }
 
-    func showInputDialog(for snippet: Snippet, completion: @escaping (String?) -> Void) {
+    func showInputDialog(for snippet: Snippet, completion: @escaping (String?, [String: String]?) -> Void) {
         let metafields = MetafieldService.shared.extractMetafields(snippet.content)
 
         guard !metafields.isEmpty else {
-            completion(snippet.content)
+            completion(snippet.content, [:])
             return
         }
 
@@ -328,10 +330,10 @@ class MetafieldInputController {
 
             // Create new panel
             let panel = MetafieldInputPanel()
-            panel.setup(snippet: snippet, metafields: metafields) { [weak self] result in
+            panel.setup(snippet: snippet, metafields: metafields) { [weak self] result, values in
                 self?.panel = nil
                 self?.restorePreviousApp {
-                    completion(result)
+                    completion(result, values)
                 }
             }
             self.panel = panel

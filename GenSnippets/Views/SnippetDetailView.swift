@@ -104,12 +104,15 @@ struct SnippetDetailView: View {
                                         .font(.system(size: DSIconSize.xs))
                                     Text(badgeLabel)
                                         .font(DSTypography.caption)
+                                        .lineLimit(1)
+                                        .fixedSize(horizontal: true, vertical: false)
                                 }
                                 .padding(.horizontal, DSSpacing.sm)
                                 .padding(.vertical, DSSpacing.xxs)
                                 .background(DSColors.accent.opacity(0.15))
                                 .foregroundColor(DSColors.accent)
                                 .cornerRadius(DSRadius.xs)
+                                .fixedSize(horizontal: true, vertical: false)
                             }
                         }
                     }
@@ -237,6 +240,8 @@ struct SnippetDetailView: View {
                             Text("*")
                                 .font(DSTypography.label)
                                 .foregroundColor(DSColors.error)
+
+                            ContentHelpButton()
                         }
 
                         InlineRichTextField(
@@ -263,10 +268,6 @@ struct SnippetDetailView: View {
                                 checkForChanges()
                             }
                         )
-
-                        Text("Type text and paste images inline. {time}, {uuid}, {clipboard}, {dd/mm/yyyy} resolve on paste. Files paste after the document. ({cursor} and {{field}} only apply to text-only snippets.)")
-                            .font(DSTypography.caption)
-                            .foregroundColor(DSColors.textTertiary)
                     }
 
                     // Description Field
@@ -418,6 +419,42 @@ struct PlaceholderSection: Identifiable {
     let items: [PlaceholderItem]
 }
 
+/// Shared catalog of insertable dynamic placeholders, used by the inline editor's "Insert" menu
+/// in both the Add and Edit flows (single source of truth — DRY).
+enum PlaceholderCatalog {
+    static let sections: [PlaceholderSection] = [
+        PlaceholderSection(title: "FIELD", icon: "⌨", items: [
+            PlaceholderItem(symbol: "{{field}}", name: "Input Field", description: "Prompts for a value on paste"),
+            PlaceholderItem(symbol: "{{field:default}}", name: "Field with Default", description: "Pre-filled default value")
+        ]),
+        PlaceholderSection(title: "CURSOR", icon: "I", items: [
+            PlaceholderItem(symbol: "{cursor}", name: "Cursor Position", description: "Place cursor here (text-only snippets)")
+        ]),
+        PlaceholderSection(title: "TIME", icon: "🕐", items: [
+            PlaceholderItem(symbol: "{time}", name: "Time (HH:mm:ss)", description: "Current time with seconds"),
+            PlaceholderItem(symbol: "{time:short}", name: "Time (HH:mm)", description: "Current time without seconds")
+        ]),
+        PlaceholderSection(title: "DATE", icon: "📅", items: [
+            PlaceholderItem(symbol: "{dd/mm}", name: "Date (DD/MM)", description: "Short date format"),
+            PlaceholderItem(symbol: "{dd/mm/yyyy}", name: "Date (DD/MM/YYYY)", description: "Full date format"),
+            PlaceholderItem(symbol: "{yyyy-mm-dd}", name: "Date (ISO)", description: "ISO date format"),
+            PlaceholderItem(symbol: "{mm/dd/yyyy}", name: "Date (US)", description: "US date format"),
+            PlaceholderItem(symbol: "{datetime}", name: "Date & Time", description: "Full date and time"),
+            PlaceholderItem(symbol: "{date-iso}", name: "ISO 8601", description: "Full ISO timestamp"),
+            PlaceholderItem(symbol: "{weekday}", name: "Weekday", description: "Day name (Monday, Tuesday...)"),
+            PlaceholderItem(symbol: "{month}", name: "Month", description: "Month name (January, February...)")
+        ]),
+        PlaceholderSection(title: "UTILITY", icon: "🔧", items: [
+            PlaceholderItem(symbol: "{clipboard}", name: "Clipboard", description: "Paste from clipboard"),
+            PlaceholderItem(symbol: "{upper}", name: "Uppercase", description: "Clipboard in UPPERCASE"),
+            PlaceholderItem(symbol: "{lower}", name: "Lowercase", description: "Clipboard in lowercase"),
+            PlaceholderItem(symbol: "{uuid}", name: "UUID", description: "Unique identifier"),
+            PlaceholderItem(symbol: "{timestamp}", name: "Unix Timestamp", description: "Unix timestamp in seconds"),
+            PlaceholderItem(symbol: "{random:1-100}", name: "Random Number", description: "Random with custom range (e.g. {random:1-1000})")
+        ])
+    ]
+}
+
 // MARK: - Placeholder Menu View
 struct PlaceholderMenuView: View {
     let sections: [PlaceholderSection]
@@ -428,51 +465,52 @@ struct PlaceholderMenuView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text("Insert Placeholder")
-                .font(DSTypography.heading2)
-                .foregroundColor(DSColors.textPrimary)
-                .padding(.horizontal, DSSpacing.lg)
-                .padding(.vertical, DSSpacing.md)
+                .font(DSTypography.captionMedium)
+                .foregroundColor(DSColors.textSecondary)
+                .padding(.horizontal, DSSpacing.md)
+                .padding(.vertical, DSSpacing.xs)
 
             DSDivider()
 
             ScrollView {
-                VStack(alignment: .leading, spacing: DSSpacing.xs) {
+                VStack(alignment: .leading, spacing: 0) {
                     ForEach(sections) { section in
-                        HStack(spacing: DSSpacing.xs) {
+                        HStack(spacing: DSSpacing.xxs) {
                             Text(section.icon)
-                                .font(.system(size: 12))
+                                .font(.system(size: 10))
                             Text(section.title)
-                                .font(DSTypography.captionMedium)
-                                .foregroundColor(DSColors.textSecondary)
+                                .font(DSTypography.caption)
+                                .foregroundColor(DSColors.textTertiary)
                         }
-                        .padding(.horizontal, DSSpacing.lg)
-                        .padding(.top, DSSpacing.sm)
-                        .padding(.bottom, DSSpacing.xxs)
+                        .padding(.horizontal, DSSpacing.md)
+                        .padding(.top, DSSpacing.xs)
+                        .padding(.bottom, DSSpacing.xxxs)
 
                         ForEach(section.items) { placeholder in
                             Button(action: {
                                 onSelect(placeholder)
                             }) {
-                                HStack(spacing: DSSpacing.md) {
+                                HStack(spacing: DSSpacing.sm) {
                                     Text(placeholder.symbol)
                                         .font(DSTypography.code)
                                         .foregroundColor(DSColors.accent)
-                                        .frame(width: 120, alignment: .leading)
+                                        .lineLimit(1)
+                                        .frame(width: 150, alignment: .leading)
 
-                                    VStack(alignment: .leading, spacing: DSSpacing.xxxs) {
+                                    VStack(alignment: .leading, spacing: 0) {
                                         Text(placeholder.name)
-                                            .font(DSTypography.body)
+                                            .font(DSTypography.caption)
                                             .foregroundColor(DSColors.textPrimary)
 
                                         Text(placeholder.description)
                                             .font(DSTypography.caption)
-                                            .foregroundColor(DSColors.textSecondary)
+                                            .foregroundColor(DSColors.textTertiary)
                                     }
 
                                     Spacer()
                                 }
-                                .padding(.horizontal, DSSpacing.lg)
-                                .padding(.vertical, DSSpacing.sm)
+                                .padding(.horizontal, DSSpacing.md)
+                                .padding(.vertical, DSSpacing.xxs)
                                 .background(
                                     RoundedRectangle(cornerRadius: DSRadius.sm)
                                         .fill(hoveredId == placeholder.id ? DSColors.hoverBackground : Color.clear)
@@ -496,9 +534,9 @@ struct PlaceholderMenuView: View {
                 }
                 .padding(.vertical, DSSpacing.xxs)
             }
-            .frame(maxHeight: 400)
+            .frame(maxHeight: 360)
         }
-        .frame(width: 420)
+        .frame(width: 380)
         .background(DSColors.controlBackground)
     }
 }

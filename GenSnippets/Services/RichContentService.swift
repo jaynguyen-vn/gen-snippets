@@ -113,7 +113,10 @@ final class RichContentService {
 
     // MARK: - Insert Rich Content
 
-    func insertRichContent(for snippet: Snippet, previousClipboard: String?) {
+    /// - Parameter metafieldValues: user-entered `{{field}}` values (from the input dialog). When
+    ///   non-empty they're substituted into the document's text runs while inline images are kept,
+    ///   so a snippet can carry BOTH images and `{{field}}` placeholders. Empty for the normal path.
+    func insertRichContent(for snippet: Snippet, metafieldValues: [String: String] = [:], previousClipboard: String?) {
         let items = snippet.allRichContentItems
 
         if items.isEmpty {
@@ -123,17 +126,17 @@ final class RichContentService {
 
         // A lone inline rich-text document pastes as ONE Cmd+V (seamless text + inline images).
         if items.count == 1, items[0].type == .inlineRichText {
-            insertInlineRichText(items[0], previousClipboard: previousClipboard)
+            insertInlineRichText(items[0], metafieldValues: metafieldValues, previousClipboard: previousClipboard)
             return
         }
 
         // Otherwise paste each item sequentially with a small delay between each.
-        insertMultipleItems(items, at: 0, previousClipboard: previousClipboard)
+        insertMultipleItems(items, at: 0, metafieldValues: metafieldValues, previousClipboard: previousClipboard)
     }
 
     /// Paste a single inline rich-text (RTFD) document in one Cmd+V. Rich-text apps receive
     /// text + inline images; plain-text targets get the plain-text fallback (images dropped).
-    private func insertInlineRichText(_ item: RichContentItem, previousClipboard: String?) {
+    private func insertInlineRichText(_ item: RichContentItem, metafieldValues: [String: String] = [:], previousClipboard: String?) {
         guard let data = loadRTFD(from: item.data),
               let attr = try? NSAttributedString(
                   data: data,
@@ -143,8 +146,8 @@ final class RichContentService {
             return
         }
 
-        // Resolve dynamic keywords in the text runs while preserving image attachments.
-        let resolved = resolveKeywords(in: attr, previousClipboard: previousClipboard)
+        // Resolve {{field}} values + dynamic keywords in the text runs while preserving image attachments.
+        let resolved = resolveKeywords(in: attr, previousClipboard: previousClipboard, metafieldValues: metafieldValues)
 
         // App-aware paste. RTFD-aware apps (Notes/TextEdit/Mail/Word) get the seamless single paste.
         // Chat/web apps (Slack/Discord/browsers/Electron) only accept ONE content kind per paste —
@@ -239,7 +242,7 @@ final class RichContentService {
     ///
     /// Side effect: writes `previousClipboard` to the general pasteboard so {clipboard} resolves
     /// correctly. Callers MUST overwrite/restore the pasteboard afterward (the paste paths here do).
-    func resolveKeywords(in attr: NSAttributedString, previousClipboard: String?) -> NSAttributedString {
+    func resolveKeywords(in attr: NSAttributedString, previousClipboard: String?, metafieldValues: [String: String] = [:]) -> NSAttributedString {
         // Fast exit when there are no keyword braces at all.
         guard attr.string.contains("{") else { return attr }
 
@@ -262,14 +265,18 @@ final class RichContentService {
             // independently so it keeps ITS OWN attributes (no flattening)
             attr.enumerateAttributes(in: range, options: []) { attrs, runRange, _ in
                 let original = attr.attributedSubstring(from: runRange).string
-                let processed = TextReplacementService.shared.processSpecialKeywords(original)
+                // Substitute {{field}} values first, then resolve dynamic keywords ({time}, {uuid}, …).
+                let withFields = metafieldValues.isEmpty
+                    ? original
+                    : MetafieldService.shared.replaceMetafields(original, with: metafieldValues)
+                let processed = TextReplacementService.shared.processSpecialKeywords(withFields)
                 result.append(NSAttributedString(string: processed, attributes: attrs))
             }
         }
         return result
     }
 
-    private func insertMultipleItems(_ items: [RichContentItem], at index: Int, previousClipboard: String?) {
+    private func insertMultipleItems(_ items: [RichContentItem], at index: Int, metafieldValues: [String: String] = [:], previousClipboard: String?) {
         guard index < items.count else {
             // All items inserted, restore pasteboard after a delay
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
@@ -282,15 +289,15 @@ final class RichContentService {
         }
 
         let item = items[index]
-        insertSingleItem(item, previousClipboard: previousClipboard) {
+        insertSingleItem(item, metafieldValues: metafieldValues, previousClipboard: previousClipboard) {
             // After inserting this item, wait and insert the next
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                self.insertMultipleItems(items, at: index + 1, previousClipboard: previousClipboard)
+                self.insertMultipleItems(items, at: index + 1, metafieldValues: metafieldValues, previousClipboard: previousClipboard)
             }
         }
     }
 
-    private func insertSingleItem(_ item: RichContentItem, previousClipboard: String?, completion: @escaping () -> Void) {
+    private func insertSingleItem(_ item: RichContentItem, metafieldValues: [String: String] = [:], previousClipboard: String?, completion: @escaping () -> Void) {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
 
@@ -305,7 +312,10 @@ final class RichContentService {
             if let original = previousClipboard {
                 pasteboard.setString(original, forType: .string)
             }
-            let processed = TextReplacementService.shared.processSpecialKeywords(item.data)
+            let withFields = metafieldValues.isEmpty
+                ? item.data
+                : MetafieldService.shared.replaceMetafields(item.data, with: metafieldValues)
+            let processed = TextReplacementService.shared.processSpecialKeywords(withFields)
             pasteboard.clearContents()
             pasteboard.setString(processed, forType: .string)
 
@@ -335,7 +345,7 @@ final class RichContentService {
                    data: data,
                    options: [.documentType: NSAttributedString.DocumentType.rtfd],
                    documentAttributes: nil) {
-                let resolved = resolveKeywords(in: attr, previousClipboard: previousClipboard)
+                let resolved = resolveKeywords(in: attr, previousClipboard: previousClipboard, metafieldValues: metafieldValues)
                 writeAttributedString(resolved, to: pasteboard)
             }
         }

@@ -702,15 +702,24 @@ class TextReplacementService {
 
                         // Wait for deletion to complete before showing dialog
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                            MetafieldInputController.shared.showInputDialog(for: snippet) { [weak self] processedContent in
+                            MetafieldInputController.shared.showInputDialog(for: snippet) { [weak self] processedContent, values in
                                 guard let processedContent = processedContent else {
                                     self?.isPerformingExpansion = false
                                     return
                                 }
 
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                                    // Re-detect category here: metafield dialog may have changed frontmost app
-                                    self?.insertText(processedContent, category: EdgeCaseHandler.detectAppCategory())
+                                    // Rich snippets (inline images/files) substitute the {{field}} values into
+                                    // the document's text runs and paste via the rich path so images survive.
+                                    // Plain-text snippets keep the flattened-string paste.
+                                    if snippet.hasRichContent {
+                                        let previousClipboard = NSPasteboard.general.string(forType: .string)
+                                        RichContentService.shared.insertRichContent(for: snippet, metafieldValues: values ?? [:], previousClipboard: previousClipboard)
+                                        self?.isPerformingExpansion = false
+                                    } else {
+                                        // Re-detect category here: metafield dialog may have changed frontmost app
+                                        self?.insertText(processedContent, category: EdgeCaseHandler.detectAppCategory())
+                                    }
                                     UsageTracker.shared.recordUsage(for: snippet.command)
                                 }
                             }
