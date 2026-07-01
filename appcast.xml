@@ -3,6 +3,15 @@
     <channel>
         <title>GenSnippets</title>
         <item>
+            <title>2.10.3</title>
+            <pubDate>Wed, 01 Jul 2026 14:10:11 +0700</pubDate>
+            <sparkle:version>23</sparkle:version>
+            <sparkle:shortVersionString>2.10.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>11.5</sparkle:minimumSystemVersion>
+            <description><![CDATA[<ul><li>Fixed snippets sometimes pasting stale clipboard content (a previously copied item) instead of the snippet after the app had been idle for a while — the app now stays fully responsive so the correct text is always pasted</li></ul>]]></description>
+            <enclosure url="https://github.com/jaynguyen-vn/gen-snippets/releases/download/v2.10.3/GenSnippets.2.10.3.dmg" length="2740481" type="application/octet-stream" sparkle:edSignature="oj2vG0bekHaCgSb0DuGVYCZ8Il5NqEVLwI10yNSDnPc8JdPFqcrAdMueipjq1lfHNqzHJ4o5f/bs/tHEhxQUCg=="/>
+        </item>
+        <item>
             <title>2.10.2</title>
             <pubDate>Sun, 21 Jun 2026 21:24:46 +0700</pubDate>
             <sparkle:version>22</sparkle:version>
