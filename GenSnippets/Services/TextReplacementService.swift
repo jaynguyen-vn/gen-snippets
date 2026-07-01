@@ -914,7 +914,6 @@ class TextReplacementService {
 
         let pasteboard = NSPasteboard.general
         let previousContent = pasteboard.string(forType: .string)
-        let previousChangeCount = pasteboard.changeCount
 
         // Use passed-in category if available; fallback to detecting (for legacy callers)
         let resolvedCategory = category ?? EdgeCaseHandler.detectAppCategory()
@@ -931,15 +930,19 @@ class TextReplacementService {
         // Clear and set new content
         pasteboard.clearContents()
         pasteboard.setString(processedText, forType: .string)
+        // Snapshot the changeCount our write produced. The delayed restore below only fires
+        // if the clipboard still holds this exact write — see the restore guard for why.
+        let ourChangeCount = pasteboard.changeCount
 
-        // Wait for pasteboard IPC (pbs) to actually register our write before posting Cmd+V.
-        // Long-lived terminals (iTerm2 with heavy scrollback/selection auto-copy) can delay
-        // propagation; without this, Cmd+V reads the pre-write content and pastes stale data.
-        // Bounded spin-wait: usually completes in <1ms; worst-case caps at 50ms.
-        let changeCountDeadline = Date().addingTimeInterval(0.050)
-        while pasteboard.changeCount == previousChangeCount && Date() < changeCountDeadline {
-            Thread.sleep(forTimeInterval: 0.0005)
-        }
+        // Give the pasteboard-server (pbs) write time to propagate cross-process before posting Cmd+V.
+        // insertText runs on a background GCD queue with no run loop, so the write to pbs is not
+        // guaranteed flushed the instant setString returns. A same-process read (the verify below)
+        // is served from our local cache and can report success while pbs still holds the OLD value,
+        // so it can't be trusted as a propagation signal — we need a real minimum settle here.
+        // Without it, Cmd+V races the write and the target pastes stale clipboard content.
+        // changeCount polling can't detect cross-process visibility (our own writes bump it locally),
+        // so a bounded fixed settle is the reliable tool. Kept small to preserve expansion snappiness.
+        Thread.sleep(forTimeInterval: resolvedCategory == .discord || resolvedCategory == .virtualMachine || resolvedCategory == .remoteDesktop ? 0.045 : 0.025)
 
         // Safety check: verify our content is actually on the pasteboard before pasting.
         // If another process (e.g., terminal shell integration) raced us, bail out rather
@@ -1013,14 +1016,19 @@ class TextReplacementService {
                     cursorDelay = 0.05
                 }
 
-                // Plan F: adaptive restoreDelay. Original 0.3s was buffer for paste app to finish reading
-                // clipboard; native apps consume in <50ms. Keep 0.4s for fragile categories.
+                // restoreDelay must outlast how long the TARGET app takes to consume the synthesized
+                // Cmd+V. The paste is fire-and-forget: it only enqueues into the target's event stream.
+                // If we restore the old clipboard before the target reads it, Cmd+V pastes the restored
+                // (stale) content — the exact bug. After the target has been idle, it services injected
+                // events noticeably slower, so a short delay (the old 0.15s) loses the race. The restore
+                // guard below makes a generous delay safe: it skips the restore if you copied something
+                // new meanwhile, so holding the snippet on the clipboard longer never clobbers your copy.
                 let restoreDelay: TimeInterval
                 switch resolvedCategory {
                 case .discord, .virtualMachine, .remoteDesktop:
-                    restoreDelay = 0.4
+                    restoreDelay = 0.6
                 default:
-                    restoreDelay = 0.15
+                    restoreDelay = 0.5
                 }
 
                 // If cursor position is specified, move cursor to that position after paste is complete
@@ -1034,8 +1042,11 @@ class TextReplacementService {
 
                         // Restore clipboard after cursor positioning
                         DispatchQueue.main.asyncAfter(deadline: .now() + restoreDelay) {
-                            pasteboard.clearContents()
-                            if let previous = previousContent {
+                            // Only restore if the clipboard still holds our snippet write. A changed
+                            // changeCount means the user copied something new (or a later expansion ran)
+                            // — restoring would clobber it, so leave it alone.
+                            if pasteboard.changeCount == ourChangeCount, let previous = previousContent {
+                                pasteboard.clearContents()
                                 pasteboard.setString(previous, forType: .string)
                             }
                             self.isPerformingExpansion = false
@@ -1044,8 +1055,8 @@ class TextReplacementService {
                 } else {
                     // No cursor position specified — restore clipboard
                     DispatchQueue.main.asyncAfter(deadline: .now() + restoreDelay) {
-                        pasteboard.clearContents()
-                        if let previous = previousContent {
+                        if pasteboard.changeCount == ourChangeCount, let previous = previousContent {
+                            pasteboard.clearContents()
                             pasteboard.setString(previous, forType: .string)
                         }
                         self.isPerformingExpansion = false

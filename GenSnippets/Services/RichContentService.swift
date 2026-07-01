@@ -159,9 +159,13 @@ final class RichContentService {
             let pasteboard = NSPasteboard.general
             pasteboard.clearContents()
             writeAttributedString(resolved, to: pasteboard)
+            let ourChangeCount = pasteboard.changeCount
             simulatePaste()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                if let previous = previousClipboard {
+            // Restore only after the target has had time to consume the paste, and only if the
+            // clipboard still holds our write — otherwise Cmd+V would read the restored (stale)
+            // content, or we'd clobber something the user copied meanwhile. See TextReplacementService.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                if NSPasteboard.general.changeCount == ourChangeCount, let previous = previousClipboard {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(previous, forType: .string)
                 }
@@ -202,8 +206,12 @@ final class RichContentService {
 
     private func pasteSequentialUnits(_ units: [InlinePasteUnit], at index: Int, previousClipboard: String?) {
         guard index < units.count else {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                if let previous = previousClipboard {
+            // All units pasted. Snapshot the clipboard state (still holds the last unit) and restore
+            // the user's clipboard only after the target consumed the final paste and only if nothing
+            // else changed it meanwhile — mirrors the plain-text restore guard.
+            let lastCount = NSPasteboard.general.changeCount
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                if NSPasteboard.general.changeCount == lastCount, let previous = previousClipboard {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(previous, forType: .string)
                 }
