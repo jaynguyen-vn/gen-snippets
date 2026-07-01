@@ -173,7 +173,14 @@ class TextReplacementService {
     private let maxExecutionTimesCount = 50 // Limit array size to prevent memory growth
     
     private var cachedEventSource: CGEventSource?
-    
+
+    // App Nap assertion held for the entire monitoring lifetime. As a menu-bar app with no
+    // visible window, GenSnippets is a prime App Nap target: after idle, macOS throttles its
+    // timers/QoS and lets its pasteboard-server XPC connection go dormant, so the async
+    // NSPasteboard write hasn't propagated cross-process when Cmd+V fires — pasting stale
+    // clipboard content. A real-time keyboard-interception utility must never be napped.
+    private var activityToken: NSObjectProtocol?
+
     private init() {
         cachedEventSource = CGEventSource(stateID: .hidSystemState)
 
@@ -1246,6 +1253,24 @@ class TextReplacementService {
         return processSpecialKeywordsWithCursor(text, cursorPosition: &dummyCursorPos)
     }
     
+    /// Disable App Nap for as long as we monitor keystrokes. `.userInitiated` keeps the app
+    /// at full QoS (no timer coalescing, XPC connections stay warm) so pasteboard writes
+    /// propagate before the synthesized Cmd+V fires. Idempotent — safe to call repeatedly.
+    private func beginActivityAssertion() {
+        guard activityToken == nil else { return }
+        activityToken = ProcessInfo.processInfo.beginActivity(
+            options: [.userInitiated],
+            reason: "Real-time snippet expansion requires timely pasteboard access"
+        )
+    }
+
+    private func endActivityAssertion() {
+        if let token = activityToken {
+            ProcessInfo.processInfo.endActivity(token)
+            activityToken = nil
+        }
+    }
+
     func startMonitoring() {
         guard !isMonitoring else {
             print("[TextReplacementService] Already monitoring")
@@ -1259,6 +1284,7 @@ class TextReplacementService {
         lastKeyTime = 0
         isPerformingExpansion = false
         currentInputBuffer = ""
+        beginActivityAssertion()
         resetBufferClearTimer()
         setupKeyMonitor()
         print("[TextReplacementService] Started monitoring")
@@ -1266,6 +1292,7 @@ class TextReplacementService {
     
     func stopMonitoring() {
         isMonitoring = false
+        endActivityAssertion()
 
         // Capture timer references
         let bufferTimer = bufferClearTimer
