@@ -3,6 +3,15 @@
     <channel>
         <title>GenSnippets</title>
         <item>
+            <title>2.10.5</title>
+            <pubDate>Fri, 03 Jul 2026 09:52:29 +0700</pubDate>
+            <sparkle:version>25</sparkle:version>
+            <sparkle:shortVersionString>2.10.5</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>11.5</sparkle:minimumSystemVersion>
+            <description><![CDATA[<ul><li>Fixed a bug where rapid consecutive snippet expansions could corrupt what was typed next</li><li>Fixed stale-clipboard-after-idle for snippets containing images/files (previously fixed for plain text only)</li><li>Snippet expansion no longer overwrites a copied image or file on your clipboard</li><li>Snippet matching is now much faster on large snippet libraries</li><li>Fixed dropped characters when holding a key down right before an expansion</li><li>Snippet expansion is now blocked in password fields</li><li>Removed a 1000-snippet load limit that could silently drop snippets for large libraries</li></ul>]]></description>
+            <enclosure url="https://github.com/jaynguyen-vn/gen-snippets/releases/download/v2.10.5/GenSnippets.2.10.5.dmg" length="2731446" type="application/octet-stream" sparkle:edSignature="X5u/UGEhYkev6HqioPKb26wmodiefRoIs5calqndB4Ai/VQrEsc0T9fhGdoxISaL9WkkaKrHEF4MPiKpMV7iBA=="/>
+        </item>
+        <item>
             <title>2.10.4</title>
             <pubDate>Wed, 01 Jul 2026 17:24:38 +0700</pubDate>
             <sparkle:version>24</sparkle:version>
