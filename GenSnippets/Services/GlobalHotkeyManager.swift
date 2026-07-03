@@ -9,7 +9,9 @@ class GlobalHotkeyManager {
     private var globalEventMonitor: Any?
     private var localEventMonitor: Any?
     private var hotkeyCheckTimer: Timer?
-    
+    // In-memory instead of UserDefaults — avoids a disk write on every 30s periodic check.
+    private var lastHotkeyRegistration: Date?
+
     private var shortcutObserver: Any?
 
     private init() {
@@ -75,27 +77,27 @@ class GlobalHotkeyManager {
             NSEvent.removeMonitor(monitor)
         }
         
-        // Get custom shortcut from UserDefaults
-        let keyCode = UserDefaults.standard.integer(forKey: "SearchShortcutKeyCode")
+        // Get custom shortcut from UserDefaults. Detect "not set" via object(forKey:) == nil rather
+        // than keyCode == 0 — keyCode 0 is the letter A, so that sentinel made A unusable as a
+        // custom shortcut key.
+        let hasCustomKeyCode = UserDefaults.standard.object(forKey: "SearchShortcutKeyCode") != nil
+        let finalKeyCode = hasCustomKeyCode ? UserDefaults.standard.integer(forKey: "SearchShortcutKeyCode") : 14 // Default: E key (keyCode 14)
         let modifierValue = UserDefaults.standard.integer(forKey: "SearchShortcutModifiers")
-        
-        // Use defaults if not set
-        let finalKeyCode = keyCode == 0 ? 14 : keyCode // Default: E key (keyCode 14)
         let finalModifiers = modifierValue == 0 ? [NSEvent.ModifierFlags.option, NSEvent.ModifierFlags.command] : NSEvent.ModifierFlags(rawValue: UInt(modifierValue))
-        
+
         // Set up global event monitor with custom shortcut
-        globalEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { event in
-            if self.matchesShortcut(event: event, keyCode: finalKeyCode, modifiers: finalModifiers) {
+        globalEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            if self?.matchesShortcut(event: event, keyCode: finalKeyCode, modifiers: finalModifiers) == true {
                 DispatchQueue.main.async {
                     SnippetSearchWindowController.showSearchWindow()
                 }
                 // Note: Global monitors can't consume events, but we handle it in local monitor
             }
         }
-        
+
         // Also add local monitor for when app is active
-        localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            if self.matchesShortcut(event: event, keyCode: finalKeyCode, modifiers: finalModifiers) {
+        localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            if self?.matchesShortcut(event: event, keyCode: finalKeyCode, modifiers: finalModifiers) == true {
                 SnippetSearchWindowController.showSearchWindow()
                 return nil // Consume the event
             }
@@ -146,14 +148,14 @@ class GlobalHotkeyManager {
         
         // Re-register only every 5 minutes to reduce overhead (was 30 seconds)
         let now = Date()
-        if let lastRegistration = UserDefaults.standard.object(forKey: "LastHotkeyRegistration") as? Date {
+        if let lastRegistration = lastHotkeyRegistration {
             if now.timeIntervalSince(lastRegistration) > 300 { // 5 minutes
                 print("[GlobalHotkeyManager] 🔄 Refreshing hotkey registration...")
                 registerHotkey()
-                UserDefaults.standard.set(now, forKey: "LastHotkeyRegistration")
+                lastHotkeyRegistration = now
             }
         } else {
-            UserDefaults.standard.set(now, forKey: "LastHotkeyRegistration")
+            lastHotkeyRegistration = now
         }
     }
 }

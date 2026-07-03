@@ -76,6 +76,13 @@ class UsageTracker: ObservableObject {
     private var _storage: [String: SnippetUsage] = [:]
     private let dataQueue = DispatchQueue(label: "com.gensnippets.usage", attributes: .concurrent)
 
+    // Debounced disk persistence — recordUsage() fires on every expansion, so encoding + writing
+    // the full dictionary synchronously each time was a needless per-expansion disk write.
+    // Main-thread Timer only (mirrors LocalStorageService's batch-save pattern).
+    private var saveTimer: Timer?
+    private var pendingSave = false
+    private let saveDebounceInterval: TimeInterval = 2.0
+
     private let storageKey = "snippetUsageData_v2"
     private let legacyStorageKey = "snippetUsageData"
     private let migrationKey = "didMigrateToCommandBased_v2"
@@ -109,10 +116,38 @@ class UsageTracker: ObservableObject {
         }
     }
 
-    /// Force save to disk. Call before app termination.
+    /// Force save to disk immediately, bypassing the debounce. Call before app termination.
     func forceSave() {
+        let cancelTimer = { [weak self] in
+            self?.saveTimer?.invalidate()
+            self?.saveTimer = nil
+        }
+        if Thread.isMainThread {
+            cancelTimer()
+        } else {
+            DispatchQueue.main.sync(execute: cancelTimer)
+        }
+
         dataQueue.sync(flags: .barrier) {
             persistToDisk()
+            pendingSave = false
+        }
+    }
+
+    /// Schedule a debounced disk write. Main-thread only (Timer requirement).
+    private func scheduleSave() {
+        saveTimer?.invalidate()
+        saveTimer = Timer.scheduledTimer(withTimeInterval: saveDebounceInterval, repeats: false) { [weak self] _ in
+            self?.saveTimer = nil
+            self?.flushPendingSave()
+        }
+    }
+
+    private func flushPendingSave() {
+        dataQueue.async(flags: .barrier) { [weak self] in
+            guard let self = self, self.pendingSave else { return }
+            self.persistToDisk()
+            self.pendingSave = false
         }
     }
 
@@ -132,15 +167,15 @@ class UsageTracker: ObservableObject {
 
             let count = self._storage[snippetCommand]?.usageCount ?? 0
             let snapshot = self._storage
+            self.pendingSave = true
 
-            // Save to disk immediately
-            self.persistToDisk()
-
-            // Sync UI on main thread
+            // Sync UI on main thread and schedule a debounced disk write (2s coalesced,
+            // instead of encoding + writing the full dictionary on every single expansion).
             DispatchQueue.main.async {
                 self.usageData = snapshot
                 self.objectWillChange.send()
                 NotificationCenter.default.post(name: NSNotification.Name("SnippetUsageUpdated"), object: snippetCommand)
+                self.scheduleSave()
             }
 
             print("[UsageTracker] 📊 Recorded usage for command '\(snippetCommand)', total: \(count)")

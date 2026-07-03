@@ -152,7 +152,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
         let snippets = LocalStorageService.shared.loadSnippets()
         TextReplacementService.shared.updateSnippets(snippets)
         NSLog("GenSnippets: Loaded %d snippets for text replacement", snippets.count)
-        
+
+        // Sweep RichContent files no longer referenced by any snippet (e.g. left behind by a
+        // failed delete or interrupted import). Off the main thread — this walks a directory.
+        let validSnippetIds = Set(snippets.map { $0.id })
+        DispatchQueue.global(qos: .utility).async {
+            RichContentService.shared.cleanupOrphanedContent(validSnippetIds: validSnippetIds)
+        }
+
+
         // Setup global hotkey for snippet search
         GlobalHotkeyManager.shared.setupGlobalHotkey()
         
@@ -167,18 +175,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
         }
         notificationObservers.append(accessibilityObserver)
         
-        // Listen for snippets updates
-        let snippetsObserver = NotificationCenter.default.addObserver(
-            forName: NSNotification.Name("SnippetsUpdated"),
-            object: nil,
-            queue: .main
-        ) { notification in
-            if let snippets = notification.object as? [Snippet] {
-                TextReplacementService.shared.updateSnippets(snippets)
-            }
-        }
-        notificationObservers.append(snippetsObserver)
-        
+        // NOTE: "SnippetsUpdated" is observed directly inside TextReplacementService (single
+        // Combine sink). Do not add a second observer here — it caused the snippet index
+        // (trie + sorted cache) to rebuild twice per data change.
+
         // Listen for hide menu bar icon request
         let hideMenuBarObserver = NotificationCenter.default.addObserver(
             forName: NSNotification.Name("HideMenuBarIcon"),
@@ -432,7 +432,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
     
     @objc private func hideMenuBarIcon() {
         statusItem?.isVisible = false
-        UserDefaults.standard.set(false, forKey: "showStatusBarIcon")
+        UserDefaults.standard.set(false, forKey: "ShowStatusBarIcon")
         NotificationCenter.default.post(name: NSNotification.Name("StatusBarIconChanged"), object: nil)
     }
     
@@ -442,7 +442,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
         } else {
             statusItem?.isVisible = true
         }
-        UserDefaults.standard.set(true, forKey: "showStatusBarIcon")
+        UserDefaults.standard.set(true, forKey: "ShowStatusBarIcon")
         NotificationCenter.default.post(name: NSNotification.Name("StatusBarIconChanged"), object: nil)
     }
     

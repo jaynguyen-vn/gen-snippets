@@ -47,6 +47,46 @@ class TrieNode {
     }
 }
 
+/// Reversed-command trie for O(k) suffix matching on every keystroke, k = length of the longest
+/// command — independent of how many snippets exist. Commands are inserted character-by-reverse-
+/// order so matching walks the input buffer backwards (last char first); the deepest node reached
+/// that carries a snippet is the LONGEST command that is a suffix of the buffer, matching the
+/// existing "longer commands take precedence" rule without needing the snippets pre-sorted by length.
+final class ReversedCommandTrie {
+    private final class Node {
+        var children: [Character: Node] = [:]
+        var snippet: Snippet?
+    }
+
+    private let root = Node()
+
+    func insert(_ snippet: Snippet) {
+        guard !snippet.command.isEmpty else { return }
+        var node = root
+        for char in snippet.command.reversed() {
+            if node.children[char] == nil {
+                node.children[char] = Node()
+            }
+            node = node.children[char]!
+        }
+        node.snippet = snippet
+    }
+
+    /// Longest snippet command that is a suffix of `buffer`, or nil if none match.
+    func longestSuffixMatch(in buffer: String) -> Snippet? {
+        var node = root
+        var best: Snippet? = nil
+        for char in buffer.reversed() {
+            guard let next = node.children[char] else { break }
+            node = next
+            if let snippet = node.snippet {
+                best = snippet
+            }
+        }
+        return best
+    }
+}
+
 class TextReplacementService {
     static let shared = TextReplacementService()
     
@@ -76,6 +116,24 @@ class TextReplacementService {
             os_unfair_lock_lock(&snippetSnapshotLock)
             _snippetSnapshot = newValue
             os_unfair_lock_unlock(&snippetSnapshotLock)
+        }
+    }
+
+    // Reversed-command trie snapshot for the hot path (checkForCommands). Rebuilt wholesale in
+    // updateSnippets and published here — O(len of longest command) matching per keystroke instead
+    // of a linear scan over every snippet.
+    private var _reversedTrieSnapshot = ReversedCommandTrie()
+    private var reversedTrieSnapshotLock = os_unfair_lock()
+    private var reversedTrieSnapshot: ReversedCommandTrie {
+        get {
+            os_unfair_lock_lock(&reversedTrieSnapshotLock)
+            defer { os_unfair_lock_unlock(&reversedTrieSnapshotLock) }
+            return _reversedTrieSnapshot
+        }
+        set {
+            os_unfair_lock_lock(&reversedTrieSnapshotLock)
+            _reversedTrieSnapshot = newValue
+            os_unfair_lock_unlock(&reversedTrieSnapshotLock)
         }
     }
 
@@ -163,7 +221,10 @@ class TextReplacementService {
         }
     }
 
-    private var bufferClearTimer: Timer?
+    // Buffer inactivity is checked via timestamp comparison in handleKeyPress (see lastBufferActivityTime)
+    // instead of a Timer rescheduled on every keystroke — avoids a main-thread Timer invalidate+create
+    // per key press.
+    private var lastBufferActivityTime: TimeInterval = 0
     private let bufferInactivityTimeout: TimeInterval = 15.0 // Clear buffer after 15 seconds of inactivity
     private var eventTapCheckTimer: Timer?
     private var eventTapDisabledCount = 0
@@ -196,22 +257,18 @@ class TextReplacementService {
     }
     
     deinit {
-        // Capture timer references before cleanup to avoid sync deadlock
-        let bufferTimer = bufferClearTimer
+        // Capture timer reference before cleanup to avoid sync deadlock
         let eventTapTimer = eventTapCheckTimer
 
-        // Clear our references first
-        bufferClearTimer = nil
+        // Clear our reference first
         eventTapCheckTimer = nil
 
-        // Invalidate timers on main thread without blocking
+        // Invalidate timer on main thread without blocking
         // This is safe because Timer retains itself until invalidated
         if Thread.isMainThread {
-            bufferTimer?.invalidate()
             eventTapTimer?.invalidate()
         } else {
             DispatchQueue.main.async {
-                bufferTimer?.invalidate()
                 eventTapTimer?.invalidate()
             }
         }
@@ -277,8 +334,10 @@ class TextReplacementService {
                         os_unfair_lock_unlock(&service.callbackTimesLock)
                     }
                     
-                    CGEvent.tapEnable(tap: service.eventTap!, enable: true)
-                    print("[TextReplacementService] ✅ Event tap re-enabled")
+                    if let tap = service.eventTap {
+                        CGEvent.tapEnable(tap: tap, enable: true)
+                        print("[TextReplacementService] ✅ Event tap re-enabled")
+                    }
                     return Unmanaged.passUnretained(event)
                 }
                 
@@ -305,11 +364,22 @@ class TextReplacementService {
                     }
                     
                     if keyCode == 0x33 {
+                        // Skip backspaces WE synthesized to delete the typed command (deleteLastCharacters).
+                        // Without this guard they re-enter the tap and double-trim the buffer that
+                        // checkForCommands() already trimmed via dropLast, corrupting subsequent matches.
+                        // Genuine user backspaces (isPerformingExpansion == false) still fall through and
+                        // re-check commands — that recovery-after-typo behavior is intentional.
+                        if service.isPerformingExpansion {
+                            return Unmanaged.passUnretained(event)
+                        }
                         service.bufferLock.lock()
                         if !service.currentInputBuffer.isEmpty {
                             service.currentInputBuffer.removeLast()
                             let bufferCount = service.currentInputBuffer.count
                             service.bufferLock.unlock()
+                            // Re-checking after backspace is intentional: it lets a typo overshoot
+                            // recover via backspace (e.g. `;sigx` + backspace → expands `;sig`)
+                            // instead of forcing the user to retype the whole command. Do not remove.
                             if bufferCount >= 2 {
                                 service.checkForCommands()
                             }
@@ -319,37 +389,40 @@ class TextReplacementService {
                         return Unmanaged.passUnretained(event)
                     }
                     
+                    // Distinguish genuine OS key-repeat (holding a key down) from duplicate delivery
+                    // by certain input methods (evkey/OpenKey can double-fire the same character).
+                    // The dedup windows below exist for the latter and must NOT swallow the former —
+                    // at fast Key Repeat speeds, real repeats can fire well under 30ms apart, and the
+                    // old logic (no autorepeat check) silently dropped ~2/3 of held-key characters,
+                    // desyncing the buffer from what's actually on screen.
+                    let isAutorepeat = event.getIntegerValueField(.keyboardEventAutorepeat) != 0
+
                     // Prevent duplicate key processing by checking time and key code
                     let currentTime = CFAbsoluteTimeGetCurrent()
-                    let isRepeatedKey = (currentTime - service.lastKeyTime < 0.008) && CGKeyCode(keyCode) == service.lastKeyCode
-                    
+                    let isRepeatedKey = !isAutorepeat && (currentTime - service.lastKeyTime < 0.008) && CGKeyCode(keyCode) == service.lastKeyCode
+
                     // Only process this key if it's not a repeated key from input method
                     if !isRepeatedKey {
                         service.lastKeyTime = currentTime
                         service.lastKeyCode = CGKeyCode(keyCode)
-                        
+
                         // Try to get the character directly from the event first (better for input methods like evkey)
                         if let nsEvent = NSEvent(cgEvent: event) {
                             let characters = nsEvent.characters ?? ""
-                            
+
                             if !characters.isEmpty {
                                 #if DEBUG
                                 print("[TextReplacementService] 📝 Character from NSEvent: \(characters)")
                                 #endif
-                                
+
                                 // Check if we've just handled this exact same character
                                 // Use lastCharHandledTime (not lastKeyTime which was just set to currentTime)
-                                if characters != service.lastCharHandled || (currentTime - service.lastCharHandledTime > 0.03) {
+                                // No time-based reset of lastCharHandled needed: the condition above
+                                // already falls through once 30ms pass, regardless of the stored value.
+                                if isAutorepeat || characters != service.lastCharHandled || (currentTime - service.lastCharHandledTime > 0.03) {
                                     service.handleKeyPress(characters)
                                     service.lastCharHandled = characters
                                     service.lastCharHandledTime = currentTime
-
-                                    // Reset lastCharHandled after a delay to allow for legitimate repeated characters
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                                        if service.lastCharHandled == characters {
-                                            service.lastCharHandled = ""
-                                        }
-                                    }
                                 } else {
                                     #if DEBUG
                                     print("[TextReplacementService] ⚠️ Skipping duplicate character: \(characters)")
@@ -393,17 +466,12 @@ class TextReplacementService {
                                 
                                 // Check if we've just handled this exact same character
                                 // Use lastCharHandledTime (not lastKeyTime which was just set to currentTime)
-                                if char != service.lastCharHandled || (currentTime - service.lastCharHandledTime > 0.03) {
+                                // No time-based reset of lastCharHandled needed: the condition above
+                                // already falls through once 30ms pass, regardless of the stored value.
+                                if isAutorepeat || char != service.lastCharHandled || (currentTime - service.lastCharHandledTime > 0.03) {
                                     service.handleKeyPress(char)
                                     service.lastCharHandled = char
                                     service.lastCharHandledTime = currentTime
-
-                                    // Reset lastCharHandled after a delay to allow for legitimate repeated characters
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                                        if service.lastCharHandled == char {
-                                            service.lastCharHandled = ""
-                                        }
-                                    }
                                 } else {
                                     #if DEBUG
                                     print("[TextReplacementService] ⚠️ Skipping duplicate character: \(char)")
@@ -538,8 +606,20 @@ class TextReplacementService {
             return
         }
 
-        // Reset the buffer clear timer whenever a key is pressed
-        resetBufferClearTimer()
+        // Clear the buffer if it's been inactive too long. A cheap timestamp check replaces a
+        // Timer that used to be invalidated + rescheduled on every single keystroke.
+        let now = CFAbsoluteTimeGetCurrent()
+        if lastBufferActivityTime > 0 && (now - lastBufferActivityTime) > bufferInactivityTimeout {
+            bufferLock.lock()
+            #if DEBUG
+            if !currentInputBuffer.isEmpty {
+                print("[TextReplacementService] 🧹 Clearing buffer due to inactivity: '\(currentInputBuffer)'")
+            }
+            #endif
+            currentInputBuffer = ""
+            bufferLock.unlock()
+        }
+        lastBufferActivityTime = now
 
         // Skip empty characters that might come from input methods
         if char.isEmpty {
@@ -584,6 +664,8 @@ class TextReplacementService {
                 print("[TextReplacementService] 🔙 Backspace - Deleted '\(deletedChar)'")
                 #endif
 
+                // Re-checking after backspace is intentional: it lets a typo overshoot recover via
+                // backspace (e.g. `;sigx` + backspace → expands `;sig`) instead of forcing a retype.
                 if bufferCount >= 2 {
                     checkForCommands()
                 }
@@ -596,8 +678,10 @@ class TextReplacementService {
         if char.rangeOfCharacter(from: .whitespaces.union(.alphanumerics).union(.punctuationCharacters)) != nil {
             bufferLock.lock()
             if currentInputBuffer.count >= maxBufferSize {
-                let keepCount = maxBufferSize / 2
-                currentInputBuffer = String(currentInputBuffer.suffix(keepCount))
+                // Drop only the overflow (not half the buffer). Halving used to permanently break
+                // any command longer than maxBufferSize/2 (25 chars) typed right after the trim.
+                let overflow = currentInputBuffer.count - maxBufferSize + 1
+                currentInputBuffer.removeFirst(overflow)
             }
             currentInputBuffer += char
             bufferLock.unlock()
@@ -614,40 +698,6 @@ class TextReplacementService {
         }
     }
     
-    private func resetBufferClearTimer() {
-        // Create timer setup closure
-        let createTimer = { [weak self] in
-            guard let self = self else { return }
-
-            // Invalidate existing timer
-            self.bufferClearTimer?.invalidate()
-            self.bufferClearTimer = nil
-
-            self.bufferClearTimer = Timer.scheduledTimer(withTimeInterval: self.bufferInactivityTimeout, repeats: false) { [weak self] _ in
-                guard let self = self else { return }
-
-                // Guard with bufferLock — buffer is also accessed on event tap thread
-                self.bufferLock.lock()
-                #if DEBUG
-                if !self.currentInputBuffer.isEmpty {
-                    print("[TextReplacementService] 🧹 Clearing buffer due to inactivity: '\(self.currentInputBuffer)'")
-                }
-                #endif
-                self.currentInputBuffer = ""
-                self.bufferLock.unlock()
-            }
-        }
-
-        // Always use async to avoid potential deadlocks
-        if Thread.isMainThread {
-            createTimer()
-        } else {
-            DispatchQueue.main.async {
-                createTimer()
-            }
-        }
-    }
-    
     private func checkForCommands() {
         // Take a thread-safe snapshot of buffer for matching
         bufferLock.lock()
@@ -657,105 +707,106 @@ class TextReplacementService {
         // Early exit if buffer is too small to contain any commands
         guard bufferCopy.count >= 2 else { return }
 
-        // Use thread-safe snapshot to avoid snippetQueue.sync contention in callback path
-        let sortedSnippets = snippetSnapshot
+        // O(k) trie lookup, k = length of longest command — independent of snippet count.
+        // Replaces a linear scan over every snippet that used to run on every keystroke.
+        guard let snippet = reversedTrieSnapshot.longestSuffixMatch(in: bufferCopy) else { return }
 
-        // Early exit if no snippets
-        guard !sortedSnippets.isEmpty else { return }
+        #if DEBUG
+        // Cross-check against the old linear-scan algorithm during rollout of the trie matcher.
+        let linearMatch = snippetSnapshot.first { candidate in
+            bufferCopy.count >= candidate.command.count && bufferCopy.hasSuffix(candidate.command)
+        }
+        if linearMatch?.command != snippet.command {
+            print("[TextReplacementService] ⚠️ MATCHER MISMATCH — trie: '\(snippet.command)', linear: '\(linearMatch?.command ?? "nil")' for buffer '\(bufferCopy)'")
+        }
+        #endif
 
-        // Only check snippets that could possibly match based on buffer size
-        for snippet in sortedSnippets {
-            // Skip if buffer is too small for this command
-            if bufferCopy.count < snippet.command.count {
-                continue
-            }
+        // Cache app category once for the entire expansion lifecycle. This avoids 5-6 redundant
+        // detectAppCategory() probes and guarantees pipeline coherence even if the user switches
+        // app mid-paste. Detected synchronously here, BEFORE the buffer is touched: password-field/
+        // game must leave the buffer (and the on-screen text) completely untouched, so the guard has
+        // to run before any trim happens — trimming first and aborting in the async block below would
+        // desync currentInputBuffer from what's actually still on screen (no real backspace was sent).
+        // Safe to call on the event-tap thread now that isGame() no longer scans the window list
+        // (see EdgeCaseHandler) — remaining checks are cheap bundle-ID/array lookups.
+        let cachedCategory = EdgeCaseHandler.detectAppCategory()
+        if cachedCategory.shouldDisableExpansion {
+            #if DEBUG
+            print("[TextReplacementService] 🚫 Expansion disabled for category: \(cachedCategory)")
+            #endif
+            return
+        }
 
-            // Optimize: only check suffix if last character matches
-            if let lastChar = snippet.command.last,
-               let bufferLastChar = bufferCopy.last,
-               lastChar != bufferLastChar {
-                continue
-            }
+        let charsToDelete = snippet.command.count
 
-            // Check if buffer ends with the snippet command
-            if bufferCopy.hasSuffix(snippet.command) {
-                let charsToDelete = snippet.command.count
+        bufferLock.lock()
+        currentInputBuffer = String(currentInputBuffer.dropLast(charsToDelete))
+        bufferLock.unlock()
 
-                bufferLock.lock()
-                currentInputBuffer = String(currentInputBuffer.dropLast(charsToDelete))
-                bufferLock.unlock()
+        #if DEBUG
+        print("[TextReplacementService] ✅ Found matching suffix command: '\(snippet.command)'")
+        #endif
 
-                #if DEBUG
-                print("[TextReplacementService] ✅ Found matching suffix command: '\(snippet.command)'")
-                #endif
+        // Dispatch off the event tap thread to avoid macOS disabling the tap
+        // Hold isPerformingExpansion = true through full lifecycle (deletion + paste + restore)
+        DispatchQueue.global(qos: .userInteractive).async { [weak self] in
+            self?.isPerformingExpansion = true
+            self?.deleteLastCharacters(count: charsToDelete, category: cachedCategory)
+            // NOTE: Do NOT reset isPerformingExpansion here — keep it true until paste + restore completes
 
-                // Dispatch off the event tap thread to avoid macOS disabling the tap
-                // Hold isPerformingExpansion = true through full lifecycle (deletion + paste + restore)
-                // Cache app category once for the entire expansion lifecycle. This avoids 5-6
-                // redundant detectAppCategory() probes (each touches NSWorkspace, IsSecureEventInputEnabled,
-                // CGWindowListCopyWindowInfo) and guarantees pipeline coherence even if user switches app mid-paste.
-                let cachedCategory = EdgeCaseHandler.detectAppCategory()
-                DispatchQueue.global(qos: .userInteractive).async { [weak self] in
-                    self?.isPerformingExpansion = true
-                    self?.deleteLastCharacters(count: charsToDelete, category: cachedCategory)
-                    // NOTE: Do NOT reset isPerformingExpansion here — keep it true until paste + restore completes
+            // Check if snippet contains custom metafields
+            if MetafieldService.shared.containsMetafields(snippet.content) {
+                // Save previous app before showing dialog
+                DispatchQueue.main.async {
+                    MetafieldInputController.shared.savePreviousApp()
+                }
 
-                    // Check if snippet contains custom metafields
-                    if MetafieldService.shared.containsMetafields(snippet.content) {
-                        // Save previous app before showing dialog
-                        DispatchQueue.main.async {
-                            MetafieldInputController.shared.savePreviousApp()
+                // Wait for deletion to complete before showing dialog
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    MetafieldInputController.shared.showInputDialog(for: snippet) { [weak self] processedContent, values in
+                        guard let processedContent = processedContent else {
+                            self?.isPerformingExpansion = false
+                            return
                         }
 
-                        // Wait for deletion to complete before showing dialog
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                            MetafieldInputController.shared.showInputDialog(for: snippet) { [weak self] processedContent, values in
-                                guard let processedContent = processedContent else {
-                                    self?.isPerformingExpansion = false
-                                    return
-                                }
-
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                                    // Rich snippets (inline images/files) substitute the {{field}} values into
-                                    // the document's text runs and paste via the rich path so images survive.
-                                    // Plain-text snippets keep the flattened-string paste.
-                                    if snippet.hasRichContent {
-                                        let previousClipboard = NSPasteboard.general.string(forType: .string)
-                                        RichContentService.shared.insertRichContent(for: snippet, metafieldValues: values ?? [:], previousClipboard: previousClipboard)
-                                        self?.isPerformingExpansion = false
-                                    } else {
-                                        // Re-detect category here: metafield dialog may have changed frontmost app
-                                        self?.insertText(processedContent, category: EdgeCaseHandler.detectAppCategory())
-                                    }
-                                    UsageTracker.shared.recordUsage(for: snippet.command)
-                                }
-                            }
-                        }
-                    } else {
-                        // No metafields, insert directly
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                            // Route by hasRichContent (not first-block type) so mixed snippets whose
-                            // first block is text still take the rich path and paste their images/files.
+                            // Rich snippets (inline images/files) substitute the {{field}} values into
+                            // the document's text runs and paste via the rich path so images survive.
+                            // Plain-text snippets keep the flattened-string paste.
                             if snippet.hasRichContent {
                                 let previousClipboard = NSPasteboard.general.string(forType: .string)
-                                RichContentService.shared.insertRichContent(for: snippet, previousClipboard: previousClipboard)
-                                #if DEBUG
-                                print("[TextReplacementService] 🖼️ Inserted rich content (\(snippet.actualContentType.displayName)) for: \(snippet.command)")
-                                #endif
-                                // Rich content path doesn't go through insertText, so reset flag here
+                                RichContentService.shared.insertRichContent(for: snippet, metafieldValues: values ?? [:], previousClipboard: previousClipboard)
                                 self?.isPerformingExpansion = false
                             } else {
-                                // insertText handles isPerformingExpansion reset in its restore callback
-                                self?.insertText(snippet.content, category: cachedCategory)
+                                // Re-detect category here: metafield dialog may have changed frontmost app
+                                self?.insertText(processedContent, category: EdgeCaseHandler.detectAppCategory())
                             }
                             UsageTracker.shared.recordUsage(for: snippet.command)
-                            #if DEBUG
-                            print("[TextReplacementService] 📊 Recorded usage for snippet: \(snippet.command)")
-                            #endif
                         }
                     }
                 }
-                return // Exit early once a match is found
+            } else {
+                // No metafields, insert directly
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                    // Route by hasRichContent (not first-block type) so mixed snippets whose
+                    // first block is text still take the rich path and paste their images/files.
+                    if snippet.hasRichContent {
+                        let previousClipboard = NSPasteboard.general.string(forType: .string)
+                        RichContentService.shared.insertRichContent(for: snippet, previousClipboard: previousClipboard)
+                        #if DEBUG
+                        print("[TextReplacementService] 🖼️ Inserted rich content (\(snippet.actualContentType.displayName)) for: \(snippet.command)")
+                        #endif
+                        // Rich content path doesn't go through insertText, so reset flag here
+                        self?.isPerformingExpansion = false
+                    } else {
+                        // insertText handles isPerformingExpansion reset in its restore callback
+                        self?.insertText(snippet.content, category: cachedCategory)
+                    }
+                    UsageTracker.shared.recordUsage(for: snippet.command)
+                    #if DEBUG
+                    print("[TextReplacementService] 📊 Recorded usage for snippet: \(snippet.command)")
+                    #endif
+                }
             }
         }
     }
@@ -914,6 +965,9 @@ class TextReplacementService {
 
         let pasteboard = NSPasteboard.general
         let previousContent = pasteboard.string(forType: .string)
+        // Full-item backup (not just the string) so expansion never destroys a non-text clipboard
+        // (image, file, URL) the user had copied — restore uses this instead of the string alone.
+        let previousBackup = RichContentService.shared.backupPasteboard()
 
         // Use passed-in category if available; fallback to detecting (for legacy callers)
         let resolvedCategory = category ?? EdgeCaseHandler.detectAppCategory()
@@ -951,11 +1005,10 @@ class TextReplacementService {
             #if DEBUG
             print("[TextReplacementService] ⚠️ Pasteboard write did not settle — aborting paste to avoid stale content")
             #endif
-            // Best-effort restore of original clipboard
-            pasteboard.clearContents()
-            if let previous = previousContent {
-                pasteboard.setString(previous, forType: .string)
-            }
+            // Best-effort restore of original clipboard (full item backup, not just the string).
+            // No Cmd+V was posted yet, so restoring immediately (unguarded) matches the original
+            // best-effort behavior — we haven't raced a paste, only the settle check itself.
+            RichContentService.shared.restorePasteboardNow(previousBackup, previousClipboardString: previousContent)
             isPerformingExpansion = false
             return
         }
@@ -1044,21 +1097,16 @@ class TextReplacementService {
                         DispatchQueue.main.asyncAfter(deadline: .now() + restoreDelay) {
                             // Only restore if the clipboard still holds our snippet write. A changed
                             // changeCount means the user copied something new (or a later expansion ran)
-                            // — restoring would clobber it, so leave it alone.
-                            if pasteboard.changeCount == ourChangeCount, let previous = previousContent {
-                                pasteboard.clearContents()
-                                pasteboard.setString(previous, forType: .string)
-                            }
+                            // — restoring would clobber it, so leave it alone. Restore uses the full
+                            // item backup so a non-text clipboard (image/file) the user had isn't lost.
+                            RichContentService.shared.restorePasteboardIfUnchanged(previousBackup, expectedChangeCount: ourChangeCount, previousClipboardString: previousContent)
                             self.isPerformingExpansion = false
                         }
                     }
                 } else {
                     // No cursor position specified — restore clipboard
                     DispatchQueue.main.asyncAfter(deadline: .now() + restoreDelay) {
-                        if pasteboard.changeCount == ourChangeCount, let previous = previousContent {
-                            pasteboard.clearContents()
-                            pasteboard.setString(previous, forType: .string)
-                        }
+                        RichContentService.shared.restorePasteboardIfUnchanged(previousBackup, expectedChangeCount: ourChangeCount, previousClipboardString: previousContent)
                         self.isPerformingExpansion = false
                     }
                 }
@@ -1293,29 +1341,26 @@ class TextReplacementService {
         lastCharHandledTime = 0
         lastKeyCode = 0
         lastKeyTime = 0
+        lastBufferActivityTime = 0
         isPerformingExpansion = false
         currentInputBuffer = ""
         beginActivityAssertion()
-        resetBufferClearTimer()
         setupKeyMonitor()
         print("[TextReplacementService] Started monitoring")
     }
-    
+
     func stopMonitoring() {
         isMonitoring = false
         endActivityAssertion()
 
-        // Capture timer references
-        let bufferTimer = bufferClearTimer
+        // Capture timer reference
         let eventTapTimer = eventTapCheckTimer
 
-        // Clear our references
-        bufferClearTimer = nil
+        // Clear our reference
         eventTapCheckTimer = nil
 
-        // Invalidate timers on main thread without blocking
+        // Invalidate timer on main thread without blocking
         let invalidateTimers = {
-            bufferTimer?.invalidate()
             eventTapTimer?.invalidate()
         }
 
@@ -1360,23 +1405,28 @@ class TextReplacementService {
         snippetQueue.async(flags: .barrier) {
             var snippetDict = [String: String]()
             let newTrie = TrieNode()
-            
+            let newReversedTrie = ReversedCommandTrie()
+
             for snippet in snippets {
                 snippetDict[snippet.command] = snippet.content
                 newTrie.insert(command: snippet.command, snippet: snippet)
+                newReversedTrie.insert(snippet)
             }
-            
+
             self.snippets = snippets
             self.snippetLookup = snippetDict
             self.snippetTrie = newTrie
-            
+
             // Update cache with proper versioning
             self.sortedSnippetsCache = snippets.sorted { $0.command.count > $1.command.count }
             self.snippetsLastUpdated = Date()
             self.snippetsCacheVersion += 1
 
-            // Update lock-free snapshot for callback path (avoids snippetQueue.sync contention)
+            // Update lock-free snapshots for the callback path (avoids snippetQueue.sync contention).
+            // reversedTrieSnapshot is what checkForCommands actually matches against; snippetSnapshot
+            // is kept for the DEBUG-only cross-check against the old linear scan (see checkForCommands).
             self.snippetSnapshot = self.sortedSnippetsCache
+            self.reversedTrieSnapshot = newReversedTrie
         }
         
         print("[TextReplacementService] Updated snippets: \(snippets.count) items")
@@ -1480,24 +1530,32 @@ class TextReplacementService {
 
         print("[TextReplacementService] 🎯 Inserting snippet directly: \(snippet.command)")
 
-        // Track usage (by command, not ID)
-        UsageTracker.shared.recordUsage(for: snippet.command)
-        print("[TextReplacementService] 📊 Recorded usage for snippet: \(snippet.command)")
+        // Route through the same background queue as tap-triggered expansion. This work includes
+        // a settle Thread.sleep (~25-45ms) and, for rich snippets, RTFD/PNG serialization of
+        // potentially full-size images — all of which used to run synchronously on the caller's
+        // thread (main, from the search UI), causing a visible UI hang.
+        DispatchQueue.global(qos: .userInteractive).async { [weak self] in
+            guard let self = self else { return }
 
-        // Route by hasRichContent (not first-block type) so mixed snippets whose
-        // first block is text still take the rich path and paste their images/files.
-        if snippet.hasRichContent {
-            let previousClipboard = NSPasteboard.general.string(forType: .string)
-            RichContentService.shared.insertRichContent(for: snippet, previousClipboard: previousClipboard)
-            #if DEBUG
-            print("[TextReplacementService] 🖼️ Inserted rich content (\(snippet.actualContentType.displayName)) for: \(snippet.command)")
-            #endif
-            isPerformingExpansion = false
-        } else {
-            // Process the snippet content with placeholder handling
-            let processedContent = processSnippetWithPlaceholders(snippet.content)
-            // insertText handles isPerformingExpansion reset in its restore callback
-            insertText(processedContent)
+            // Track usage (by command, not ID)
+            UsageTracker.shared.recordUsage(for: snippet.command)
+            print("[TextReplacementService] 📊 Recorded usage for snippet: \(snippet.command)")
+
+            // Route by hasRichContent (not first-block type) so mixed snippets whose
+            // first block is text still take the rich path and paste their images/files.
+            if snippet.hasRichContent {
+                let previousClipboard = NSPasteboard.general.string(forType: .string)
+                RichContentService.shared.insertRichContent(for: snippet, previousClipboard: previousClipboard)
+                #if DEBUG
+                print("[TextReplacementService] 🖼️ Inserted rich content (\(snippet.actualContentType.displayName)) for: \(snippet.command)")
+                #endif
+                self.isPerformingExpansion = false
+            } else {
+                // Process the snippet content with placeholder handling
+                let processedContent = self.processSnippetWithPlaceholders(snippet.content)
+                // insertText handles isPerformingExpansion reset in its restore callback
+                self.insertText(processedContent)
+            }
         }
     }
     
@@ -1540,4 +1598,20 @@ class TextReplacementService {
         // Process any remaining special keywords
         return processSpecialKeywords(result)
     }
-} 
+}
+
+// MARK: - Shared pasteboard settle guard
+
+extension TextReplacementService {
+    /// Sleep briefly (category-aware) so the pasteboard-server write propagates cross-process before
+    /// a synthesized Cmd+V fires, then verify nothing else raced our write in the meantime. Shared by
+    /// every paste path (plain-text and rich content) — see insertText's original comment for why a
+    /// fixed settle is required instead of changeCount polling: our own writes bump changeCount locally
+    /// before pbs has flushed, so it can't signal cross-process propagation, only a same-process race.
+    /// Returns false if the pasteboard no longer holds our write (caller should abort + restore).
+    static func settlePasteboardWrite(category: EdgeCaseHandler.AppCategory, ourChangeCount: Int) -> Bool {
+        let delay: TimeInterval = (category == .discord || category == .virtualMachine || category == .remoteDesktop) ? 0.045 : 0.025
+        Thread.sleep(forTimeInterval: delay)
+        return NSPasteboard.general.changeCount == ourChangeCount
+    }
+}

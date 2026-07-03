@@ -160,6 +160,21 @@ final class RichContentService {
             pasteboard.clearContents()
             writeAttributedString(resolved, to: pasteboard)
             let ourChangeCount = pasteboard.changeCount
+
+            // Give the pbs write time to propagate cross-process before posting Cmd+V — same
+            // stale-clipboard-after-idle race the plain-text path guards against (see
+            // TextReplacementService.insertText). This path had no settle at all before.
+            guard TextReplacementService.settlePasteboardWrite(category: category, ourChangeCount: ourChangeCount) else {
+                #if DEBUG
+                print("[RichContentService] ⚠️ Pasteboard write did not settle — aborting inline rich paste")
+                #endif
+                if let previous = previousClipboard {
+                    pasteboard.clearContents()
+                    pasteboard.setString(previous, forType: .string)
+                }
+                return
+            }
+
             simulatePaste()
             // Restore only after the target has had time to consume the paste, and only if the
             // clipboard still holds our write — otherwise Cmd+V would read the restored (stale)
@@ -226,6 +241,17 @@ final class RichContentService {
         case .image(let image):
             pasteboard.writeObjects([image])
         }
+        let ourChangeCount = pasteboard.changeCount
+        guard TextReplacementService.settlePasteboardWrite(category: EdgeCaseHandler.detectAppCategory(), ourChangeCount: ourChangeCount) else {
+            #if DEBUG
+            print("[RichContentService] ⚠️ Pasteboard write did not settle — aborting sequential unit paste")
+            #endif
+            if let previous = previousClipboard {
+                pasteboard.clearContents()
+                pasteboard.setString(previous, forType: .string)
+            }
+            return
+        }
         simulatePaste()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
             self.pasteSequentialUnits(units, at: index + 1, previousClipboard: previousClipboard)
@@ -286,9 +312,12 @@ final class RichContentService {
 
     private func insertMultipleItems(_ items: [RichContentItem], at index: Int, metafieldValues: [String: String] = [:], previousClipboard: String?) {
         guard index < items.count else {
-            // All items inserted, restore pasteboard after a delay
+            // All items inserted. Snapshot the clipboard state (still holds the last item) and only
+            // restore if nothing else changed it meanwhile — an unconditional restore would clobber
+            // a copy the user made during the multi-item paste sequence.
+            let lastCount = NSPasteboard.general.changeCount
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                if let previous = previousClipboard {
+                if NSPasteboard.general.changeCount == lastCount, let previous = previousClipboard {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(previous, forType: .string)
                 }
@@ -358,6 +387,19 @@ final class RichContentService {
             }
         }
 
+        let ourChangeCount = pasteboard.changeCount
+        guard TextReplacementService.settlePasteboardWrite(category: EdgeCaseHandler.detectAppCategory(), ourChangeCount: ourChangeCount) else {
+            #if DEBUG
+            print("[RichContentService] ⚠️ Pasteboard write did not settle — skipping paste for this item")
+            #endif
+            if let previous = previousClipboard {
+                pasteboard.clearContents()
+                pasteboard.setString(previous, forType: .string)
+            }
+            completion()
+            return
+        }
+
         simulatePaste()
 
         // Call completion after paste completes
@@ -404,65 +446,6 @@ final class RichContentService {
             stop.pointee = true
         }
         return result
-    }
-
-    // MARK: - Legacy Single Item Insertion (for backward compatibility)
-
-    private func insertImage(snippet: Snippet, previousClipboard: String?) {
-        guard let base64 = snippet.richContentData,
-              let image = loadImageSmart(from: base64) else {
-            print("[RichContentService] Failed to load image for snippet: \(snippet.command)")
-            return
-        }
-
-        let pasteboard = NSPasteboard.general
-        let backup = backupPasteboard()
-
-        pasteboard.clearContents()
-        pasteboard.writeObjects([image])
-
-        simulatePaste()
-
-        restorePasteboard(backup, previousClipboard: previousClipboard)
-    }
-
-    private func insertURL(snippet: Snippet, previousClipboard: String?) {
-        guard let urlString = snippet.richContentData ?? snippet.content.nilIfEmpty,
-              let url = URL(string: urlString) else {
-            print("[RichContentService] Invalid URL for snippet: \(snippet.command)")
-            return
-        }
-
-        let pasteboard = NSPasteboard.general
-        let backup = backupPasteboard()
-
-        pasteboard.clearContents()
-
-        pasteboard.setString(urlString, forType: .URL)
-        pasteboard.setString(urlString, forType: .string)
-        pasteboard.writeObjects([url as NSURL])
-
-        simulatePaste()
-
-        restorePasteboard(backup, previousClipboard: previousClipboard)
-    }
-
-    private func insertFile(snippet: Snippet, previousClipboard: String?) {
-        guard let filePath = snippet.richContentData,
-              let fileURL = loadFileURL(from: filePath) else {
-            print("[RichContentService] File not found for snippet: \(snippet.command)")
-            return
-        }
-
-        let pasteboard = NSPasteboard.general
-        let backup = backupPasteboard()
-
-        pasteboard.clearContents()
-        pasteboard.writeObjects([fileURL as NSURL])
-
-        simulatePaste()
-
-        restorePasteboard(backup, previousClipboard: previousClipboard)
     }
 
     // MARK: - Create RichContentItem helpers
@@ -723,12 +706,16 @@ final class RichContentService {
     }
 
     // MARK: - Pasteboard Helpers
+    //
+    // Shared with TextReplacementService.insertText — a full-item backup (not just the string
+    // representation) so expanding a snippet never destroys a non-text clipboard (image, file, URL)
+    // the user had copied.
 
-    private struct PasteboardBackup {
+    struct PasteboardBackup {
         var items: [[NSPasteboard.PasteboardType: Data]] = []
     }
 
-    private func backupPasteboard() -> PasteboardBackup {
+    func backupPasteboard() -> PasteboardBackup {
         var backup = PasteboardBackup()
         let pasteboard = NSPasteboard.general
 
@@ -745,24 +732,33 @@ final class RichContentService {
         return backup
     }
 
-    private func restorePasteboard(_ backup: PasteboardBackup, previousClipboard: String?, delay: Double = 0.2) {
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-            let pasteboard = NSPasteboard.general
-            pasteboard.clearContents()
+    /// Restore a full pasteboard backup, but only if the pasteboard still holds `expectedChangeCount`
+    /// (nothing — a new user copy — wrote to it since). Falls back to `previousClipboardString` when
+    /// the backup captured no items (empty clipboard before expansion).
+    func restorePasteboardIfUnchanged(_ backup: PasteboardBackup, expectedChangeCount: Int, previousClipboardString: String?) {
+        guard NSPasteboard.general.changeCount == expectedChangeCount else { return }
+        restorePasteboardNow(backup, previousClipboardString: previousClipboardString)
+    }
 
-            if !backup.items.isEmpty {
-                for itemData in backup.items {
-                    let item = NSPasteboardItem()
-                    for (type, data) in itemData {
-                        item.setData(data, forType: type)
-                    }
-                    pasteboard.writeObjects([item])
+    /// Restore a full pasteboard backup immediately, no changeCount guard. Use only when no paste
+    /// has been posted yet (e.g. aborting before Cmd+V because our own write never settled) — at
+    /// that point there's nothing to race against, so an unconditional restore is safe.
+    func restorePasteboardNow(_ backup: PasteboardBackup, previousClipboardString: String?) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        if !backup.items.isEmpty {
+            for itemData in backup.items {
+                let item = NSPasteboardItem()
+                for (type, data) in itemData {
+                    item.setData(data, forType: type)
                 }
-            } else if let previous = previousClipboard {
-                pasteboard.setString(previous, forType: .string)
+                pasteboard.writeObjects([item])
             }
+        } else if let previous = previousClipboardString {
+            pasteboard.setString(previous, forType: .string)
         }
     }
+
 
     // MARK: - Simulate Paste (Cmd+V)
 
@@ -959,8 +955,14 @@ final class RichContentService {
         let fm = FileManager.default
         guard let contents = try? fm.contentsOfDirectory(at: richContentDirectory, includingPropertiesForKeys: nil) else { return }
 
-        for file in contents where file.lastPathComponent.hasPrefix(snippetId) {
-            try? fm.removeItem(at: file)
+        // Exact-match the owning snippet id (filename is "<snippetId>_<…>"), same as
+        // deleteUnreferencedFiles — a hasPrefix match could delete another snippet's files
+        // whenever one snippet's id happens to be a prefix of another's.
+        for file in contents {
+            let owner = file.lastPathComponent.components(separatedBy: "_").first ?? ""
+            if owner == snippetId {
+                try? fm.removeItem(at: file)
+            }
         }
     }
 

@@ -168,25 +168,10 @@ final class EdgeCaseHandler {
     }
 
     private static func isGame(_ bundleID: String) -> Bool {
-        // Check if app is fullscreen
-        if let app = NSWorkspace.shared.frontmostApplication {
-            if let windows = CGWindowListCopyWindowInfo(.optionOnScreenOnly, kCGNullWindowID) as? [[String: Any]] {
-                for window in windows {
-                    if let ownerPID = window[kCGWindowOwnerPID as String] as? Int,
-                       ownerPID == app.processIdentifier,
-                       let bounds = window[kCGWindowBounds as String] as? [String: CGFloat] {
-                        // Check if window is fullscreen
-                        let screenFrame = NSScreen.main?.frame ?? .zero
-                        if bounds["Width"] == screenFrame.width &&
-                           bounds["Height"] == screenFrame.height {
-                            return true  // Likely a fullscreen game
-                        }
-                    }
-                }
-            }
-        }
-
-        // Known game launchers/apps
+        // Bundle-ID list only. A prior fullscreen-window heuristic was dropped: it required a
+        // CGWindowListCopyWindowInfo scan of every on-screen window per detection call (slow enough
+        // to risk the event tap being disabled by the system) and misclassified any fullscreen app
+        // (Chrome, Xcode, …) as a game.
         let gameApps = [
             "com.riotgames.LeagueofLegends",
             "com.blizzard.worldofwarcraft",

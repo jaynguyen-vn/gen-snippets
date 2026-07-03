@@ -8,7 +8,11 @@ class LocalStorageService {
     private let snippetsKey = "localSnippets"
     private let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
     
-    // Batch save timer
+    // Batch save timer. Touched from deinit/forceSave (capture-then-async-invalidate, same
+    // convention used throughout this codebase e.g. TextReplacementService/GlobalHotkeyManager)
+    // and from scheduleSave's main-thread closures. Technically unsynchronized across those paths,
+    // but LocalStorageService is a permanent-lifetime singleton (`shared`) whose deinit never
+    // realistically runs, so this is a documented non-issue rather than a live race.
     private var saveTimer: Timer?
     private let saveQueue = DispatchQueue(label: "com.gensnippets.storage", attributes: .concurrent)
     
@@ -174,12 +178,12 @@ class LocalStorageService {
             if let data = UserDefaults.standard.data(forKey: snippetsKey) {
                 do {
                     let decoded = try JSONDecoder().decode([Snippet].self, from: data)
-                    // Validate decoded data
-                    var validSnippets = decoded.filter { !$0.id.isEmpty && !$0.command.isEmpty }
-                    // Limit cache size to prevent memory issues
+                    // Validate decoded data. No truncation here — a hard cap silently dropped
+                    // snippets past maxCacheSize and the truncated list got persisted back,
+                    // permanently losing data for larger libraries.
+                    let validSnippets = decoded.filter { !$0.id.isEmpty && !$0.command.isEmpty }
                     if validSnippets.count > maxCacheSize {
-                        print("[LocalStorage] Warning: Truncating snippets from \(validSnippets.count) to \(maxCacheSize)")
-                        validSnippets = Array(validSnippets.prefix(maxCacheSize))
+                        print("[LocalStorage] Note: \(validSnippets.count) snippets loaded (above soft threshold \(maxCacheSize), keeping all)")
                     }
                     cachedSnippets = validSnippets
                     print("[LocalStorage] Loaded \(validSnippets.count) snippets")

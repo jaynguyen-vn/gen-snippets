@@ -33,9 +33,10 @@ class LocalSnippetsViewModel: ObservableObject {
 
         lastUpdated = Date()
 
-        // Notify TextReplacementService about the updated snippets
+        // Notify TextReplacementService about the updated snippets. TextReplacementService itself
+        // observes this notification (single Combine sink) and calls updateSnippets — do not also
+        // call it directly here, or the snippet index (trie + sorted cache) rebuilds twice per change.
         NotificationCenter.default.post(name: NSNotification.Name("SnippetsUpdated"), object: snippets)
-        TextReplacementService.shared.updateSnippets(snippets)
 
         isLoading = false
         print("[LocalSnippetsViewModel] Loaded \(snippets.count) snippets")
@@ -168,9 +169,8 @@ class LocalSnippetsViewModel: ObservableObject {
         snippets = []
         lastUpdated = Date()
 
-        // Notify TextReplacementService about the cleared snippets
+        // Notify TextReplacementService about the cleared snippets (single sink, see loadSnippets)
         NotificationCenter.default.post(name: NSNotification.Name("SnippetsUpdated"), object: snippets)
-        TextReplacementService.shared.updateSnippets(snippets)
 
         print("[LocalSnippetsViewModel] Cleared all data")
     }

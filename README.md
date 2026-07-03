@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Platform-macOS%2011.5%2B-blue" alt="macOS 11.5+">
   <img src="https://img.shields.io/badge/Swift-5.5%2B-orange" alt="Swift 5.5+">
   <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT License">
-  <img src="https://img.shields.io/badge/Version-2.9.8-purple" alt="Version 2.9.8">
+  <img src="https://img.shields.io/badge/Version-2.10.5-purple" alt="Version 2.10.5">
 </div>
 
 ## Overview
@@ -28,7 +28,7 @@ GenSnippets is a lightweight macOS application for system-wide text expansion. I
 - **Menu Bar Integration** - Quick access from the system menu bar with snippet count
 - **Native macOS Design** - Built with SwiftUI for a seamless experience
 - **Flexible Visibility** - Toggle between dock and menu bar visibility
-- **Quick Search** - Global hotkey (default: Cmd+Ctrl+S) opens instant snippet search
+- **Quick Search** - Global hotkey (default: Cmd+Option+E) opens instant snippet search
 - **Customizable Shortcuts** - Configure your preferred keyboard shortcuts
 
 ### Data Management
@@ -176,7 +176,7 @@ Categories help you organize related snippets:
 - **Menu Bar Icon** - Show/hide the menu bar icon with snippet count
 - **Dock Icon** - Show/hide the dock icon
 - **Launch at Login** - Automatically start GenSnippets when you log in
-- **Global Hotkey** - Customize the keyboard shortcut (default: Cmd+Ctrl+S)
+- **Global Hotkey** - Customize the keyboard shortcut (default: Cmd+Option+E)
 - **Search View** - Quick access to snippet search with customizable shortcut
 
 ### Data Storage
@@ -199,7 +199,7 @@ Local data is stored in:
 ### MVVM + Service Layer Design
 
 **Services** handle business logic (singletons, thread-safe):
-- **TextReplacementService**: Core engine with Trie for O(m) matching
+- **TextReplacementService**: Core engine with a reversed-command trie for O(k) suffix matching (k = longest command length)
 - **LocalStorageService**: Batch-optimized UserDefaults with caching
 - **MetafieldService**: Dynamic placeholder parsing and input dialog
 - **RichContentService**: Sequential image/file/URL insertion (file-based storage)
