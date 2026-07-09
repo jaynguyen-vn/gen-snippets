@@ -3,6 +3,15 @@
     <channel>
         <title>GenSnippets</title>
         <item>
+            <title>2.10.6</title>
+            <pubDate>Thu, 09 Jul 2026 18:45:24 +0700</pubDate>
+            <sparkle:version>26</sparkle:version>
+            <sparkle:shortVersionString>2.10.6</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>11.5</sparkle:minimumSystemVersion>
+            <description><![CDATA[<ul><li>Picking a snippet with input fields ({{field}}) from the search window now opens the input form — previously the form only appeared when you typed the snippet's command, and search pasted the raw placeholders instead</li><li>Fixed the input form occasionally leaving text expansion stuck until the app was restarted (when the form was dismissed with the window's close button)</li><li>Fixed your clipboard sometimes being left with the wrong content after inserting a snippet from search</li></ul>]]></description>
+            <enclosure url="https://github.com/jaynguyen-vn/gen-snippets/releases/download/v2.10.6/GenSnippets.2.10.6.dmg" length="2411660" type="application/octet-stream" sparkle:edSignature="B2a741t6tEZXMKprH0quLbAr9W5asUWBxX/CrY6YeiBgftajiaVobuHVKncPgP5hFdBRcIqiO9YhdIJiTk7cCA=="/>
+        </item>
+        <item>
             <title>2.10.5</title>
             <pubDate>Fri, 03 Jul 2026 09:52:29 +0700</pubDate>
             <sparkle:version>25</sparkle:version>
