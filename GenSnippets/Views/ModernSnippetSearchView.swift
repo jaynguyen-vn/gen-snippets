@@ -48,13 +48,12 @@ struct ModernSnippetSearchView: View {
         SnippetSearchWindowController.returnToPreviousApp()
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            // insertSnippetDirectly owns the full clipboard lifecycle: it writes the processed
+            // content, pastes via Cmd+V, then restores the user's original clipboard. Do NOT write
+            // snippet.content here on a fixed delay — a stale raw write can land mid-paste (before a
+            // slow target consumes Cmd+V) and clobber the pasted result, and would leak raw
+            // {{field}} / {time} / {clipboard} placeholders onto the clipboard.
             TextReplacementService.shared.insertSnippetDirectly(snippet)
-
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                let pasteboard = NSPasteboard.general
-                pasteboard.clearContents()
-                pasteboard.setString(snippet.content, forType: .string)
-            }
         }
     }
 

@@ -1530,6 +1530,44 @@ class TextReplacementService {
 
         print("[TextReplacementService] 🎯 Inserting snippet directly: \(snippet.command)")
 
+        // Snippets with custom metafields ({{field}}) must prompt for input first — same as the
+        // tap-triggered expansion path in checkForCommands. The search UI has already closed its
+        // window and re-activated the target app, so the frontmost app captured here is the paste
+        // target. Show the dialog, then paste the processed content into that app.
+        if MetafieldService.shared.containsMetafields(snippet.content) {
+            DispatchQueue.main.async {
+                MetafieldInputController.shared.savePreviousApp()
+                MetafieldInputController.shared.showInputDialog(for: snippet) { [weak self] processedContent, values in
+                    guard let self = self else { return }
+                    guard let processedContent = processedContent else {
+                        // User cancelled/closed the dialog — release the expansion guard.
+                        self.isPerformingExpansion = false
+                        return
+                    }
+
+                    UsageTracker.shared.recordUsage(for: snippet.command)
+
+                    // showInputDialog re-activates the target app (with its own settle delay) before
+                    // firing this completion on the main queue. Re-detect the category here since the
+                    // dialog changed the frontmost app, then move the paste work — which includes a
+                    // settle Thread.sleep and, for rich snippets, RTFD/PNG serialization — off the
+                    // main queue, matching the non-metafield direct path below.
+                    let category = EdgeCaseHandler.detectAppCategory()
+                    DispatchQueue.global(qos: .userInteractive).async {
+                        if snippet.hasRichContent {
+                            let previousClipboard = NSPasteboard.general.string(forType: .string)
+                            RichContentService.shared.insertRichContent(for: snippet, metafieldValues: values ?? [:], previousClipboard: previousClipboard)
+                            self.isPerformingExpansion = false
+                        } else {
+                            // insertText handles isPerformingExpansion reset in its restore callback.
+                            self.insertText(processedContent, category: category)
+                        }
+                    }
+                }
+            }
+            return
+        }
+
         // Route through the same background queue as tap-triggered expansion. This work includes
         // a settle Thread.sleep (~25-45ms) and, for rich snippets, RTFD/PNG serialization of
         // potentially full-size images — all of which used to run synchronously on the caller's

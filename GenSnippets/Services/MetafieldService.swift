@@ -302,6 +302,19 @@ class MetafieldInputPanel: NSPanel, NSTextFieldDelegate {
     override func cancelOperation(_ sender: Any?) {
         cancelClicked()
     }
+
+    override func close() {
+        // The title-bar close button dismisses the panel without going through insertClicked/
+        // cancelClicked, which would leave the completion handler uncalled — and the caller's
+        // isPerformingExpansion guard stuck true, blocking every later expansion. insertClicked/
+        // cancelClicked already nil the handler before calling close(), so this only fires for a
+        // bare window close, and the guard makes it run exactly once.
+        if let handler = completionHandler {
+            completionHandler = nil
+            handler(nil, nil)
+        }
+        super.close()
+    }
 }
 
 // MARK: - Metafield Input Controller
