@@ -24,6 +24,92 @@ Format: `### <version> (build <n>) — <YYYY-MM-DD>` followed by short bullets. 
 
 ---
 
+## v2.10.6 (build 26) — 2026-07-09
+
+### Fixed
+- **Snippets with `{{field}}` prompts inserted from the search window now open the input form.** The form only appeared when the snippet's command was typed; search pasted the raw placeholders instead.
+- The input form could leave text expansion stuck until the app was restarted, when the form was dismissed with the window's close button rather than its buttons.
+- The clipboard was sometimes left holding the wrong content after inserting a snippet from search.
+
+### Affected files
+- `Services/MetafieldService.swift`, `Services/TextReplacementService.swift`, `Views/ModernSnippetSearchView.swift`
+
+---
+
+## v2.10.5 (build 25) — 2026-07-03
+
+### Fixed
+- Rapid consecutive expansions could corrupt what was typed next.
+- Stale-clipboard-after-idle for snippets containing images or files — previously fixed for plain text only.
+- Expansion no longer overwrites a copied image or file on the clipboard.
+- Dropped characters when a key was held down right before an expansion.
+- Removed a 1000-snippet load limit that could silently drop snippets from large libraries.
+
+### Added
+- Expansion is blocked in password fields.
+
+### Performance
+- Snippet matching is much faster on large snippet libraries.
+
+### Affected files
+- `Services/TextReplacementService.swift`, `Services/RichContentService.swift`, `Services/OptimizedSnippetMatcher.swift`, `Services/LocalStorageService.swift`, `Services/EdgeCaseHandler.swift`, `Services/GlobalHotkeyManager.swift`, `Services/BrowserCompatibleTextInsertion.swift`, `Models/LocalSnippetsViewModel.swift`, `Models/SnippetUsage.swift`, `GenSnippetsApp.swift`
+
+---
+
+## v2.10.4 (build 24) — 2026-07-01
+
+### Fixed
+- **Further fix for snippets pasting recently-copied clipboard content instead of the snippet.** The app now waits for the clipboard write to settle before posting the paste, and holds the snippet on the clipboard long enough for the target app to read it before restoring the previous clipboard.
+
+### Affected files
+- `Services/TextReplacementService.swift`, `Services/RichContentService.swift`
+
+---
+
+## v2.10.3 (build 23) — 2026-07-01
+
+### Fixed
+- **Snippets sometimes pasted stale clipboard content** — a previously copied item — after the app had been idle for a while. The app now holds an App Nap assertion while monitoring keystrokes so it stays fully responsive and the correct text is pasted.
+
+### Affected files
+- `Services/TextReplacementService.swift`
+
+---
+
+## v2.10.2 (build 22) — 2026-06-21
+
+### Fixed
+- Snippets containing both inline images and `{{field}}` prompts now paste in full — the image was previously dropped once a field was filled in.
+
+### Added
+- Restored the Insert menu in the snippet editor for adding dynamic placeholders (`{time}`, `{uuid}`, `{clipboard}`, dates) and `{{field}}` prompts at the cursor.
+- "What you can add" info popover next to Content, explaining text, images, files and dynamic tokens at a glance.
+
+### Changed
+- Minor layout polish in the snippet editor.
+
+### Affected files
+- `Services/MetafieldService.swift`, `Services/RichContentService.swift`, `Services/TextReplacementService.swift`, `Components/InlineRichTextEditor.swift`, `Views/AddSnippetSheet.swift`, `Views/SnippetDetailView.swift`
+
+---
+
+## v2.10.1 (build 21) — 2026-06-21
+
+### Fixed
+- Snippet content follows the system theme — text stayed dark and unreadable in dark mode.
+- Inline images render at a tidy preview size in the editor; full resolution is still kept for pasting.
+
+### Added
+- The content editor auto-grows with the text and has a drag handle to resize it; double-click the handle to auto-fit.
+
+### Changed
+- Description field uses the normal system font; cleaner contrast and borders throughout the dark theme.
+
+### Affected files
+- `Components/InlineRichTextEditor.swift`, `DesignSystem.swift`, `Services/RichContentService.swift`, `Views/AddSnippetSheet.swift`, `Views/SnippetDetailView.swift`, `Views/ThreeColumnView.swift`
+
+---
+
 ## v2.10.0 (build 20) — 2026-06-17
 
 ### Added
