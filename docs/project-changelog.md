@@ -185,4 +185,70 @@ Format: `### <version> (build <n>) — <YYYY-MM-DD>` followed by short bullets. 
 
 ---
 
-*Older versions: see `git log` and the Sparkle `appcast.xml` for the full history.*
+## v2.9.10 (build 12) — 2026-03-22
+
+### Fixed
+- Window opened too small when restoring from "Run in Background" mode.
+- Login-item launch is now distinguished from a background mode the user chose deliberately, so each restores the window the way it should.
+
+### Affected files
+- `GenSnippetsApp.swift`
+
+---
+
+## v2.9.9 (build 11) — 2026-03-22
+
+### Fixed
+- Window opened too small after restoring from background mode.
+- A reasonable window size is now enforced across every restore path — dock click, Spotlight, login item.
+
+### Affected files
+- `GenSnippetsApp.swift`, `Views/ContentView.swift`
+
+---
+
+## v2.9.8 (build 10) — 2026-03-21
+
+### Fixed
+- **App UI did not open after boot.** A fresh window is now created instead of reusing the zombie window left by the background launch.
+- Text replacement did not work after boot — snippets load immediately in background mode.
+- Login-item startup now correctly puts the app into background mode.
+
+### Affected files
+- `GenSnippetsApp.swift`
+
+---
+
+## v2.9.7 (build 9) — 2026-03-21
+
+### Fixed
+- Text replacement did not work after boot — snippets now load on startup in background mode.
+- Login-item startup correctly enters background mode when launched at boot.
+- Prevented the ghost app state that appeared when the menu bar icon was hidden during a background launch.
+
+### Affected files
+- `GenSnippetsApp.swift`
+
+### Note
+- Build 8 (tagged `v2.9.6`) was never published to the appcast; its login-item background-mode fix reached users here, which is why build numbers jump 7 → 9.
+
+---
+
+## v2.9.5 (build 7) — 2026-03-14
+
+### Added
+- **Auto-update.** Users are notified about new versions and can install them from inside the app.
+- Check for Updates menu item and matching Settings toggle.
+- Release notes shown before updating.
+- Gatekeeper bypass instructions in the README, since the app is signed but not notarized.
+
+### Affected files
+- `scripts/release.sh`
+
+### Note
+- The Sparkle integration itself landed earlier (v2.9.1); 2.9.5 is the first build users could actually receive *through* Sparkle, which is why the feature is announced here. Builds 5 and 6 were re-releases of the same 2.9.5 version while the release tooling was settled — the appcast item is build 7.
+
+---
+
+*Every item in the Sparkle `appcast.xml` now has an entry above. Versions before
+2.9.5 predate the update feed — see `git log` for those.*
