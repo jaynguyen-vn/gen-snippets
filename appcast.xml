@@ -3,6 +3,16 @@
     <channel>
         <title>GenSnippets</title>
         <item>
+            <title>2.10.7</title>
+            <pubDate>Thu, 20 Aug 2026 10:59:46 +0700</pubDate>
+            <sparkle:version>27</sparkle:version>
+            <sparkle:shortVersionString>2.10.7</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>11.5</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description><![CDATA[<ul><li>Pressing Cmd+V right after a snippet expansion now pastes your own clipboard again, instead of occasionally pasting the snippet that was just inserted</li><li>Rapid back-to-back expansions no longer let one snippet leak into the next one's {clipboard} value</li><li>A copied image, file or URL now survives an expansion — the whole clipboard is restored, not just plain text</li><li>Copying something new while a snippet is being inserted is respected — your new clipboard is no longer overwritten</li><li>Terminal paste timing is unchanged, so long-running and idle sessions stay reliable</li></ul>]]></description>
+            <enclosure url="https://github.com/jaynguyen-vn/gen-snippets/releases/download/v2.10.7/GenSnippets.2.10.7.dmg" length="2746337" type="application/octet-stream" sparkle:edSignature="NBxtz3LXbiVweNgWf5kLA+pNVYaExbNDADEI4JVRgLI1I1iO2WFf8vKe4Ci1LLZxYeOUluI9WG/HlcnbpFT0DQ=="/>
+        </item>
+        <item>
             <title>2.10.6</title>
             <pubDate>Thu, 09 Jul 2026 18:45:24 +0700</pubDate>
             <sparkle:version>26</sparkle:version>
