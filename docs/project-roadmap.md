@@ -211,7 +211,7 @@ In-app auto-update via Sparkle framework, automated release tooling, and backgro
 |---|---|---|---|
 | **File Size: SnippetDetailView** | Medium | Active | Hard to maintain, target split in v2.9 |
 | **File Size: ThreeColumnView** | Medium | Active | Layout + state mixed, refactor in v2.9 |
-| **No XCTest Coverage** | High | Planned | Target >80% coverage by v2.9 |
+| **Limited XCTest Coverage** | Medium | Active | Clipboard lease state covered; expand core service coverage toward >80% |
 | **iCloud Sync Disabled** | Low | Backlog | No cloud backup, use JSON export |
 | **Legacy View Duplication** | Low | Planned | Keep for compat, remove v3.0 |
 | **Mixed Threading Model** | Medium | Resolved | NSLock + DispatchQueue (v2.8.2) |
@@ -255,9 +255,9 @@ Reduce file sizes and eliminate code duplication:
 - DRY: Single clipboard reading implementation
 - Single TextFieldWrapper for all text inputs
 
-#### Phase 2: Unit Test Suite (Weeks 5-8)
+#### Phase 2: Expand Unit Test Suite (Weeks 5-8)
 
-Add XCTest coverage for core services:
+Build on the existing `ClipboardLeaseStateTests.swift` regression suite and expand XCTest coverage for core services:
 
 ```
 GenSnippetsTests/

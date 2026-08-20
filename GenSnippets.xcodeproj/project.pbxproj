@@ -12,7 +12,18 @@
 
 /* Begin PBXFileReference section */
 		691C330F2D51E9B600C4F0A9 /* GenSnippets.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GenSnippets.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		69B200000000000000000001 /* GenSnippetsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = GenSnippetsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXContainerItemProxy section */
+		69B20000000000000000000A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 69C310D52D40F3E60016F219 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 691C330E2D51E9B600C4F0A9;
+			remoteInfo = GenSnippets;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
 		69A100000000000000000003 /* Exceptions for "GenSnippets" folder in "GenSnippets" target */ = {
@@ -33,6 +44,11 @@
 			path = GenSnippets;
 			sourceTree = "<group>";
 		};
+		69B200000000000000000002 /* GenSnippetsTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = GenSnippetsTests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -44,6 +60,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		69B200000000000000000004 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -51,6 +74,7 @@
 			isa = PBXGroup;
 			children = (
 				691C33102D51E9B600C4F0A9 /* GenSnippets */,
+				69B200000000000000000002 /* GenSnippetsTests */,
 				69C310DE2D40F3E60016F219 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -59,6 +83,7 @@
 			isa = PBXGroup;
 			children = (
 				691C330F2D51E9B600C4F0A9 /* GenSnippets.app */,
+				69B200000000000000000001 /* GenSnippetsTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -66,6 +91,29 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		69B200000000000000000006 /* GenSnippetsTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 69B200000000000000000007 /* Build configuration list for PBXNativeTarget "GenSnippetsTests" */;
+			buildPhases = (
+				69B200000000000000000003 /* Sources */,
+				69B200000000000000000004 /* Frameworks */,
+				69B200000000000000000005 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				69B20000000000000000000B /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				69B200000000000000000002 /* GenSnippetsTests */,
+			);
+			name = GenSnippetsTests;
+			packageProductDependencies = (
+			);
+			productName = GenSnippetsTests;
+			productReference = 69B200000000000000000001 /* GenSnippetsTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		691C330E2D51E9B600C4F0A9 /* GenSnippets */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 691C331F2D51E9B700C4F0A9 /* Build configuration list for PBXNativeTarget "GenSnippets" */;
@@ -99,6 +147,10 @@
 				LastSwiftUpdateCheck = 1620;
 				LastUpgradeCheck = 2600;
 				TargetAttributes = {
+					69B200000000000000000006 = {
+						CreatedOnToolsVersion = 16.2;
+						TestTargetID = 691C330E2D51E9B600C4F0A9;
+					};
 					691C330E2D51E9B600C4F0A9 = {
 						CreatedOnToolsVersion = 16.2;
 					};
@@ -123,11 +175,19 @@
 			projectRoot = "";
 			targets = (
 				691C330E2D51E9B600C4F0A9 /* GenSnippets */,
+				69B200000000000000000006 /* GenSnippetsTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		69B200000000000000000005 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		691C330D2D51E9B600C4F0A9 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -138,6 +198,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		69B200000000000000000003 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		691C330B2D51E9B600C4F0A9 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -148,6 +215,36 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
+		69B200000000000000000008 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 7Q463GFSX8;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 11.5;
+				PRODUCT_BUNDLE_IDENTIFIER = "Jay8448.Gen-SnippetsTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/GenSnippets.app/Contents/MacOS/GenSnippets";
+			};
+			name = Debug;
+		};
+		69B200000000000000000009 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 7Q463GFSX8;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 11.5;
+				PRODUCT_BUNDLE_IDENTIFIER = "Jay8448.Gen-SnippetsTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/GenSnippets.app/Contents/MacOS/GenSnippets";
+			};
+			name = Release;
+		};
 		691C331D2D51E9B700C4F0A9 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -158,7 +255,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 26;
+				CURRENT_PROJECT_VERSION = 27;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"GenSnippets/Preview Content\"";
 				DEVELOPMENT_TEAM = 7Q463GFSX8;
@@ -175,7 +272,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 11.5;
-				MARKETING_VERSION = 2.10.6;
+				MARKETING_VERSION = 2.10.7;
 				PRODUCT_BUNDLE_IDENTIFIER = "Jay8448.Gen-Snippets";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -194,7 +291,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 26;
+				CURRENT_PROJECT_VERSION = 27;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"GenSnippets/Preview Content\"";
 				DEVELOPMENT_TEAM = 7Q463GFSX8;
@@ -211,7 +308,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 11.5;
-				MARKETING_VERSION = 2.10.6;
+				MARKETING_VERSION = 2.10.7;
 				PRODUCT_BUNDLE_IDENTIFIER = "Jay8448.Gen-Snippets";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -349,6 +446,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		69B200000000000000000007 /* Build configuration list for PBXNativeTarget "GenSnippetsTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				69B200000000000000000008 /* Debug */,
+				69B200000000000000000009 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		691C331F2D51E9B700C4F0A9 /* Build configuration list for PBXNativeTarget "GenSnippets" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -368,6 +474,14 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin PBXTargetDependency section */
+		69B20000000000000000000B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 691C330E2D51E9B600C4F0A9 /* GenSnippets */;
+			targetProxy = 69B20000000000000000000A /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCRemoteSwiftPackageReference section */
 		69A100000000000000000001 /* XCRemoteSwiftPackageReference "Sparkle" */ = {

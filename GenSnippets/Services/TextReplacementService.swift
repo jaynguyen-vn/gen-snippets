@@ -358,6 +358,20 @@ class TextReplacementService {
                     
                     let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
                     let flags = event.flags
+
+                    // While the expansion pipeline temporarily owns NSPasteboard.general, a real
+                    // Cmd+V must wait for the user's original clipboard to be restored. Synthetic
+                    // paste events are tagged by ClipboardPasteCoordinator and pass straight through.
+                    let isPlainCommandV = keyCode == 0x09 &&
+                        flags.contains(.maskCommand) &&
+                        !flags.contains(.maskControl) &&
+                        !flags.contains(.maskAlternate) &&
+                        !flags.contains(.maskShift)
+                    if isPlainCommandV,
+                       !ClipboardPasteCoordinator.isSynthetic(event),
+                       ClipboardPasteCoordinator.shared.deferPhysicalPasteIfNeeded() {
+                        return nil
+                    }
                     
                     if flags.contains(.maskCommand) || flags.contains(.maskControl) {
                         return Unmanaged.passUnretained(event)
@@ -774,12 +788,21 @@ class TextReplacementService {
                             // the document's text runs and paste via the rich path so images survive.
                             // Plain-text snippets keep the flattened-string paste.
                             if snippet.hasRichContent {
-                                let previousClipboard = NSPasteboard.general.string(forType: .string)
-                                RichContentService.shared.insertRichContent(for: snippet, metafieldValues: values ?? [:], previousClipboard: previousClipboard)
-                                self?.isPerformingExpansion = false
+                                DispatchQueue.global(qos: .userInteractive).async {
+                                    RichContentService.shared.insertRichContent(
+                                        for: snippet,
+                                        metafieldValues: values ?? [:]
+                                    ) {
+                                        self?.isPerformingExpansion = false
+                                    }
+                                }
                             } else {
-                                // Re-detect category here: metafield dialog may have changed frontmost app
-                                self?.insertText(processedContent, category: EdgeCaseHandler.detectAppCategory())
+                                // Re-detect category here: metafield dialog may have changed frontmost app.
+                                // beginLease may wait for a previous expansion, so never call it on main.
+                                let category = EdgeCaseHandler.detectAppCategory()
+                                DispatchQueue.global(qos: .userInteractive).async {
+                                    self?.insertText(processedContent, category: category)
+                                }
                             }
                             UsageTracker.shared.recordUsage(for: snippet.command)
                         }
@@ -791,16 +814,19 @@ class TextReplacementService {
                     // Route by hasRichContent (not first-block type) so mixed snippets whose
                     // first block is text still take the rich path and paste their images/files.
                     if snippet.hasRichContent {
-                        let previousClipboard = NSPasteboard.general.string(forType: .string)
-                        RichContentService.shared.insertRichContent(for: snippet, previousClipboard: previousClipboard)
+                        DispatchQueue.global(qos: .userInteractive).async {
+                            RichContentService.shared.insertRichContent(for: snippet) {
+                                self?.isPerformingExpansion = false
+                            }
+                        }
                         #if DEBUG
                         print("[TextReplacementService] 🖼️ Inserted rich content (\(snippet.actualContentType.displayName)) for: \(snippet.command)")
                         #endif
-                        // Rich content path doesn't go through insertText, so reset flag here
-                        self?.isPerformingExpansion = false
                     } else {
-                        // insertText handles isPerformingExpansion reset in its restore callback
-                        self?.insertText(snippet.content, category: cachedCategory)
+                        // beginLease may wait for a previous expansion, so never call it on main.
+                        DispatchQueue.global(qos: .userInteractive).async {
+                            self?.insertText(snippet.content, category: cachedCategory)
+                        }
                     }
                     UsageTracker.shared.recordUsage(for: snippet.command)
                     #if DEBUG
@@ -956,18 +982,22 @@ class TextReplacementService {
             return
         }
 
+        let clipboardLease = ClipboardPasteCoordinator.shared.beginLease()
+
         // First find cursor position marker in the original text
         var processedText = text
         var cursorPosition: Int? = nil
 
-        // Process special keywords while tracking cursor position
-        processedText = processSpecialKeywordsWithCursor(processedText, cursorPosition: &cursorPosition)
+        // Resolve clipboard keywords from the OUTERMOST lease snapshot. A second expansion can begin
+        // while the first snippet is still on the pasteboard; reading NSPasteboard.general here would
+        // incorrectly resolve {clipboard}/{upper}/{lower} to that transient snippet.
+        processedText = processSpecialKeywordsWithCursor(
+            processedText,
+            cursorPosition: &cursorPosition,
+            clipboardSnapshot: .some(clipboardLease.originalClipboardString)
+        )
 
         let pasteboard = NSPasteboard.general
-        let previousContent = pasteboard.string(forType: .string)
-        // Full-item backup (not just the string) so expansion never destroys a non-text clipboard
-        // (image, file, URL) the user had copied — restore uses this instead of the string alone.
-        let previousBackup = RichContentService.shared.backupPasteboard()
 
         // Use passed-in category if available; fallback to detecting (for legacy callers)
         let resolvedCategory = category ?? EdgeCaseHandler.detectAppCategory()
@@ -987,6 +1017,10 @@ class TextReplacementService {
         // Snapshot the changeCount our write produced. The delayed restore below only fires
         // if the clipboard still holds this exact write — see the restore guard for why.
         let ourChangeCount = pasteboard.changeCount
+        ClipboardPasteCoordinator.shared.recordWrite(
+            changeCount: ourChangeCount,
+            for: clipboardLease
+        )
 
         // Give the pasteboard-server (pbs) write time to propagate cross-process before posting Cmd+V.
         // insertText runs on a background GCD queue with no run loop, so the write to pbs is not
@@ -1005,16 +1039,14 @@ class TextReplacementService {
             #if DEBUG
             print("[TextReplacementService] ⚠️ Pasteboard write did not settle — aborting paste to avoid stale content")
             #endif
-            // Best-effort restore of original clipboard (full item backup, not just the string).
-            // No Cmd+V was posted yet, so restoring immediately (unguarded) matches the original
-            // best-effort behavior — we haven't raced a paste, only the settle check itself.
-            RichContentService.shared.restorePasteboardNow(previousBackup, previousClipboardString: previousContent)
+            ClipboardPasteCoordinator.shared.restoreNow(clipboardLease)
             isPerformingExpansion = false
             return
         }
 
         // Perform paste with appropriate timing
         guard let source = CGEventSource(stateID: .hidSystemState) else {
+            ClipboardPasteCoordinator.shared.restoreNow(clipboardLease)
             isPerformingExpansion = false
             return
         }
@@ -1027,6 +1059,7 @@ class TextReplacementService {
                 vDown.flags = [.maskCommand, .maskNonCoalesced]
                 vUp.flags = [.maskCommand, .maskNonCoalesced]
                 cmdUp.flags = .maskNonCoalesced
+                [cmdDown, vDown, vUp, cmdUp].forEach(ClipboardPasteCoordinator.markAsSynthetic)
 
                 // Convert TimeInterval to useconds_t
                 let delay = useconds_t(timingConfig.paste * 1_000_000)
@@ -1099,19 +1132,18 @@ class TextReplacementService {
                             // changeCount means the user copied something new (or a later expansion ran)
                             // — restoring would clobber it, so leave it alone. Restore uses the full
                             // item backup so a non-text clipboard (image/file) the user had isn't lost.
-                            RichContentService.shared.restorePasteboardIfUnchanged(previousBackup, expectedChangeCount: ourChangeCount, previousClipboardString: previousContent)
-                            self.isPerformingExpansion = false
+                            ClipboardPasteCoordinator.shared.restoreIfCurrent(clipboardLease)
                         }
                     }
                 } else {
                     // No cursor position specified — restore clipboard
                     DispatchQueue.main.asyncAfter(deadline: .now() + restoreDelay) {
-                        RichContentService.shared.restorePasteboardIfUnchanged(previousBackup, expectedChangeCount: ourChangeCount, previousClipboardString: previousContent)
-                        self.isPerformingExpansion = false
+                        ClipboardPasteCoordinator.shared.restoreIfCurrent(clipboardLease)
                     }
                 }
             } else {
                 // CGEvent creation failed — reset flag to avoid permanent lockout
+                ClipboardPasteCoordinator.shared.restoreNow(clipboardLease)
                 isPerformingExpansion = false
             }
     }
@@ -1168,7 +1200,11 @@ class TextReplacementService {
     }
     
     // New method to process keywords while tracking cursor position
-    private func processSpecialKeywordsWithCursor(_ text: String, cursorPosition: inout Int?) -> String {
+    private func processSpecialKeywordsWithCursor(
+        _ text: String,
+        cursorPosition: inout Int?,
+        clipboardSnapshot: String?? = nil
+    ) -> String {
         var processedText = text
         
         // Check if text contains any special keywords
@@ -1221,7 +1257,7 @@ class TextReplacementService {
             }
             
             // Replace with appropriate value based on keyword
-            let replacement = processKeyword(cleanKeyword)
+            let replacement = processKeyword(cleanKeyword, clipboardSnapshot: clipboardSnapshot)
             
             // Check if this replacement affects cursor position
             if let currentCursorPos = cursorPosition {
@@ -1251,8 +1287,14 @@ class TextReplacementService {
     }
     
     // Helper function to process individual keywords
-    private func processKeyword(_ keyword: String) -> String {
+    private func processKeyword(_ keyword: String, clipboardSnapshot: String?? = nil) -> String {
         let lowercased = keyword.lowercased()
+        let clipboardContent: String
+        if let capturedSnapshot = clipboardSnapshot {
+            clipboardContent = capturedSnapshot ?? ""
+        } else {
+            clipboardContent = NSPasteboard.general.string(forType: .string) ?? ""
+        }
 
         // Handle random with custom range: {random:min-max}
         if lowercased.hasPrefix("random:") {
@@ -1269,7 +1311,7 @@ class TextReplacementService {
 
         switch lowercased {
         case "clipboard":
-            return NSPasteboard.general.string(forType: .string) ?? ""
+            return clipboardContent
         case "random-number":
             return "\(Int.random(in: 1...1000))"
         case "dd/mm":
@@ -1297,9 +1339,9 @@ class TextReplacementService {
         case "timestamp":
             return "\(Int(Date().timeIntervalSince1970))"
         case "upper":
-            return (NSPasteboard.general.string(forType: .string) ?? "").uppercased()
+            return clipboardContent.uppercased()
         case "lower":
-            return (NSPasteboard.general.string(forType: .string) ?? "").lowercased()
+            return clipboardContent.lowercased()
         default:
             return "{\(keyword)}"
         }
@@ -1310,6 +1352,15 @@ class TextReplacementService {
     func processSpecialKeywords(_ text: String) -> String {
         var dummyCursorPos: Int? = nil
         return processSpecialKeywordsWithCursor(text, cursorPosition: &dummyCursorPos)
+    }
+
+    func processSpecialKeywords(_ text: String, clipboardSnapshot: String?) -> String {
+        var dummyCursorPos: Int? = nil
+        return processSpecialKeywordsWithCursor(
+            text,
+            cursorPosition: &dummyCursorPos,
+            clipboardSnapshot: .some(clipboardSnapshot)
+        )
     }
     
     /// Disable App Nap for as long as we monitor keystrokes. `.userInitiated` keeps the app
@@ -1555,11 +1606,14 @@ class TextReplacementService {
                     let category = EdgeCaseHandler.detectAppCategory()
                     DispatchQueue.global(qos: .userInteractive).async {
                         if snippet.hasRichContent {
-                            let previousClipboard = NSPasteboard.general.string(forType: .string)
-                            RichContentService.shared.insertRichContent(for: snippet, metafieldValues: values ?? [:], previousClipboard: previousClipboard)
-                            self.isPerformingExpansion = false
+                            RichContentService.shared.insertRichContent(
+                                for: snippet,
+                                metafieldValues: values ?? [:]
+                            ) {
+                                self.isPerformingExpansion = false
+                            }
                         } else {
-                            // insertText handles isPerformingExpansion reset in its restore callback.
+                            // insertText releases the expansion guard shortly after posting synthetic paste.
                             self.insertText(processedContent, category: category)
                         }
                     }
@@ -1582,16 +1636,16 @@ class TextReplacementService {
             // Route by hasRichContent (not first-block type) so mixed snippets whose
             // first block is text still take the rich path and paste their images/files.
             if snippet.hasRichContent {
-                let previousClipboard = NSPasteboard.general.string(forType: .string)
-                RichContentService.shared.insertRichContent(for: snippet, previousClipboard: previousClipboard)
+                RichContentService.shared.insertRichContent(for: snippet) {
+                    self.isPerformingExpansion = false
+                }
                 #if DEBUG
                 print("[TextReplacementService] 🖼️ Inserted rich content (\(snippet.actualContentType.displayName)) for: \(snippet.command)")
                 #endif
-                self.isPerformingExpansion = false
             } else {
                 // Process the snippet content with placeholder handling
                 let processedContent = self.processSnippetWithPlaceholders(snippet.content)
-                // insertText handles isPerformingExpansion reset in its restore callback
+                // insertText releases the expansion guard shortly after posting synthetic paste.
                 self.insertText(processedContent)
             }
         }
@@ -1602,15 +1656,13 @@ class TextReplacementService {
         // Check if content has placeholders in the format [[placeholder:default]]
         let placeholderPattern = "\\[\\[([^:]+):([^\\]]+)\\]\\]"
         guard let regex = try? NSRegularExpression(pattern: placeholderPattern, options: []) else {
-            // No placeholders, process normal keywords
-            return processSpecialKeywords(content)
+            return content
         }
         
         let matches = regex.matches(in: content, options: [], range: NSRange(location: 0, length: content.utf16.count))
         
         if matches.isEmpty {
-            // No placeholders, process normal keywords
-            return processSpecialKeywords(content)
+            return content
         }
         
         // Collect all placeholders
@@ -1633,8 +1685,8 @@ class TextReplacementService {
             }
         }
         
-        // Process any remaining special keywords
-        return processSpecialKeywords(result)
+        // Dynamic keywords are resolved later by insertText from the lease's original clipboard snapshot.
+        return result
     }
 }
 

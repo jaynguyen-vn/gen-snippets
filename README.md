@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Platform-macOS%2011.5%2B-blue" alt="macOS 11.5+">
   <img src="https://img.shields.io/badge/Swift-5.5%2B-orange" alt="Swift 5.5+">
   <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT License">
-  <img src="https://img.shields.io/badge/Version-2.10.5-purple" alt="Version 2.10.5">
+  <img src="https://img.shields.io/badge/Version-2.10.7-purple" alt="Version 2.10.7">
 </div>
 
 ## Overview
@@ -203,6 +203,7 @@ Local data is stored in:
 - **LocalStorageService**: Batch-optimized UserDefaults with caching
 - **MetafieldService**: Dynamic placeholder parsing and input dialog
 - **RichContentService**: Sequential image/file/URL insertion (file-based storage)
+- **ClipboardPasteCoordinator**: Preserves the user clipboard and safely defers/replays physical Cmd+V during synthetic paste operations
 - **EdgeCaseHandler**: App-specific timing (Discord, browsers, IDEs, terminals, Ghostty)
 - **ShareService**: Import/export with conflict resolution
 - **SandboxMigrationService**: Handles transition from sandboxed to non-sandboxed environment

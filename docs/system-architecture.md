@@ -3,8 +3,8 @@
 **Architecture Pattern:** MVVM + Service Layer with Event-Driven Communication
 **Concurrency Model:** Mixed DispatchQueue + NSLock + CGEvent system thread
 **Storage:** UserDefaults (JSON) with batch coalescing
-**Current Version:** 2.9.8
-**Last Updated:** March 21, 2026
+**Current Version:** 2.10.7
+**Last Updated:** August 20, 2026
 
 ---
 
@@ -32,7 +32,8 @@
 │  │  ├─ TextReplacementService (CGEvent tap)            │  │
 │  │  ├─ OptimizedSnippetMatcher (Trie + Bloom Filter)   │  │
 │  │  ├─ MetafieldService ({{key:default}})             │  │
-│  │  └─ RichContentService (images, files, URLs)        │  │
+│  │  ├─ RichContentService (images, files, URLs)        │  │
+│  │  └─ ClipboardPasteCoordinator (lease + replay)      │  │
 │  └──────────────────────────────────────────────────────┘  │
 │                                                              │
 │  ┌──────────────────────────────────────────────────────┐  │
@@ -122,7 +123,12 @@
                  ↓
           ┌─────────────────────────────────────┐
           │ 5. Send replacement via CGEvent     │
-          │    (paste with proper delays)       │
+          │    through a serialized clipboard   │
+          │    lease with app-specific delays   │
+          │                                     │
+          │ Physical Cmd+V during the lease is  │
+          │ deferred; restore original clipboard│
+          │ then replay the tagged paste event  │
           │ User sees replacement text          │
           └──────┬──────────────────────────────┘
                  │
@@ -227,6 +233,7 @@ Insert into active application
 | **TextReplacementService** | `snippetQueue` | Concurrent | Trie matching, keyword replacement |
 | **TextReplacementService** | `bufferLock` (NSLock) | Synchronous | Rolling buffer thread safety |
 | **CGEvent Tap** | System event tap thread | External | Receives raw keyboard events |
+| **ClipboardPasteCoordinator** | `NSCondition` + lease state | Synchronous | Serializes clipboard capture/write/restore and deferred Cmd+V replay |
 | **LocalStorageService** | `storageQueue` | Concurrent | UserDefaults read/write |
 | **OptimizedSnippetMatcher** | `matcherQueue` | Concurrent | Parallel suffix tree queries |
 | **Main Thread** | Main (NSOperationQueue) | Sequential | All UI updates, NotificationCenter posts |
@@ -288,6 +295,7 @@ class LocalSnippetsViewModel: ObservableObject {
 | Buffer access from CGEvent tap + main thread | TextReplacementService | Rare: corrupted buffer | NSLock (already implemented) |
 | PublishedSubject emission off main thread | Services → ViewModel | Rare: SwiftUI glitch | Always dispatch to main queue |
 | UserDefaults write during read | LocalStorageService | Rare: incomplete reads | Barrier writes + concurrent reads |
+| Physical Cmd+V while snippet owns clipboard | ClipboardPasteCoordinator | Could paste temporary snippet instead of user clipboard | Defer physical paste, guarded restore, replay tagged synthetic Cmd+V |
 
 ---
 
@@ -650,10 +658,11 @@ App Launch
 9. ✓ **Background Mode (v2.9.6)** - Auto-enter background mode when launched as login item
 10. ✓ **Startup Snippet Loading (v2.9.7)** - Load snippets on startup for background mode text replacement
 11. ✓ **Window Management (v2.9.8)** - Create fresh window when opening app after login-item background launch
+12. ✓ **Clipboard Lease Coordination (v2.10.7)** - Serialize expansions, preserve full clipboard, defer/replay physical Cmd+V without shortening terminal-safe timing
 
 ## Future Architectural Improvements (v3.0+)
 
-1. **Unit Test Suite** - Add XCTest for core services (Trie, keyword replacement)
+1. **Expand Unit Test Suite** - Clipboard lease state is covered; add core-service coverage (Trie, keyword replacement)
 2. **iCloud Sync Completion** - Complete partial implementation
 3. **CloudKit Integration** - Optional cloud backup
 4. **Snippet Marketplace** - Sharing & discovering snippets
@@ -663,6 +672,6 @@ App Launch
 
 ---
 
-**Last Updated:** March 21, 2026
+**Last Updated:** August 20, 2026
 **Maintainer:** Jay Nguyen
-**Current Version:** 2.9.8
+**Current Version:** 2.10.7

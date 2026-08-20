@@ -116,33 +116,61 @@ final class RichContentService {
     /// - Parameter metafieldValues: user-entered `{{field}}` values (from the input dialog). When
     ///   non-empty they're substituted into the document's text runs while inline images are kept,
     ///   so a snippet can carry BOTH images and `{{field}}` placeholders. Empty for the normal path.
-    func insertRichContent(for snippet: Snippet, metafieldValues: [String: String] = [:], previousClipboard: String?) {
+    func insertRichContent(
+        for snippet: Snippet,
+        metafieldValues: [String: String] = [:],
+        completion: @escaping () -> Void = {}
+    ) {
         let items = snippet.allRichContentItems
 
         if items.isEmpty {
             print("[RichContentService] No rich content items for snippet: \(snippet.command)")
+            completion()
             return
         }
 
+        let clipboardLease = ClipboardPasteCoordinator.shared.beginLease()
+        let previousClipboard = clipboardLease.originalClipboardString
+
         // A lone inline rich-text document pastes as ONE Cmd+V (seamless text + inline images).
         if items.count == 1, items[0].type == .inlineRichText {
-            insertInlineRichText(items[0], metafieldValues: metafieldValues, previousClipboard: previousClipboard)
+            insertInlineRichText(
+                items[0],
+                metafieldValues: metafieldValues,
+                previousClipboard: previousClipboard,
+                clipboardLease: clipboardLease,
+                completion: completion
+            )
             return
         }
 
         // Otherwise paste each item sequentially with a small delay between each.
-        insertMultipleItems(items, at: 0, metafieldValues: metafieldValues, previousClipboard: previousClipboard)
+        insertMultipleItems(
+            items,
+            at: 0,
+            metafieldValues: metafieldValues,
+            previousClipboard: previousClipboard,
+            clipboardLease: clipboardLease,
+            completion: completion
+        )
     }
 
     /// Paste a single inline rich-text (RTFD) document in one Cmd+V. Rich-text apps receive
     /// text + inline images; plain-text targets get the plain-text fallback (images dropped).
-    private func insertInlineRichText(_ item: RichContentItem, metafieldValues: [String: String] = [:], previousClipboard: String?) {
+    private func insertInlineRichText(
+        _ item: RichContentItem,
+        metafieldValues: [String: String] = [:],
+        previousClipboard: String?,
+        clipboardLease: ClipboardPasteCoordinator.Lease,
+        completion: @escaping () -> Void
+    ) {
         guard let data = loadRTFD(from: item.data),
               let attr = try? NSAttributedString(
                   data: data,
                   options: [.documentType: NSAttributedString.DocumentType.rtfd],
                   documentAttributes: nil) else {
             print("[RichContentService] Failed to load inline RTFD for paste")
+            ClipboardPasteCoordinator.shared.restoreNow(clipboardLease, completion: completion)
             return
         }
 
@@ -160,6 +188,10 @@ final class RichContentService {
             pasteboard.clearContents()
             writeAttributedString(resolved, to: pasteboard)
             let ourChangeCount = pasteboard.changeCount
+            ClipboardPasteCoordinator.shared.recordWrite(
+                changeCount: ourChangeCount,
+                for: clipboardLease
+            )
 
             // Give the pbs write time to propagate cross-process before posting Cmd+V — same
             // stale-clipboard-after-idle race the plain-text path guards against (see
@@ -168,10 +200,10 @@ final class RichContentService {
                 #if DEBUG
                 print("[RichContentService] ⚠️ Pasteboard write did not settle — aborting inline rich paste")
                 #endif
-                if let previous = previousClipboard {
-                    pasteboard.clearContents()
-                    pasteboard.setString(previous, forType: .string)
-                }
+                ClipboardPasteCoordinator.shared.restoreNow(
+                    clipboardLease,
+                    completion: completion
+                )
                 return
             }
 
@@ -180,10 +212,10 @@ final class RichContentService {
             // clipboard still holds our write — otherwise Cmd+V would read the restored (stale)
             // content, or we'd clobber something the user copied meanwhile. See TextReplacementService.
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                if NSPasteboard.general.changeCount == ourChangeCount, let previous = previousClipboard {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(previous, forType: .string)
-                }
+                ClipboardPasteCoordinator.shared.restoreIfCurrent(
+                    clipboardLease,
+                    completion: completion
+                )
             }
         default:
             let allowsImages: Bool
@@ -192,7 +224,13 @@ final class RichContentService {
             default: allowsImages = true
             }
             let units = pasteUnits(from: resolved, includeImages: allowsImages)
-            pasteSequentialUnits(units, at: 0, previousClipboard: previousClipboard)
+            pasteSequentialUnits(
+                units,
+                at: 0,
+                previousClipboard: previousClipboard,
+                clipboardLease: clipboardLease,
+                completion: completion
+            )
         }
     }
 
@@ -219,17 +257,27 @@ final class RichContentService {
         return units
     }
 
-    private func pasteSequentialUnits(_ units: [InlinePasteUnit], at index: Int, previousClipboard: String?) {
+    private func pasteSequentialUnits(
+        _ units: [InlinePasteUnit],
+        at index: Int,
+        previousClipboard: String?,
+        clipboardLease: ClipboardPasteCoordinator.Lease,
+        completion: @escaping () -> Void
+    ) {
         guard index < units.count else {
             // All units pasted. Snapshot the clipboard state (still holds the last unit) and restore
             // the user's clipboard only after the target consumed the final paste and only if nothing
             // else changed it meanwhile — mirrors the plain-text restore guard.
             let lastCount = NSPasteboard.general.changeCount
+            ClipboardPasteCoordinator.shared.recordWrite(
+                changeCount: lastCount,
+                for: clipboardLease
+            )
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                if NSPasteboard.general.changeCount == lastCount, let previous = previousClipboard {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(previous, forType: .string)
-                }
+                ClipboardPasteCoordinator.shared.restoreIfCurrent(
+                    clipboardLease,
+                    completion: completion
+                )
             }
             return
         }
@@ -242,19 +290,29 @@ final class RichContentService {
             pasteboard.writeObjects([image])
         }
         let ourChangeCount = pasteboard.changeCount
+        ClipboardPasteCoordinator.shared.recordWrite(
+            changeCount: ourChangeCount,
+            for: clipboardLease
+        )
         guard TextReplacementService.settlePasteboardWrite(category: EdgeCaseHandler.detectAppCategory(), ourChangeCount: ourChangeCount) else {
             #if DEBUG
             print("[RichContentService] ⚠️ Pasteboard write did not settle — aborting sequential unit paste")
             #endif
-            if let previous = previousClipboard {
-                pasteboard.clearContents()
-                pasteboard.setString(previous, forType: .string)
-            }
+            ClipboardPasteCoordinator.shared.restoreNow(
+                clipboardLease,
+                completion: completion
+            )
             return
         }
         simulatePaste()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-            self.pasteSequentialUnits(units, at: index + 1, previousClipboard: previousClipboard)
+            self.pasteSequentialUnits(
+                units,
+                at: index + 1,
+                previousClipboard: previousClipboard,
+                clipboardLease: clipboardLease,
+                completion: completion
+            )
         }
     }
 
@@ -274,18 +332,11 @@ final class RichContentService {
     /// caret; {{metafield}} interactive dialogs run only on the pure plain-text expansion path. Both still
     /// work fully on plain-text snippets. A keyword split across two style runs won't resolve (rare).
     ///
-    /// Side effect: writes `previousClipboard` to the general pasteboard so {clipboard} resolves
-    /// correctly. Callers MUST overwrite/restore the pasteboard afterward (the paste paths here do).
+    /// Clipboard keywords resolve from the coordinator's original snapshot, never from the transient
+    /// snippet currently stored on NSPasteboard.general.
     func resolveKeywords(in attr: NSAttributedString, previousClipboard: String?, metafieldValues: [String: String] = [:]) -> NSAttributedString {
         // Fast exit when there are no keyword braces at all.
         guard attr.string.contains("{") else { return attr }
-
-        // {clipboard}/{upper}/{lower} read the live pasteboard, which the engine has overwritten —
-        // seed it with the user's original clipboard so they resolve to the right value.
-        if let original = previousClipboard {
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(original, forType: .string)
-        }
 
         let result = NSMutableAttributedString()
         let fullRange = NSRange(location: 0, length: attr.length)
@@ -303,56 +354,91 @@ final class RichContentService {
                 let withFields = metafieldValues.isEmpty
                     ? original
                     : MetafieldService.shared.replaceMetafields(original, with: metafieldValues)
-                let processed = TextReplacementService.shared.processSpecialKeywords(withFields)
+                let processed = TextReplacementService.shared.processSpecialKeywords(
+                    withFields,
+                    clipboardSnapshot: previousClipboard
+                )
                 result.append(NSAttributedString(string: processed, attributes: attrs))
             }
         }
         return result
     }
 
-    private func insertMultipleItems(_ items: [RichContentItem], at index: Int, metafieldValues: [String: String] = [:], previousClipboard: String?) {
+    private func insertMultipleItems(
+        _ items: [RichContentItem],
+        at index: Int,
+        metafieldValues: [String: String] = [:],
+        previousClipboard: String?,
+        clipboardLease: ClipboardPasteCoordinator.Lease,
+        completion: @escaping () -> Void
+    ) {
         guard index < items.count else {
             // All items inserted. Snapshot the clipboard state (still holds the last item) and only
             // restore if nothing else changed it meanwhile — an unconditional restore would clobber
             // a copy the user made during the multi-item paste sequence.
             let lastCount = NSPasteboard.general.changeCount
+            ClipboardPasteCoordinator.shared.recordWrite(
+                changeCount: lastCount,
+                for: clipboardLease
+            )
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                if NSPasteboard.general.changeCount == lastCount, let previous = previousClipboard {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(previous, forType: .string)
-                }
+                ClipboardPasteCoordinator.shared.restoreIfCurrent(
+                    clipboardLease,
+                    completion: completion
+                )
             }
             return
         }
 
         let item = items[index]
-        insertSingleItem(item, metafieldValues: metafieldValues, previousClipboard: previousClipboard) {
+        insertSingleItem(
+            item,
+            metafieldValues: metafieldValues,
+            previousClipboard: previousClipboard,
+            clipboardLease: clipboardLease
+        ) { succeeded in
+            guard succeeded else {
+                completion()
+                return
+            }
             // After inserting this item, wait and insert the next
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                self.insertMultipleItems(items, at: index + 1, metafieldValues: metafieldValues, previousClipboard: previousClipboard)
+                self.insertMultipleItems(
+                    items,
+                    at: index + 1,
+                    metafieldValues: metafieldValues,
+                    previousClipboard: previousClipboard,
+                    clipboardLease: clipboardLease,
+                    completion: completion
+                )
             }
         }
     }
 
-    private func insertSingleItem(_ item: RichContentItem, metafieldValues: [String: String] = [:], previousClipboard: String?, completion: @escaping () -> Void) {
+    private func insertSingleItem(
+        _ item: RichContentItem,
+        metafieldValues: [String: String] = [:],
+        previousClipboard: String?,
+        clipboardLease: ClipboardPasteCoordinator.Lease,
+        completion: @escaping (Bool) -> Void
+    ) {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
 
         switch item.type {
         case .plainText:
             // Resolve dynamic keywords ({time}, {uuid}, {clipboard}, …) for text blocks.
-            // {clipboard}/{upper}/{lower} read the live pasteboard, which the engine has
-            // overwritten by now — so seed it with the user's original clipboard first.
+            // {clipboard}/{upper}/{lower} resolve from the coordinator's original snapshot.
             // Limitations (mixed snippets only): {cursor} is left as-is — the engine pastes
             // each block separately and cannot position the caret across multiple pastes;
             // {{metafield}} interactive dialogs are not run here (only on the pure plainText path).
-            if let original = previousClipboard {
-                pasteboard.setString(original, forType: .string)
-            }
             let withFields = metafieldValues.isEmpty
                 ? item.data
                 : MetafieldService.shared.replaceMetafields(item.data, with: metafieldValues)
-            let processed = TextReplacementService.shared.processSpecialKeywords(withFields)
+            let processed = TextReplacementService.shared.processSpecialKeywords(
+                withFields,
+                clipboardSnapshot: previousClipboard
+            )
             pasteboard.clearContents()
             pasteboard.setString(processed, forType: .string)
 
@@ -388,15 +474,17 @@ final class RichContentService {
         }
 
         let ourChangeCount = pasteboard.changeCount
+        ClipboardPasteCoordinator.shared.recordWrite(
+            changeCount: ourChangeCount,
+            for: clipboardLease
+        )
         guard TextReplacementService.settlePasteboardWrite(category: EdgeCaseHandler.detectAppCategory(), ourChangeCount: ourChangeCount) else {
             #if DEBUG
             print("[RichContentService] ⚠️ Pasteboard write did not settle — skipping paste for this item")
             #endif
-            if let previous = previousClipboard {
-                pasteboard.clearContents()
-                pasteboard.setString(previous, forType: .string)
+            ClipboardPasteCoordinator.shared.restoreNow(clipboardLease) {
+                completion(false)
             }
-            completion()
             return
         }
 
@@ -404,7 +492,7 @@ final class RichContentService {
 
         // Call completion after paste completes
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            completion()
+            completion(true)
         }
     }
 
@@ -777,6 +865,7 @@ final class RichContentService {
         vDown.flags = [.maskCommand, .maskNonCoalesced]
         vUp.flags = [.maskCommand, .maskNonCoalesced]
         cmdUp.flags = .maskNonCoalesced
+        [cmdDown, vDown, vUp, cmdUp].forEach(ClipboardPasteCoordinator.markAsSynthetic)
 
         // Post events with timing
         cmdDown.post(tap: .cghidEventTap)

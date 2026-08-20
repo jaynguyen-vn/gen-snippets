@@ -4,7 +4,7 @@
 **Architecture Pattern:** MVVM + Service Layer
 **Code Style:** Apple Swift API Design Guidelines
 **Last Reviewed:** March 21, 2026
-**Current Version:** 2.9.8
+**Current Version:** 2.10.7
 **Sandbox Status:** Disabled (since v2.7.1)
 
 ---
@@ -401,10 +401,11 @@ func saveSnippets() throws {
 ## Testing Standards
 
 ### Current Status
-- **No XCTest suite yet** (validation script exists as placeholder)
-- **Target:** >80% coverage by v2.9
+- **XCTest target exists** with focused `ClipboardLeaseStateTests` regression coverage
+- Core service, integration, and UI coverage remains limited
+- **Target:** >80% coverage
 
-### Testing Strategy (Future)
+### Testing Strategy
 
 1. **Unit Tests** (TextReplacementService)
    - Trie insertion and matching
@@ -426,6 +427,7 @@ func saveSnippets() throws {
 ```swift
 // XCTest file pattern
 GenSnippetsTests/
+├── ClipboardLeaseStateTests.swift
 ├── Services/
 │   └── TextReplacementServiceTests.swift
 ├── Models/
