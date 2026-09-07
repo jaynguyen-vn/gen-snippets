@@ -240,6 +240,8 @@ class TextReplacementService {
     // timers/QoS and lets its pasteboard-server XPC connection go dormant, so the async
     // NSPasteboard write hasn't propagated cross-process when Cmd+V fires — pasting stale
     // clipboard content. A real-time keyboard-interception utility must never be napped.
+    // It must, however, let the Mac fall asleep: this only opts out of App Nap, never of
+    // idle system sleep (see beginActivityAssertion).
     private var activityToken: NSObjectProtocol?
 
     private init() {
@@ -1363,13 +1365,18 @@ class TextReplacementService {
         )
     }
     
-    /// Disable App Nap for as long as we monitor keystrokes. `.userInitiated` keeps the app
-    /// at full QoS (no timer coalescing, XPC connections stay warm) so pasteboard writes
-    /// propagate before the synthesized Cmd+V fires. Idempotent — safe to call repeatedly.
+    /// Disable App Nap for as long as we monitor keystrokes. The user-initiated tier keeps
+    /// the app at full QoS (no timer coalescing, XPC connections stay warm) so pasteboard
+    /// writes propagate before the synthesized Cmd+V fires. Idempotent — safe to call repeatedly.
+    ///
+    /// `.userInitiatedAllowingIdleSystemSleep`, not `.userInitiated`: the latter bundles
+    /// `idleSystemSleepDisabled`, which shows up in `pmset -g assertions` as
+    /// PreventUserIdleSystemSleep and, held for the app's whole lifetime, stops the Mac from
+    /// ever sleeping on its own. Staying un-napped needs none of that.
     private func beginActivityAssertion() {
         guard activityToken == nil else { return }
         activityToken = ProcessInfo.processInfo.beginActivity(
-            options: [.userInitiated],
+            options: [.userInitiatedAllowingIdleSystemSleep],
             reason: "Real-time snippet expansion requires timely pasteboard access"
         )
     }

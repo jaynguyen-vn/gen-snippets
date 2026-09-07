@@ -6,6 +6,19 @@ Format: `### <version> (build <n>) — <YYYY-MM-DD>` followed by short bullets. 
 
 ---
 
+## v2.10.8 (build 28) — 2026-09-07
+
+### Fixed
+- **GenSnippets no longer prevents the Mac from going to sleep.** Since v2.10.3 the app held a `PreventUserIdleSystemSleep` power assertion for its whole lifetime (visible in `pmset -g assertions` as "Real-time snippet expansion requires timely pasteboard access"), so an idle Mac never entered system sleep while the app was running. The App Nap opt-out that assertion was meant to provide is kept; only the sleep-blocking bit is dropped by switching `ProcessInfo.beginActivity` from `.userInitiated` to `.userInitiatedAllowingIdleSystemSleep`.
+
+### Compatibility
+- Display sleep was never affected. The stale-clipboard-after-idle protection from v2.10.3/v2.10.4 is unchanged: the app still stays un-napped while monitoring.
+
+### Affected files
+- `Services/TextReplacementService.swift`
+
+---
+
 ## v2.10.7 (build 27) — 2026-08-20
 
 ### Fixed
