@@ -3,6 +3,15 @@
     <channel>
         <title>GenSnippets</title>
         <item>
+            <title>2.10.9</title>
+            <pubDate>Fri, 18 Sep 2026 22:11:55 +0700</pubDate>
+            <sparkle:version>29</sparkle:version>
+            <sparkle:shortVersionString>2.10.9</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>12.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<ul><li>Fixed snippet expansion in embedded terminals (Orca, Codex, Claude Desktop): the typed command no longer stays on screen followed by stray characters.</li><li>Minimum macOS is now 12.0 (Monterey). Machines on Big Sur stay on v2.10.8.</li></ul>]]></description>
+            <enclosure url="https://github.com/jaynguyen-vn/gen-snippets/releases/download/v2.10.9/GenSnippets.2.10.9.dmg" length="2759357" type="application/octet-stream" sparkle:edSignature="YQbb0YYMEwxuSL0JvrIkFYXYlaVc1dNxtXoUTSyxLOgZlawznu989vnhI8oOuUuMwDOPiQrhCSz5wFOt7i2rAg=="/>
+        </item>
+        <item>
             <title>2.10.8</title>
             <pubDate>Mon, 07 Sep 2026 22:49:16 +0700</pubDate>
             <sparkle:version>28</sparkle:version>
