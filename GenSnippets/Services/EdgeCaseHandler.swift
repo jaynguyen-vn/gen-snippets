@@ -157,6 +157,7 @@ final class EdgeCaseHandler {
             "com.jetbrains.WebStorm",
             "com.jetbrains.pycharm",
             "com.jetbrains.rider",
+            "com.jetbrains.datagrip",
             "com.jetbrains.CLion",
             "com.jetbrains.GoLand",
             "com.sublimetext.4",
@@ -220,7 +221,12 @@ final class EdgeCaseHandler {
             // Rust + native-wrapped TUI terminal. Has its own input pipeline that
             // drops fast-coalesced backspace events at the default 0.5ms cadence
             // and renders them as printable garbage in long-lived sessions.
-            "com.cmuxterm.app"
+            "com.cmuxterm.app",
+            // Agent IDEs and assistants with an embedded TUI terminal, where a snippet is
+            // typed into a shell rather than a text field and needs terminal paste timing.
+            "com.stablyai.orca",
+            "com.openai.codex",
+            "com.anthropic.claudefordesktop"
         ]
         return terminalApps.contains(bundleID)
     }

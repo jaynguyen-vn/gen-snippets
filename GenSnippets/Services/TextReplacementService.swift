@@ -864,75 +864,19 @@ class TextReplacementService {
         print("[TextReplacementService] ⏱️ Using deletion delay: \(timingConfig.deletion * 1000)ms, simple: \(timingConfig.useSimple)")
         #endif
 
-        // Apps that need simple, individual deletes (no selection)
-        if timingConfig.useSimple {
-            // Always use individual deletes with proper timing
-            for _ in 0..<count {
-                deleteDown.post(tap: .cghidEventTap)
-                Thread.sleep(forTimeInterval: timingConfig.deletion)
-                deleteUp.post(tap: .cghidEventTap)
-                Thread.sleep(forTimeInterval: timingConfig.deletion)
-            }
-            return
-        }
+        // Deletion is always individual backspaces. A prior fast path selected the run with
+        // Shift+Left before deleting, but Shift+Left is not universal: a terminal receives it as
+        // ESC[1;2D and echoes a literal "D" per keypress, leaving the command itself on screen.
+        // Backspace means the same thing in every app, and 20 characters cost about 20ms here.
+        let perKeyDelay = (timingConfig.useSimple || count <= 3)
+            ? timingConfig.deletion
+            : timingConfig.deletion * 0.6  // runs of 4+ tolerate a slightly tighter cadence
 
-        // Non-app specific: use optimized deletion with configured timing
-        if count <= 3 {
-            // Small count: individual deletes with configured delay
-            for _ in 0..<count {
-                deleteDown.post(tap: .cghidEventTap)
-                Thread.sleep(forTimeInterval: timingConfig.deletion)
-                deleteUp.post(tap: .cghidEventTap)
-                Thread.sleep(forTimeInterval: timingConfig.deletion)
-            }
-        } else if count <= 10 {
-            // Medium count: batch deletes
-            for _ in 0..<count {
-                deleteDown.post(tap: .cghidEventTap)
-                Thread.sleep(forTimeInterval: timingConfig.deletion * 0.6) // Slightly faster for batch
-                deleteUp.post(tap: .cghidEventTap)
-                Thread.sleep(forTimeInterval: timingConfig.deletion * 0.6)
-            }
-        } else {
-            // Large count: select all and delete
-            // First, select the text to delete (Shift + Left Arrow)
-            if let shiftDown = CGEvent(keyboardEventSource: source, virtualKey: 0x38, keyDown: true), // Shift
-               let leftArrow = CGEvent(keyboardEventSource: source, virtualKey: 0x7B, keyDown: true), // Left arrow
-               let leftArrowUp = CGEvent(keyboardEventSource: source, virtualKey: 0x7B, keyDown: false),
-               let shiftUp = CGEvent(keyboardEventSource: source, virtualKey: 0x38, keyDown: false) {
-
-                shiftDown.flags = [.maskShift, .maskNonCoalesced]
-
-                // Hold shift and press left arrow multiple times
-                shiftDown.post(tap: .cghidEventTap)
-                Thread.sleep(forTimeInterval: 0.001)
-
-                for _ in 0..<count {
-                    leftArrow.flags = [.maskShift, .maskNonCoalesced]
-                    leftArrowUp.flags = [.maskShift, .maskNonCoalesced]
-
-                    leftArrow.post(tap: .cghidEventTap)
-                    Thread.sleep(forTimeInterval: 0.0002)
-                    leftArrowUp.post(tap: .cghidEventTap)
-                    Thread.sleep(forTimeInterval: 0.0002)
-                }
-
-                shiftUp.post(tap: .cghidEventTap)
-                Thread.sleep(forTimeInterval: 0.001)
-
-                // Now delete the selected text
-                deleteDown.post(tap: .cghidEventTap)
-                Thread.sleep(forTimeInterval: 0.001)
-                deleteUp.post(tap: .cghidEventTap)
-            } else {
-                // Fallback to individual deletes
-                for _ in 0..<count {
-                    deleteDown.post(tap: .cghidEventTap)
-                    Thread.sleep(forTimeInterval: 0.0005)
-                    deleteUp.post(tap: .cghidEventTap)
-                    Thread.sleep(forTimeInterval: 0.0005)
-                }
-            }
+        for _ in 0..<count {
+            deleteDown.post(tap: .cghidEventTap)
+            Thread.sleep(forTimeInterval: perKeyDelay)
+            deleteUp.post(tap: .cghidEventTap)
+            Thread.sleep(forTimeInterval: perKeyDelay)
         }
     }
     
