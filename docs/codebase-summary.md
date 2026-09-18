@@ -3,7 +3,7 @@
 **Total Codebase:** ~16,063 LOC across 48 Swift files
 **Architecture:** MVVM + Service Layer with NotificationCenter events
 **Primary Framework:** SwiftUI + Accessibility framework
-**Deployment Target:** macOS 11.5+
+**Deployment Target:** macOS 12.0+
 **Current Version:** 2.9.8
 **Last Updated:** March 21, 2026
 
@@ -318,7 +318,7 @@ Text("key_name".localized)  // Uses String+Localization extension
 
 ## Build Configuration
 
-- **Minimum Deployment:** macOS 11.5
+- **Minimum Deployment:** macOS 12.0
 - **Target:** GenSnippets (single app target)
 - **Signing:** Team ID (configured in project.pbxproj)
 - **Sandbox:** App Sandbox disabled since v2.7.1 (enabled in earlier versions)

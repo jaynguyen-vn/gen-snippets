@@ -1,7 +1,7 @@
 # GenSnippets: Build & Deployment Guide
 
 **Current Version:** 2.9.8 (build 10)
-**Target macOS:** 11.5+ (Big Sur and later)
+**Target macOS:** 12.0+ (Monterey and later)
 **Build System:** Xcode 13.0+
 **Last Updated:** March 21, 2026
 
@@ -10,7 +10,7 @@
 ## Prerequisites
 
 ### System Requirements
-- **macOS:** 11.5 (Big Sur) or later
+- **macOS:** 12.0 (Monterey) or later
 - **Xcode:** 13.0+ (for building from source)
 - **Disk Space:** 5GB for build artifacts and DerivedData
 - **Code Signing:** Apple Developer Team ID configured

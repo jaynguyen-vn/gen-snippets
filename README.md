@@ -1,7 +1,7 @@
 # GenSnippets
 
 <div align="center">
-  <img src="https://img.shields.io/badge/Platform-macOS%2011.5%2B-blue" alt="macOS 11.5+">
+  <img src="https://img.shields.io/badge/Platform-macOS%2012.0%2B-blue" alt="macOS 12.0+">
   <img src="https://img.shields.io/badge/Swift-5.5%2B-orange" alt="Swift 5.5+">
   <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT License">
   <img src="https://img.shields.io/badge/Version-2.10.7-purple" alt="Version 2.10.7">
@@ -84,7 +84,7 @@ GenSnippets is a lightweight macOS application for system-wide text expansion. I
 6. **Quit and reopen** GenSnippets for the permission to take effect
 
 ### Requirements
-- macOS 11.5 (Big Sur) or later
+- macOS 12.0 (Monterey) or later
 - Xcode 13.0+ (for building from source)
 
 ### Building from Source
@@ -192,7 +192,7 @@ Local data is stored in:
 ### Technology Stack
 - **Language**: Swift 5.5+
 - **UI Framework**: SwiftUI
-- **Platform**: macOS 11.5+
+- **Platform**: macOS 12.0+
 - **Storage**: UserDefaults (local only, JSON format)
 - **Dependencies**: [Sparkle 2.x](https://sparkle-project.org/) for auto-updates
 

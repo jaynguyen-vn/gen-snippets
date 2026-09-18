@@ -1,7 +1,7 @@
 # GenSnippets: Project Overview & PDR
 
 **Version:** 2.9.8
-**Platform:** macOS 11.5+ (Big Sur and later)
+**Platform:** macOS 12.0+ (Monterey and later)
 **Language:** Swift 5.5+, SwiftUI
 **Status:** Active Maintenance
 **Bundle ID:** Jay8448.Gen-Snippets
@@ -105,7 +105,7 @@ GenSnippets is a macOS menu bar utility that brings professional text expansion 
 | **Storage Limit** | ~10MB (UserDefaults) | ✓ Batching prevents overflow |
 
 ### System Requirements
-- **macOS Version:** 11.5 (Big Sur) or later
+- **macOS Version:** 12.0 (Monterey) or later
 - **Xcode:** 13.0+
 - **Accessibility Permissions:** Required
 - **Sandbox:** App Sandbox disabled since v2.7.1 (enabled in earlier versions)
