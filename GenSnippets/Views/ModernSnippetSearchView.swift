@@ -1,7 +1,6 @@
 import SwiftUI
 import AppKit
 
-@available(macOS 12.0, *)
 struct ModernSnippetSearchView: View {
     @StateObject private var viewModel = LocalSnippetsViewModel()
     @State private var searchText = ""
@@ -602,7 +601,6 @@ struct ModernSearchTextField: NSViewRepresentable {
 }
 
 // Preview
-@available(macOS 12.0, *)
 struct ModernSnippetSearchView_Previews: PreviewProvider {
     static var previews: some View {
         ModernSnippetSearchView()

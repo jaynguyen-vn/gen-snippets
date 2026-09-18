@@ -20,13 +20,7 @@ class SnippetSearchWindowController: NSWindowController, NSWindowDelegate {
     private static var previousApp: NSRunningApplication?
 
     convenience init() {
-        let hostingController: NSViewController
-        if #available(macOS 12.0, *) {
-            hostingController = NSHostingController(rootView: ModernSnippetSearchView())
-        } else {
-            // Fallback for macOS 11
-            hostingController = NSHostingController(rootView: Text("Snippet Search requires macOS 12.0 or later"))
-        }
+        let hostingController = NSHostingController(rootView: ModernSnippetSearchView())
 
         // Use NSPanel with nonactivatingPanel to avoid activating the app
         // This allows the search window to appear without showing the main window
