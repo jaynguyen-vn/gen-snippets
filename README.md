@@ -4,22 +4,37 @@
   <img src="https://img.shields.io/badge/Platform-macOS%2012.0%2B-blue" alt="macOS 12.0+">
   <img src="https://img.shields.io/badge/Swift-5.5%2B-orange" alt="Swift 5.5+">
   <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT License">
-  <img src="https://img.shields.io/badge/Version-2.10.7-purple" alt="Version 2.10.7">
+  <a href="https://github.com/jaynguyen-vn/gen-snippets/releases/latest"><img src="https://img.shields.io/github/v/release/jaynguyen-vn/gen-snippets?label=Version&color=purple" alt="Latest version"></a>
 </div>
+
+<p align="center">
+  <a href="https://gensnippets.lifelonglearning.dev/"><strong>Website</strong></a> ·
+  <a href="https://github.com/jaynguyen-vn/gen-snippets/releases/latest"><strong>Download</strong></a> ·
+  <a href="https://gensnippets.lifelonglearning.dev/privacy">Privacy</a>
+</p>
+
+<p align="center">
+  <a href="https://gensnippets.lifelonglearning.dev/video/gensnippets-demo.mp4">
+    <img src="docs/assets/readme-demo.jpg" alt="Typing ;sig in an email expands it into a full signature" width="880">
+  </a>
+  <br>
+  <a href="https://gensnippets.lifelonglearning.dev/video/gensnippets-demo.mp4">▶ Watch the 38-second demo</a>
+</p>
 
 ## Overview
 
-GenSnippets is a lightweight macOS application for system-wide text expansion. It runs quietly in your menu bar, monitoring keyboard input and instantly replacing custom trigger commands with pre-defined text snippets across all applications.
+GenSnippets is a lightweight macOS application for system-wide text expansion. It runs quietly in your menu bar, monitoring keyboard input and instantly replacing custom trigger commands with pre-defined snippets (text, images or files) across all applications.
 
 ## Features
 
 ### Core Functionality
 - **System-wide Text Replacement** - Works in any application across macOS using CGEvent monitoring
+- **Images & Files** - Snippets can carry images and files alongside text, such as a payment QR code or a PDF you send often
 - **Category Management** - Organize snippets into custom categories with alphabetical sorting
 - **Smart Command Matching** - Trie data structure provides O(m) lookup performance
 - **Priority Matching** - Longer commands take precedence for accurate replacements
 - **Auto-cleanup** - Automatically removes typed commands after replacement
-- **Dynamic Content** - Insert clipboard content, current date, or position cursor with special keywords
+- **Dynamic Content** - Insert the clipboard, dates, times and more with [keywords](#smart-keywords)
 - **Security Buffer** - 15-second timeout prevents accidental replacements of old inputs
 - **Browser Compatibility** - Specialized timing adjustments for Discord, Chrome, and other web browsers
 
@@ -27,38 +42,56 @@ GenSnippets is a lightweight macOS application for system-wide text expansion. I
 - **Three-Column Layout** - Intuitive category list, snippet list, and detail view
 - **Menu Bar Integration** - Quick access from the system menu bar with snippet count
 - **Native macOS Design** - Built with SwiftUI for a seamless experience
-- **Flexible Visibility** - Toggle between dock and menu bar visibility
+- **Stays Out of the Way** - Lives in the menu bar; the Dock icon only shows while the main window is open
 - **Quick Search** - Global hotkey (default: Cmd+Option+E) opens instant snippet search
-- **Customizable Shortcuts** - Configure your preferred keyboard shortcuts
+- **Customizable Shortcut** - Change the Quick Search hotkey in Settings
 
 ### Data Management
-- **100% Offline** - All data stored locally in UserDefaults with batch saving
+- **Local-only Data** - Everything is stored on your Mac: snippets in UserDefaults with batch saving, images and files in Application Support
 - **Export/Import** - Backup and share your snippet collections as JSON
-- **Privacy-First** - Your data never leaves your device
+- **Privacy-First** - Your snippets never leave your device; the only network request is the daily update check
 - **Optimized Storage** - Caching layer with batch operations for performance
 
 ### Advanced Features
-- **Auto-Update** - Built-in Sparkle integration checks for updates automatically
+- **Auto-Update** - Built-in Sparkle integration checks GitHub for updates about once a day
 - **Usage Tracking** - Command-based usage tracking for accurate statistics
 - **Insights Dashboard** - Monitor snippet usage patterns and analytics
 - **Multi-language Support** - Localization infrastructure ready for expansion
 - **Accessibility Integration** - Full macOS accessibility permission handling
 - **Performance Optimized** - Trie-based matching with memory-efficient caching
-- **Smart Keywords** - Dynamic content insertion with multiple placeholders:
-  - `{clipboard}` - Current clipboard content
-  - `{cursor}` - Cursor positioning after insertion
-  - `{timestamp}` - Unix timestamp
-  - `{random-number}` - Random number (1-1000)
-  - `{dd/mm}` - Current date (day/month format)
-  - `{dd/mm/yyyy}` - Full date format
-  - `{time}` - Current time (HH:mm:ss)
-  - `{uuid}` - Unique identifier
-- **Metafields (Dynamic Fields)** - Custom placeholders that prompt for input:
-  - `{{field}}` - Prompts for a value before insertion
-  - `{{field:default}}` - Prompts with a pre-filled default value
-  - Live preview shows the result as you type
-  - Perfect for templates with variable content
 - **Batch Operations** - Efficient batch saving and loading for large snippet collections
+
+### Smart Keywords
+
+Keywords are replaced when a snippet expands. Use **Insert** in the snippet editor to add one.
+
+| Keyword | Inserts |
+|---------|---------|
+| `{clipboard}` | Current clipboard content |
+| `{upper}` / `{lower}` | Clipboard content in UPPERCASE / lowercase |
+| `{cursor}` | Places the cursor here after insertion (text-only snippets) |
+| `{time}` | Current time (HH:mm:ss) |
+| `{time:short}` | Current time (HH:mm) |
+| `{dd/mm}` | Date as DD/MM |
+| `{dd/mm/yyyy}` | Date as DD/MM/YYYY |
+| `{mm/dd/yyyy}` | Date as MM/DD/YYYY (US) |
+| `{yyyy-mm-dd}` | Date as YYYY-MM-DD (ISO) |
+| `{datetime}` | Current date and time |
+| `{date-iso}` | Full ISO 8601 timestamp |
+| `{weekday}` | Day name (Monday, Tuesday…) |
+| `{month}` | Month name (January, February…) |
+| `{timestamp}` | Unix timestamp in seconds |
+| `{uuid}` | Unique identifier |
+| `{random:min-max}` | Random number in a range, e.g. `{random:1-100}` |
+| `{random-number}` | Random number from 1 to 1000 |
+
+### Metafields (Dynamic Fields)
+
+Custom placeholders that prompt for input:
+- `{{field}}` - Prompts for a value before insertion
+- `{{field:default}}` - Prompts with a pre-filled default value
+- Live preview shows the result as you type
+- Perfect for templates with variable content
 
 ## Installation
 
@@ -83,16 +116,18 @@ GenSnippets is a lightweight macOS application for system-wide text expansion. I
 5. Grant permission in **System Settings → Privacy & Security → Accessibility**
 6. **Quit and reopen** GenSnippets for the permission to take effect
 
+You only need to do this once. After that, GenSnippets updates itself: it checks for new versions about once a day and asks before installing one.
+
 ### Requirements
 - macOS 12.0 (Monterey) or later
-- Xcode 13.0+ (for building from source)
+- Xcode 16 or later (for building from source)
 
 ### Building from Source
 
 1. Clone the repository:
 ```bash
 git clone https://github.com/jaynguyen-vn/gen-snippets
-cd gen-snippets/GenSnippets
+cd gen-snippets
 ```
 
 2. Open in Xcode:
@@ -100,11 +135,15 @@ cd gen-snippets/GenSnippets
 open GenSnippets.xcodeproj
 ```
 
-3. Build and run:
+3. Set your signing team: select the **GenSnippets** target, open **Signing & Capabilities**, and pick your own **Team**. The project is set up with the maintainer's team, whose certificate you won't have.
+
+4. Build and run:
    - Select the "GenSnippets" scheme
    - Press `⌘R` to build and run
 
-Or build from command line:
+> **Tip:** Quit any installed copy of GenSnippets before running your build. Two running copies both watch the keyboard, so every snippet would expand twice.
+
+Or build from command line (after setting your team):
 ```bash
 # Debug build
 xcodebuild -project GenSnippets.xcodeproj -scheme "GenSnippets" -configuration Debug build
@@ -121,10 +160,11 @@ open ~/Library/Developer/Xcode/DerivedData/GenSnippets-*/Build/Products/Debug/Ge
 ### First Launch
 
 1. **Create Your First Snippet**:
-   - Click the "+" button in the snippet list
+   - Click the "+" button in the snippet list (or press `⌘N`)
    - Enter a command trigger (e.g., `!email`)
    - Enter the replacement text (e.g., `john.doe@example.com`)
-   - Click "Save"
+   - To include an image or a file, use **Add Image** or **Add File** in the editor (images can also be pasted or dragged in)
+   - Click "Add Snippet"
 
 2. **Test It Out**:
    - Open any application (TextEdit, Safari, etc.)
@@ -146,7 +186,7 @@ Categories help you organize related snippets:
 
 ### Code Snippets
 - Command: `!lorem` → Lorem ipsum placeholder text
-- Command: `!copyright` → Copyright notice with current year
+- Command: `!todo` → "// TODO ({yyyy-mm-dd}): " (inserts today's date)
 
 ### Frequent Phrases
 - Command: `!addr` → Your full address
@@ -158,6 +198,11 @@ Categories help you organize related snippets:
 - Command: `!paste` → "{clipboard}" (inserts current clipboard content)
 - Command: `!log` → "[{time}] {uuid}: " (inserts time and unique ID)
 - Command: `!today` → "Date: {dd/mm/yyyy}" (inserts today's date)
+- Command: `!shout` → "{upper}" (pastes the clipboard in uppercase)
+
+### Images & Files
+- Command: `!qr` → Your payment QR code (image)
+- Command: `!cv` → Your resume as a PDF (file)
 
 ### Metafields (Dynamic Input)
 - Command: `!hello` → "Hello {{name}}, welcome to {{company}}!"
@@ -171,13 +216,17 @@ Categories help you organize related snippets:
 
 ### Settings Options
 
-- **Automatic Updates** - Enable/disable automatic update checks
-- **Check for Updates** - Manually check for new versions
-- **Menu Bar Icon** - Show/hide the menu bar icon with snippet count
-- **Dock Icon** - Show/hide the dock icon
-- **Launch at Login** - Automatically start GenSnippets when you log in
-- **Global Hotkey** - Customize the keyboard shortcut (default: Cmd+Option+E)
-- **Search View** - Quick access to snippet search with customizable shortcut
+- **Start at Login** - Launch GenSnippets when you start your Mac
+- **Menu Bar Icon** - Show or hide the menu bar icon
+- **Search Snippets** - Global shortcut for Quick Search (default: Cmd+Option+E)
+
+### Updates
+
+- **Check for Updates…** is in the GenSnippets app menu, shown while the main window is open.
+- Automatic checks are on by default. To turn them off, quit GenSnippets and run:
+  ```bash
+  defaults write Jay8448.Gen-Snippets SUEnableAutomaticChecks -bool false
+  ```
 
 ### Data Storage
 
@@ -186,6 +235,8 @@ Local data is stored in:
 ~/Library/Preferences/Jay8448.Gen-Snippets.plist    # Snippets, categories, settings
 ~/Library/Application Support/GenSnippets/RichContent/  # Images, files (since v2.8.0)
 ```
+
+Moving the app to the Trash leaves these behind. To remove GenSnippets completely, delete both as well.
 
 ## Architecture
 
@@ -222,16 +273,29 @@ For detailed architecture: see [docs/system-architecture.md](docs/system-archite
 Complete developer documentation in `docs/`:
 
 - **[Project Overview & PDR](docs/project-overview-pdr.md)** - Vision, features, requirements, roadmap
-- **[Codebase Summary](docs/codebase-summary.md)** - Directory structure, 48 Swift files, LOC breakdown
+- **[Codebase Summary](docs/codebase-summary.md)** - Directory structure and LOC breakdown
 - **[Code Standards](docs/code-standards.md)** - Swift conventions, naming, patterns, design system usage
 - **[System Architecture](docs/system-architecture.md)** - MVVM design, data flow, threading, event system
 - **[Project Roadmap](docs/project-roadmap.md)** - Version history, upcoming plans, technical debt
 - **[Deployment Guide](docs/deployment-guide.md)** - Build, code signing, DMG creation, release process
 
+## Promo Video
+
+`promo-video/` is the [Remotion](https://www.remotion.dev/) project behind the demo video. The music and sound effects are not committed because Mixkit's license does not allow redistributing them, so fetch them before rendering:
+
+```bash
+cd promo-video
+npm install
+npm run fetch-audio      # needs curl and ffmpeg
+npm run render           # 16:9 → out/gensnippets-promo.mp4
+npm run render:vertical  # 9:16 → out/gensnippets-promo-vertical.mp4
+```
+
+`npm run dev` opens Remotion Studio for previewing.
+
 ## Contributing
 
 Contributions welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for:
-- Code of conduct
 - Development setup (see docs/)
 - Pull request process
 - Reporting issues
@@ -255,7 +319,6 @@ GenSnippets is released under the MIT License. See [LICENSE](LICENSE) for detail
 ## Support
 
 - **Issues**: [GitHub Issues](https://github.com/jaynguyen-vn/gen-snippets/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/jaynguyen-vn/gen-snippets/discussions)
 - **Email**: truongnd0001@gmail.com
 
 ---
