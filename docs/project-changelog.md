@@ -19,6 +19,20 @@ Format: `### <version> (build <n>) — <YYYY-MM-DD>` followed by short bullets. 
 
 ---
 
+## v2.10.9 (build 29) — 2026-09-18
+
+### Fixed
+- **Expansion in embedded terminals no longer leaves the command on screen.** Commands longer than 10 characters were deleted by selecting them with Shift+Left, which a terminal receives as `ESC[1;2D` and echoes as a literal "D" per keypress. In an embedded TUI terminal an 11-character command stayed on screen followed by a run of D characters, with the replacement pasted after it. Deletion now always uses Backspace, which means the same thing in every app (about 20 ms extra for a long command).
+- Agent IDEs that embed a TUI terminal (Orca, Codex, Claude Desktop) are now classified as terminals and get terminal paste timing. DataGrip joins the other JetBrains IDEs.
+
+### Compatibility
+- **Minimum macOS is now 12.0 (Monterey).** The installed Xcode no longer builds a lower target; this is a toolchain floor, not an adoption of newer APIs. Older appcast items keep `sparkle:minimumSystemVersion` 11.5, so a Mac on Big Sur stays on v2.10.8 instead of being offered a build it cannot run.
+
+### Affected files
+- `Services/TextReplacementService.swift`, `Services/EdgeCaseHandler.swift`, `GenSnippets.xcodeproj/project.pbxproj`; removed the unused macOS 11 fallback `Views/SnippetSearchView.swift`
+
+---
+
 ## v2.10.8 (build 28) — 2026-09-07
 
 ### Fixed
