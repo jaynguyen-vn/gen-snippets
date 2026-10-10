@@ -143,6 +143,61 @@ enum InlineImageSizing {
     }
 }
 
+/// The editor shows its body text larger than it stores it.
+///
+/// A rich snippet's RTFD keeps every run's font and pastes it into the target app on expansion, so
+/// what gets stored must stay the system body size every existing snippet was saved with. Only runs
+/// in that exact font — the text the editor itself types — are swapped for a larger copy while on
+/// screen. Runs in any other font or size, such as styled text pasted from a browser, are shown and
+/// stored exactly as they are, so the swap never changes what an expansion pastes.
+enum InlineEditorFont {
+    /// Size written to storage.
+    static let storedSize = NSFont.systemFontSize
+    /// Size the same text is drawn at inside the editor.
+    static let displaySize: CGFloat = 16
+
+    static var display: NSFont { .systemFont(ofSize: displaySize) }
+
+    /// Families the editor's own body text can arrive in. RTF has no name for the system UI font and
+    /// writes it as Helvetica Neue, so that is what the body text of every saved rich snippet loads
+    /// back as.
+    private static let bodyFamilies = Set(
+        [NSFont.systemFont(ofSize: storedSize).familyName, "Helvetica Neue"].compactMap { $0 }
+    )
+
+    /// Storage → screen. A run with no font is treated as body text: left alone, AppKit would draw it
+    /// in 12pt Helvetica, so a plain snippet would load smaller than anything the user types into it.
+    static func forDisplay(_ stored: NSAttributedString) -> NSAttributedString {
+        resize(stored, from: storedSize, to: displaySize, fillingMissing: true)
+    }
+
+    /// Screen → storage.
+    static func forStorage(_ shown: NSAttributedString) -> NSAttributedString {
+        resize(shown, from: displaySize, to: storedSize, fillingMissing: false)
+    }
+
+    private static func resize(_ attr: NSAttributedString, from: CGFloat, to: CGFloat, fillingMissing: Bool) -> NSAttributedString {
+        let result = NSMutableAttributedString(attributedString: attr)
+        let full = NSRange(location: 0, length: result.length)
+
+        // Collect first — the same rule storableCopy follows for attachments.
+        var changes: [(range: NSRange, font: NSFont)] = []
+        result.enumerateAttribute(.font, in: full, options: []) { value, range, _ in
+            guard let font = value as? NSFont else {
+                if fillingMissing { changes.append((range, .systemFont(ofSize: to))) }
+                return
+            }
+            guard let family = font.familyName, bodyFamilies.contains(family), font.pointSize == from else { return }
+            // The descriptor carries the run's weight and traits, so bold stays bold.
+            changes.append((range, NSFont(descriptor: font.fontDescriptor, size: to) ?? .systemFont(ofSize: to)))
+        }
+        for change in changes {
+            result.addAttribute(.font, value: change.font, range: change.range)
+        }
+        return result
+    }
+}
+
 /// Seamless inline rich-text editor (text + inline images in one document), backed by NSTextView.
 /// Produces an `NSAttributedString` the host serializes to RTFD. macOS 11.5-safe (no @FocusState /
 /// TextKit 2 / 12+ SwiftUI APIs). Image paste & drag-drop become inline `NSTextAttachment`s via
@@ -178,19 +233,20 @@ struct InlineRichTextEditor: NSViewRepresentable {
         textView.backgroundColor = .textBackgroundColor
         textView.wantsLayer = true
         textView.delegate = context.coordinator
-        textView.font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
+        textView.font = InlineEditorFont.display
         // Adaptive text colors so content follows light/dark like the rest of the UI.
         textView.textColor = .labelColor
         textView.insertionPointColor = .labelColor
         textView.typingAttributes = [
             .foregroundColor: NSColor.labelColor,
-            .font: NSFont.systemFont(ofSize: NSFont.systemFontSize)
+            .font: InlineEditorFont.display
         ]
         textView.textContainerInset = NSSize(width: 4, height: 8)
         textView.autoresizingMask = [.width]
-        textView.textStorage?.setAttributedString(attributedText)
+        textView.textStorage?.setAttributedString(InlineEditorFont.forDisplay(attributedText))
 
         context.coordinator.textView = textView
+        context.coordinator.lastSynced = attributedText
         // Re-clamp inline images when the editor is resized (column drag / window resize) so an image
         // never overflows a narrower editor.
         textView.postsFrameChangedNotifications = true
@@ -217,10 +273,13 @@ struct InlineRichTextEditor: NSViewRepresentable {
 
         // Don't clobber the user's edits / caret while they're typing. Only push an external
         // change (e.g. initial load, programmatic reset) when the view isn't being edited and
-        // the content actually differs.
-        if !context.coordinator.isEditing, !storage.isEqual(to: attributedText) {
+        // the content actually differs. Compared against the last value synced in either direction,
+        // not the storage: the storage holds the enlarged display copy, which never equals the binding.
+        let coordinator = context.coordinator
+        if !coordinator.isEditing, coordinator.lastSynced.map({ !$0.isEqual(to: attributedText) }) ?? true {
+            coordinator.lastSynced = attributedText
             let selected = textView.selectedRange()
-            storage.setAttributedString(attributedText)
+            storage.setAttributedString(InlineEditorFont.forDisplay(attributedText))
             // Best-effort caret restore within new bounds.
             let loc = min(selected.location, storage.length)
             textView.setSelectedRange(NSRange(location: loc, length: 0))
@@ -236,6 +295,8 @@ struct InlineRichTextEditor: NSViewRepresentable {
         var parent: InlineRichTextEditor
         weak var textView: NSTextView?
         var isEditing = false
+        /// The binding's value as of the last sync, at storage size.
+        var lastSynced: NSAttributedString?
         private var isNormalizing = false
         private var lastReportedHeight: CGFloat = 0
         private var lastWidth: CGFloat = 0
@@ -262,9 +323,16 @@ struct InlineRichTextEditor: NSViewRepresentable {
                   let storage = textView.textStorage else { return }
             // Newly pasted/dropped images arrive as plain attachments → convert to preview-sized ones.
             normalizeImages(in: textView)
-            // Snapshot so downstream sees an immutable copy, not the live storage.
-            parent.attributedText = NSAttributedString(attributedString: storage)
+            publish(storage)
             reportHeight(for: textView)
+        }
+
+        /// Hand the edited document to the binding at storage size. `forStorage` returns a fresh copy,
+        /// so downstream never holds the live storage.
+        private func publish(_ storage: NSTextStorage) {
+            let stored = InlineEditorFont.forStorage(storage)
+            lastSynced = stored
+            parent.attributedText = stored
         }
 
         @objc func editorFrameChanged(_ note: Notification) {
@@ -276,7 +344,7 @@ struct InlineRichTextEditor: NSViewRepresentable {
             lastWidth = width
             if normalizeImages(in: tv), let storage = tv.textStorage {
                 // Persist the image change so updateNSView doesn't restore the old layout.
-                parent.attributedText = NSAttributedString(attributedString: storage)
+                publish(storage)
             }
             reportHeight(for: tv)
         }
