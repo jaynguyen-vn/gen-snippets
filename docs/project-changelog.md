@@ -6,6 +6,19 @@ Format: `### <version> (build <n>) — <YYYY-MM-DD>` followed by short bullets. 
 
 ---
 
+## v2.10.10 (build 30) — 2026-10-10
+
+### Changed
+- **Larger text in the snippet editor.** The content editor now draws snippet text at 16pt instead of 13pt. Plain-text snippets used to open in AppKit's 12pt Helvetica fallback, smaller than the text you typed into them; they now open at the same size.
+
+### Compatibility
+- Expanded snippets paste exactly as before. The larger size is display-only: text is still stored at 13pt, because a rich snippet's RTFD keeps every run's font and pastes it into the target app. Styled text pasted from elsewhere keeps its own font and size.
+
+### Affected files
+- `Components/InlineRichTextEditor.swift`, new `GenSnippetsTests/InlineEditorFontTests.swift`
+
+---
+
 ## v2.10.8 (build 28) — 2026-09-07
 
 ### Fixed
