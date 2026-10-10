@@ -3,6 +3,15 @@
     <channel>
         <title>GenSnippets</title>
         <item>
+            <title>2.10.10</title>
+            <pubDate>Sat, 10 Oct 2026 23:32:02 +0700</pubDate>
+            <sparkle:version>30</sparkle:version>
+            <sparkle:shortVersionString>2.10.10</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>12.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<ul><li>Larger text in the snippet editor: 16pt instead of 13pt. Expanded snippets paste at the same size as before.</li></ul>]]></description>
+            <enclosure url="https://github.com/jaynguyen-vn/gen-snippets/releases/download/v2.10.10/GenSnippets.2.10.10.dmg" length="2766849" type="application/octet-stream" sparkle:edSignature="jYc5yWBInbhjVIvNdPef+FrGefJSmVd9dX2OIMRRBXheudZ0XlQtMWVkA9B7tvtOuqEQPs6MX5BPqxsAwrpUBA=="/>
+        </item>
+        <item>
             <title>2.10.9</title>
             <pubDate>Fri, 18 Sep 2026 22:11:55 +0700</pubDate>
             <sparkle:version>29</sparkle:version>
